@@ -1,0 +1,12 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public read access. Writes are needed for the admin form in SeniorHub.
+    // Secure this with Firebase Authentication before production.
+    match /activities/{activityId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+  }
+}
