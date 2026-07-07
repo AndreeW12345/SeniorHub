@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { type Activity } from '@/constants/activities';
+import { getCategoryVisual } from '@/constants/category-visuals';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { deleteActivityFromFirestore } from '@/services/activities';
 import { useTheme } from '@/hooks/use-theme';
@@ -17,6 +18,7 @@ type AdminActivityListItemProps = {
 export function AdminActivityListItem({ activity, onDeleted }: AdminActivityListItemProps) {
   const router = useRouter();
   const theme = useTheme();
+  const categoryVisual = getCategoryVisual(activity.category);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const performDelete = async () => {
@@ -51,8 +53,8 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
   return (
     <View style={[styles.card, CardShadow, { backgroundColor: theme.card }]}>
       <View style={styles.content}>
-        <View style={[styles.categoryBadge, { backgroundColor: theme.primaryLight }]}>
-          <ThemedText type="smallBold" themeColor="primary">
+        <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.background }]}>
+          <ThemedText type="smallBold" style={{ color: categoryVisual.foreground }}>
             {activity.category}
           </ThemedText>
         </View>

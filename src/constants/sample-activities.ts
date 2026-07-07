@@ -11,7 +11,7 @@ export const SAMPLE_ACTIVITIES: Activity[] = [
     time: '09:00 – 10:00',
     location: 'Stadsparken, huvudentrén',
     organizer: 'Seniorrådet',
-    category: 'Motion',
+    category: 'Träning',
     imageUrl:
       'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=900&h=560&fit=crop&q=80',
   },
@@ -36,7 +36,7 @@ export const SAMPLE_ACTIVITIES: Activity[] = [
     time: '18:30 – 20:00',
     location: 'Medborgarhuset',
     organizer: 'Pensionärsföreningen',
-    category: 'Kultur',
+    category: 'Spel',
     imageUrl: null,
   },
   {
@@ -48,7 +48,7 @@ export const SAMPLE_ACTIVITIES: Activity[] = [
     time: '10:30 – 12:00',
     location: 'Södra strandpromenaden',
     organizer: 'Friluftsfrämjandet',
-    category: 'Promenader',
+    category: 'Promenad',
     imageUrl:
       'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=900&h=560&fit=crop&q=80',
   },
@@ -74,7 +74,7 @@ export const SAMPLE_ACTIVITIES: Activity[] = [
     time: '10:00 – 11:30',
     location: 'Biblioteket, studierum A',
     organizer: 'Kommunens digitala vägledning',
-    category: 'Kurser',
+    category: 'Frivilligt',
     imageUrl:
       'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=900&h=560&fit=crop&q=80',
   },

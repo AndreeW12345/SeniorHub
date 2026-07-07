@@ -1,16 +1,50 @@
-export const CATEGORIES = ['Alla', 'Fika', 'Motion', 'Kultur', 'Kurser', 'Promenader'] as const;
+export const CATEGORIES = [
+  'Alla',
+  'Promenad',
+  'Fika',
+  'Spel',
+  'Musik',
+  'Träning',
+  'Kultur',
+  'Frivilligt',
+] as const;
 
 export type Category = (typeof CATEGORIES)[number];
 
 export type ActivityCategory = Exclude<Category, 'Alla'>;
 
 export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
+  'Promenad',
   'Fika',
-  'Motion',
+  'Spel',
+  'Musik',
+  'Träning',
   'Kultur',
-  'Kurser',
-  'Promenader',
+  'Frivilligt',
 ];
+
+/** Fallback category used when a stored value is missing or unrecognized. */
+export const DEFAULT_CATEGORY: ActivityCategory = 'Frivilligt';
+
+/** Maps legacy category names to the current set so older data keeps working. */
+const LEGACY_CATEGORY_MAP: Record<string, ActivityCategory> = {
+  Motion: 'Träning',
+  Promenader: 'Promenad',
+  Kurser: 'Frivilligt',
+};
+
+/** Normalizes any stored category value to a valid current category. */
+export function normalizeCategory(value: unknown): ActivityCategory {
+  if (typeof value !== 'string') {
+    return DEFAULT_CATEGORY;
+  }
+
+  if (ACTIVITY_CATEGORIES.includes(value as ActivityCategory)) {
+    return value as ActivityCategory;
+  }
+
+  return LEGACY_CATEGORY_MAP[value] ?? DEFAULT_CATEGORY;
+}
 
 export type Activity = {
   id: string;

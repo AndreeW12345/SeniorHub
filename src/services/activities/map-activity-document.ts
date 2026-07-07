@@ -1,14 +1,6 @@
-import {
-  ACTIVITY_CATEGORIES,
-  type Activity,
-  type ActivityCategory,
-} from '@/constants/activities';
+import { normalizeCategory, type Activity } from '@/constants/activities';
 
 type FirestoreActivityData = Record<string, unknown>;
-
-function isActivityCategory(value: unknown): value is ActivityCategory {
-  return typeof value === 'string' && ACTIVITY_CATEGORIES.includes(value as ActivityCategory);
-}
 
 function readString(data: FirestoreActivityData, key: string): string | null {
   const value = data[key];
@@ -33,13 +25,8 @@ export function mapActivityDocument(id: string, data: FirestoreActivityData): Ac
   const time = readString(data, 'time');
   const location = readString(data, 'location');
   const organizer = readString(data, 'organizer');
-  const category = data.category;
 
   if (!title || !description || !date || !time || !location || !organizer) {
-    return null;
-  }
-
-  if (!isActivityCategory(category)) {
     return null;
   }
 
@@ -51,7 +38,7 @@ export function mapActivityDocument(id: string, data: FirestoreActivityData): Ac
     time,
     location,
     organizer,
-    category,
+    category: normalizeCategory(data.category),
     imageUrl: readImageUrl(data),
   };
 }

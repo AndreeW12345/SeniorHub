@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { CategoryDropdown } from '@/components/category-dropdown';
+import { DateTimeField } from '@/components/date-time-field';
 import { FormField } from '@/components/form-field';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
@@ -149,19 +150,21 @@ export function AdminActivityForm({
           placeholder="Beskriv aktiviteten"
           multiline
         />
-        <FormField
+        <DateTimeField
           label="Datum"
+          mode="date"
           value={date}
-          onChangeText={setDate}
+          onChange={setDate}
           error={errors.date}
-          placeholder="Till exempel 2026-07-15"
+          placeholder="Välj datum"
         />
-        <FormField
+        <DateTimeField
           label="Tid"
+          mode="time"
           value={time}
-          onChangeText={setTime}
+          onChange={setTime}
           error={errors.time}
-          placeholder="Till exempel 10:00"
+          placeholder="Välj tid"
         />
         <FormField
           label="Plats"

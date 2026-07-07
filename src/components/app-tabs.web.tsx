@@ -14,6 +14,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useAuth } from '@/contexts/auth-context';
 
 const theme = Colors.light;
 
@@ -26,6 +27,8 @@ const TAB_ICONS = {
 } as const satisfies Record<string, SymbolViewProps['name']>;
 
 export default function AppTabs() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <Tabs style={styles.tabsRoot}>
       <TabSlot style={styles.tabSlot} />
@@ -43,9 +46,11 @@ export default function AppTabs() {
           <TabTrigger name="information" href="/information" asChild>
             <TabButton icon={TAB_ICONS.information}>Information</TabButton>
           </TabTrigger>
-          <TabTrigger name="admin" href="/admin" asChild>
-            <TabButton icon={TAB_ICONS.admin}>Admin</TabButton>
-          </TabTrigger>
+          {isAuthenticated ? (
+            <TabTrigger name="admin" href="/admin" asChild>
+              <TabButton icon={TAB_ICONS.admin}>Admin</TabButton>
+            </TabTrigger>
+          ) : null}
         </CustomTabList>
       </TabList>
     </Tabs>

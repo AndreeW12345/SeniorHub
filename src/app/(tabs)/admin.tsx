@@ -1,22 +1,38 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { AdminActivityListItem } from '@/components/admin-activity-list-item';
+import { AdminGuard } from '@/components/admin-guard';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { type Activity } from '@/constants/activities';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { fetchActivitiesFromFirestore } from '@/services/activities';
 import { useActivities } from '@/contexts/activities-context';
+import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AdminScreen() {
+  return (
+    <AdminGuard>
+      <AdminScreenContent />
+    </AdminGuard>
+  );
+}
+
+function AdminScreenContent() {
   const router = useRouter();
   const theme = useTheme();
+  const { user, signOut } = useAuth();
   const { refreshActivities } = useActivities();
   const { saved, updated } = useLocalSearchParams<{ saved?: string; updated?: string }>();
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successMessage =
+    saved === '1'
+      ? 'Aktiviteten sparades.'
+      : updated === '1'
+        ? 'Aktiviteten uppdaterades.'
+        : null;
   const [adminActivities, setAdminActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -37,14 +53,6 @@ export default function AdminScreen() {
     }, [loadAdminActivities]),
   );
 
-  useEffect(() => {
-    if (saved === '1') {
-      setSuccessMessage('Aktiviteten sparades.');
-    } else if (updated === '1') {
-      setSuccessMessage('Aktiviteten uppdaterades.');
-    }
-  }, [saved, updated]);
-
   const handleActivityDeleted = useCallback(
     (activityId: string) => {
       setAdminActivities((currentActivities) =>
@@ -54,6 +62,11 @@ export default function AdminScreen() {
     },
     [refreshActivities],
   );
+
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    router.replace('/');
+  }, [router, signOut]);
 
   return (
     <ScreenLayout title="Administratör" subtitle="Hantera aktiviteter i Firestore">
@@ -110,6 +123,28 @@ export default function AdminScreen() {
           </View>
         )}
       </View>
+
+      <View style={styles.accountSection}>
+        {user?.email ? (
+          <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.accountEmail}>
+            Inloggad som {user.email}
+          </ThemedText>
+        ) : null}
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Logga ut"
+          onPress={() => void handleSignOut()}
+          style={({ pressed }) => [
+            styles.signOutButton,
+            { borderColor: theme.border },
+            pressed && styles.signOutButtonPressed,
+          ]}>
+          <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.signOutButtonText}>
+            Logga ut
+          </ThemedText>
+        </Pressable>
+      </View>
     </ScreenLayout>
   );
 }
@@ -163,5 +198,29 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     maxWidth: 340,
+  },
+  accountSection: {
+    gap: Spacing.three,
+    alignItems: 'center',
+    paddingTop: Spacing.two,
+  },
+  accountEmail: {
+    textAlign: 'center',
+  },
+  signOutButton: {
+    minHeight: 56,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.three,
+    alignSelf: 'stretch',
+  },
+  signOutButtonPressed: {
+    opacity: 0.85,
+  },
+  signOutButtonText: {
+    fontWeight: '600',
   },
 });

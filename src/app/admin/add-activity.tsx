@@ -1,6 +1,7 @@
 import { useRouter, type Href } from 'expo-router';
 
 import { AdminActivityForm } from '@/components/admin-activity-form';
+import { AdminGuard } from '@/components/admin-guard';
 import { useActivities } from '@/contexts/activities-context';
 
 export default function AddActivityScreen() {
@@ -8,12 +9,14 @@ export default function AddActivityScreen() {
   const { refreshActivities } = useActivities();
 
   return (
-    <AdminActivityForm
-      mode="create"
-      onSubmitSuccess={async () => {
-        await refreshActivities();
-        router.replace('/admin?saved=1' as Href);
-      }}
-    />
+    <AdminGuard>
+      <AdminActivityForm
+        mode="create"
+        onSubmitSuccess={async () => {
+          await refreshActivities();
+          router.replace('/admin?saved=1' as Href);
+        }}
+      />
+    </AdminGuard>
   );
 }

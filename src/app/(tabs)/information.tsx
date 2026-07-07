@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
+import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 
 function InfoSection({ title, children }: { title: string; children: ReactNode }) {
@@ -34,6 +36,24 @@ function InfoStep({ icon, text }: { icon: SymbolViewProps['name']; text: string 
 }
 
 export default function InformationScreen() {
+  const router = useRouter();
+  const theme = useTheme();
+  const { isAuthenticated, user, signOut } = useAuth();
+
+  const handleAdminPress = () => {
+    if (isAuthenticated) {
+      router.push('/admin' as Href);
+      return;
+    }
+
+    router.push('/login' as Href);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.replace('/');
+  };
+
   return (
     <ScreenLayout title="Information" subtitle="Om SeniorHub">
       <InfoSection title="Välkommen till SeniorHub">
@@ -70,6 +90,48 @@ export default function InformationScreen() {
           Dina favoriter sparas lokalt på enheten.
         </ThemedText>
       </InfoSection>
+
+      <InfoSection title="För administratörer">
+        {isAuthenticated && user?.email ? (
+          <ThemedText type="bodyLarge" themeColor="textSecondary">
+            Du är inloggad som {user.email}.
+          </ThemedText>
+        ) : (
+          <ThemedText type="bodyLarge" themeColor="textSecondary">
+            Administratörer kan logga in för att hantera aktiviteter i appen.
+          </ThemedText>
+        )}
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isAuthenticated ? 'Öppna administratörsvyn' : 'Logga in som administratör'}
+          onPress={handleAdminPress}
+          style={({ pressed }) => [
+            styles.adminButton,
+            { backgroundColor: theme.primary },
+            pressed && styles.adminButtonPressed,
+          ]}>
+          <ThemedText type="bodyLarge" style={styles.adminButtonText}>
+            {isAuthenticated ? 'Öppna administratörsvyn' : 'Logga in som administratör'}
+          </ThemedText>
+        </Pressable>
+
+        {isAuthenticated ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Logga ut"
+            onPress={() => void handleSignOut()}
+            style={({ pressed }) => [
+              styles.signOutButton,
+              { borderColor: theme.border },
+              pressed && styles.signOutButtonPressed,
+            ]}>
+            <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.signOutButtonText}>
+              Logga ut
+            </ThemedText>
+          </Pressable>
+        ) : null}
+      </InfoSection>
     </ScreenLayout>
   );
 }
@@ -97,5 +159,38 @@ const styles = StyleSheet.create({
   },
   stepText: {
     flex: 1,
+  },
+  adminButton: {
+    minHeight: 64,
+    borderRadius: Radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.four,
+  },
+  adminButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
+  },
+  adminButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  signOutButton: {
+    minHeight: 56,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.three,
+  },
+  signOutButtonPressed: {
+    opacity: 0.85,
+  },
+  signOutButtonText: {
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

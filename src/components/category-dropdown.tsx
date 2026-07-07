@@ -4,6 +4,7 @@ import { SymbolView } from 'expo-symbols';
 
 import { ThemedText } from '@/components/themed-text';
 import { ACTIVITY_CATEGORIES, type ActivityCategory } from '@/constants/activities';
+import { getCategoryVisual } from '@/constants/category-visuals';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -37,7 +38,10 @@ export function CategoryDropdown({ value, onChange, error }: CategoryDropdownPro
           },
           pressed && styles.pressed,
         ]}>
-        <ThemedText type="bodyLarge">{value}</ThemedText>
+        <View style={styles.valueRow}>
+          <View style={[styles.colorDot, { backgroundColor: getCategoryVisual(value).background }]} />
+          <ThemedText type="bodyLarge">{value}</ThemedText>
+        </View>
         <SymbolView
           tintColor={theme.primary}
           name={{ ios: 'chevron.down', android: 'arrow_drop_down', web: 'arrow_drop_down' }}
@@ -66,12 +70,20 @@ export function CategoryDropdown({ value, onChange, error }: CategoryDropdownPro
                   },
                   pressed && styles.pressed,
                 ]}>
-                <ThemedText
-                  type="bodyLarge"
-                  themeColor={isSelected ? 'primary' : 'text'}
-                  style={isSelected ? styles.selectedOption : undefined}>
-                  {category}
-                </ThemedText>
+                <View style={styles.valueRow}>
+                  <View
+                    style={[
+                      styles.colorDot,
+                      { backgroundColor: getCategoryVisual(category).background },
+                    ]}
+                  />
+                  <ThemedText
+                    type="bodyLarge"
+                    themeColor={isSelected ? 'primary' : 'text'}
+                    style={isSelected ? styles.selectedOption : undefined}>
+                    {category}
+                  </ThemedText>
+                </View>
               </Pressable>
             );
           })}
@@ -110,6 +122,16 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three + 2,
     minHeight: 56,
     justifyContent: 'center',
+  },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  colorDot: {
+    width: 18,
+    height: 18,
+    borderRadius: Radius.pill,
   },
   selectedOption: {
     fontWeight: '700',

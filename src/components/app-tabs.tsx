@@ -1,10 +1,13 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { Colors } from '@/constants/theme';
+import { useAuth } from '@/contexts/auth-context';
 
 const theme = Colors.light;
 
 export default function AppTabs() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <NativeTabs
       backgroundColor={theme.background}
@@ -33,10 +36,12 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf="info.circle.fill" md="info" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="admin">
-        <NativeTabs.Trigger.Label>Admin</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="gearshape.fill" md="settings" />
-      </NativeTabs.Trigger>
+      {isAuthenticated ? (
+        <NativeTabs.Trigger name="admin">
+          <NativeTabs.Trigger.Label>Admin</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf="gearshape.fill" md="settings" />
+        </NativeTabs.Trigger>
+      ) : null}
     </NativeTabs>
   );
 }

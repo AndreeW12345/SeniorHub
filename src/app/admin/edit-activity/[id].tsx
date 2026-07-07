@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { AdminActivityForm } from '@/components/admin-activity-form';
+import { AdminGuard } from '@/components/admin-guard';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { type Activity } from '@/constants/activities';
@@ -12,6 +13,14 @@ import { fetchActivityByIdFromFirestore } from '@/services/activities/fetch-acti
 import { useTheme } from '@/hooks/use-theme';
 
 export default function EditActivityScreen() {
+  return (
+    <AdminGuard>
+      <EditActivityScreenContent />
+    </AdminGuard>
+  );
+}
+
+function EditActivityScreenContent() {
   const router = useRouter();
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();

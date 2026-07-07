@@ -1,18 +1,11 @@
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { SymbolView } from 'expo-symbols';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import type { ActivityCategory } from '@/constants/activities';
+import { getCategoryVisual } from '@/constants/category-visuals';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-
-const CATEGORY_ICONS: Record<ActivityCategory, SymbolViewProps['name']> = {
-  Fika: { ios: 'cup.and.saucer.fill', android: 'local_cafe', web: 'local_cafe' },
-  Motion: { ios: 'figure.walk', android: 'directions_walk', web: 'directions_walk' },
-  Kultur: { ios: 'theatermasks.fill', android: 'theater_comedy', web: 'theater_comedy' },
-  Kurser: { ios: 'book.fill', android: 'menu_book', web: 'menu_book' },
-  Promenader: { ios: 'leaf.fill', android: 'park', web: 'park' },
-};
 
 type ActivityImagePlaceholderProps = {
   category: ActivityCategory;
@@ -21,26 +14,19 @@ type ActivityImagePlaceholderProps = {
 
 export function ActivityImagePlaceholder({ category, height }: ActivityImagePlaceholderProps) {
   const theme = useTheme();
+  const visual = getCategoryVisual(category);
 
   return (
     <View
-      style={[
-        styles.placeholder,
-        { height, backgroundColor: theme.primaryLight },
-      ]}
+      style={[styles.placeholder, { height, backgroundColor: visual.tint }]}
       accessibilityLabel={`Platshållarbild för kategorin ${category}`}>
-      <View style={[styles.decorCircleLarge, { backgroundColor: theme.backgroundSelected }]} />
-      <View style={[styles.decorCircleSmall, { backgroundColor: theme.backgroundElement }]} />
+      <View style={[styles.decorCircleLarge, { backgroundColor: theme.card, opacity: 0.5 }]} />
+      <View style={[styles.decorCircleSmall, { backgroundColor: theme.card, opacity: 0.6 }]} />
       <View style={styles.placeholderContent}>
-        <View style={[styles.iconCircle, { backgroundColor: theme.card }]}>
-          <SymbolView
-            tintColor={theme.primary}
-            name={CATEGORY_ICONS[category]}
-            size={40}
-            weight="medium"
-          />
+        <View style={[styles.iconCircle, { backgroundColor: visual.background }]}>
+          <SymbolView tintColor={visual.foreground} name={visual.icon} size={40} weight="medium" />
         </View>
-        <ThemedText type="bodyLarge" themeColor="primary" style={styles.placeholderLabel}>
+        <ThemedText type="bodyLarge" style={[styles.placeholderLabel, { color: visual.background }]}>
           {category}
         </ThemedText>
       </View>

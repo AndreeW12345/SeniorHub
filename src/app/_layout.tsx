@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { Colors } from '@/constants/theme';
 import { ActivitiesProvider } from '@/contexts/activities-context';
+import { AuthProvider } from '@/contexts/auth-context';
 import { FavoritesProvider } from '@/contexts/favorites-context';
 
 const SeniorHubTheme = {
@@ -18,40 +19,49 @@ const SeniorHubTheme = {
 
 export default function RootLayout() {
   return (
-    <ActivitiesProvider>
-      <FavoritesProvider>
-        <ThemeProvider value={SeniorHubTheme}>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { flex: 1 },
-            }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="activity/[id]"
-              options={{
-                presentation: 'card',
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="admin/add-activity"
-              options={{
-                presentation: 'card',
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="admin/edit-activity/[id]"
-              options={{
-                presentation: 'card',
-                animation: 'slide_from_right',
-              }}
-            />
-          </Stack>
-        </ThemeProvider>
-      </FavoritesProvider>
-    </ActivitiesProvider>
+    <AuthProvider>
+      <ActivitiesProvider>
+        <FavoritesProvider>
+          <ThemeProvider value={SeniorHubTheme}>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { flex: 1 },
+              }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen
+                name="activity/[id]"
+                options={{
+                  presentation: 'card',
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="login"
+                options={{
+                  presentation: 'card',
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="admin/add-activity"
+                options={{
+                  presentation: 'card',
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="admin/edit-activity/[id]"
+                options={{
+                  presentation: 'card',
+                  animation: 'slide_from_right',
+                }}
+              />
+            </Stack>
+          </ThemeProvider>
+        </FavoritesProvider>
+      </ActivitiesProvider>
+    </AuthProvider>
   );
 }

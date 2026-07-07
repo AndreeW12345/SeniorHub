@@ -1,4 +1,5 @@
 import { useRouter, type Href } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ActivityDetailRow } from '@/components/activity-detail-row';
@@ -6,6 +7,7 @@ import { ActivityImage } from '@/components/activity-image';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ThemedText } from '@/components/themed-text';
 import { Activity } from '@/constants/activities';
+import { getCategoryVisual } from '@/constants/category-visuals';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
@@ -18,6 +20,7 @@ export function ActivityCard({ activity }: ActivityCardProps) {
   const theme = useTheme();
   const router = useRouter();
   const { imageHeight } = useResponsive();
+  const categoryVisual = getCategoryVisual(activity.category);
 
   const openActivity = () => {
     router.push(`/activity/${activity.id}` as Href);
@@ -34,8 +37,16 @@ export function ActivityCard({ activity }: ActivityCardProps) {
           style={({ pressed }) => [pressed && styles.cardPressed]}>
           <ActivityImage activity={activity} height={imageHeight} />
           <View style={styles.imageBadges}>
-            <View style={styles.categoryBadge}>
-              <ThemedText type="smallBold" style={styles.categoryText}>
+            <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.background }]}>
+              <SymbolView
+                tintColor={categoryVisual.foreground}
+                name={categoryVisual.icon}
+                size={18}
+                weight="semibold"
+              />
+              <ThemedText
+                type="smallBold"
+                style={[styles.categoryText, { color: categoryVisual.foreground }]}>
                 {activity.category}
               </ThemedText>
             </View>
@@ -108,13 +119,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   categoryBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one + 2,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three + 2,
     paddingVertical: Spacing.two,
   },
   categoryText: {
-    color: '#004E87',
+    color: '#FFFFFF',
   },
   favoriteSpacer: {
     width: 48,
