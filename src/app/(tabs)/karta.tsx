@@ -1,55 +1,40 @@
-import { SymbolView } from 'expo-symbols';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenLayout } from '@/components/screen-layout';
-import { ThemedText } from '@/components/themed-text';
-import { CardShadow, Radius, Spacing } from '@/constants/theme';
-import { useResponsive } from '@/hooks/use-responsive';
-import { useTheme } from '@/hooks/use-theme';
+import { ActivitiesMap } from '@/components/activities-map';
+import { ScreenHeader } from '@/components/screen-header';
+import { ThemedView } from '@/components/themed-view';
+import { BottomTabInset, Spacing } from '@/constants/theme';
+import { getActivitiesWithCoordinates } from '@/constants/activities';
+import { useActivities } from '@/contexts/activities-context';
 
 export default function KartaScreen() {
-  const theme = useTheme();
-  const { isDesktop } = useResponsive();
+  const insets = useSafeAreaInsets();
+  const { activities } = useActivities();
+  const mapActivities = getActivitiesWithCoordinates(activities);
+  const subtitle =
+    mapActivities.length === 1
+      ? '1 aktivitet på kartan'
+      : `${mapActivities.length} aktiviteter på kartan`;
 
   return (
-    <ScreenLayout title="Karta" subtitle="Aktiveras i en kommande version" scrollable={false}>
-      <View
-        style={[
-          styles.placeholder,
-          CardShadow,
-          { backgroundColor: theme.card, minHeight: isDesktop ? 420 : 320 },
-        ]}>
-        <SymbolView
-          tintColor={theme.primary}
-          name={{ ios: 'map.fill', android: 'map', web: 'map' }}
-          size={isDesktop ? 72 : 60}
-        />
-        <ThemedText type="subtitle" style={styles.placeholderTitle}>
-          Karta
-        </ThemedText>
-        <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.placeholderText}>
-          I den här versionen visas aktiviteter som en lista. Karta läggs till i ett senare steg.
-        </ThemedText>
+    <ThemedView style={styles.container}>
+      <ScreenHeader title="Karta" subtitle={subtitle} />
+      <View style={[styles.mapArea, { paddingBottom: insets.bottom + BottomTabInset }]}>
+        <ActivitiesMap activities={mapActivities} />
       </View>
-    </ScreenLayout>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  placeholder: {
+  container: {
     flex: 1,
-    borderRadius: Radius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.six,
-    gap: Spacing.four,
+    minHeight: 0,
   },
-  placeholderTitle: {
-    textAlign: 'center',
-  },
-  placeholderText: {
-    textAlign: 'center',
-    maxWidth: 400,
-    lineHeight: 32,
+  mapArea: {
+    flex: 1,
+    minHeight: 0,
+    paddingTop: Spacing.three,
   },
 });

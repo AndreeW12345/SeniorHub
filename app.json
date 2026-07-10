@@ -36,6 +36,14 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SeniorHub behöver tillgång till dina bilder så att administratörer kan välja en aktivitetsbild.",
+          "cameraPermission": "SeniorHub behöver tillgång till kameran så att administratörer kan ta en aktivitetsbild.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

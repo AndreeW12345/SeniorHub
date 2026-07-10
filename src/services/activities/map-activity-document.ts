@@ -17,6 +17,16 @@ function readImageUrl(data: FirestoreActivityData): string | null {
   return typeof value === 'string' ? value.trim() : null;
 }
 
+function readCoordinate(data: FirestoreActivityData, key: 'latitude' | 'longitude'): number | null {
+  const value = data[key];
+
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return value;
+}
+
 /** Maps a Firestore document to an Activity, or null if required fields are missing. */
 export function mapActivityDocument(id: string, data: FirestoreActivityData): Activity | null {
   const title = readString(data, 'title');
@@ -40,5 +50,8 @@ export function mapActivityDocument(id: string, data: FirestoreActivityData): Ac
     organizer,
     category: normalizeCategory(data.category),
     imageUrl: readImageUrl(data),
+    latitude: readCoordinate(data, 'latitude'),
+    longitude: readCoordinate(data, 'longitude'),
+    address: readString(data, 'address'),
   };
 }

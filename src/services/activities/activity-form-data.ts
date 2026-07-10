@@ -1,4 +1,8 @@
 import { ACTIVITY_CATEGORIES, type ActivityCategory } from '@/constants/activities';
+import {
+  parseCoordinateInput,
+  validateActivityCoordinates,
+} from '@/utils/activity-coordinates';
 
 export type ActivityFormInput = {
   title: string;
@@ -9,6 +13,9 @@ export type ActivityFormInput = {
   organizer: string;
   category: ActivityCategory;
   imageUrl?: string;
+  latitude?: string;
+  longitude?: string;
+  address?: string;
 };
 
 export type ActivityMutationResult =
@@ -36,6 +43,22 @@ export function buildActivityDocumentData(input: ActivityFormInput) {
     return { ok: false as const, errorMessage: 'Ogiltig kategori.' };
   }
 
+  const latitude = parseCoordinateInput(input.latitude);
+  const longitude = parseCoordinateInput(input.longitude);
+  const coordinateError = validateActivityCoordinates(latitude, longitude);
+
+  if (coordinateError) {
+    return { ok: false as const, errorMessage: coordinateError };
+  }
+
+  if (input.latitude?.trim() && latitude === null) {
+    return { ok: false as const, errorMessage: 'Latituden har fel format.' };
+  }
+
+  if (input.longitude?.trim() && longitude === null) {
+    return { ok: false as const, errorMessage: 'Longituden har fel format.' };
+  }
+
   return {
     ok: true as const,
     data: {
@@ -47,6 +70,9 @@ export function buildActivityDocumentData(input: ActivityFormInput) {
       organizer,
       category: input.category,
       imageUrl: input.imageUrl?.trim() || null,
+      latitude,
+      longitude,
+      address: input.address?.trim() || null,
     },
   };
 }

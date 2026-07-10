@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { AddressSearchField } from '@/components/address-search-field';
 import { CategoryDropdown } from '@/components/category-dropdown';
+import { AdminActivityImagePicker } from '@/components/admin-activity-image-picker';
 import { DateTimeField } from '@/components/date-time-field';
 import { FormField } from '@/components/form-field';
 import { ScreenLayout } from '@/components/screen-layout';
@@ -13,10 +15,27 @@ import {
   updateActivityInFirestore,
   type ActivityFormInput,
 } from '@/services/activities';
+import { uploadActivityImage } from '@/services/storage';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  parseCoordinateInput,
+  validateActivityCoordinates,
+} from '@/utils/activity-coordinates';
 
 type FormErrors = Partial<
-  Record<'title' | 'description' | 'date' | 'time' | 'location' | 'organizer' | 'category', string>
+  Record<
+    | 'title'
+    | 'description'
+    | 'date'
+    | 'time'
+    | 'location'
+    | 'organizer'
+    | 'category'
+    | 'address'
+    | 'latitude'
+    | 'longitude',
+    string
+  >
 >;
 
 const REQUIRED_FIELD_ERRORS: FormErrors = {
@@ -44,6 +63,9 @@ const EMPTY_FORM: ActivityFormInput = {
   organizer: '',
   category: 'Fika',
   imageUrl: '',
+  latitude: '',
+  longitude: '',
+  address: '',
 };
 
 export function AdminActivityForm({
@@ -63,9 +85,14 @@ export function AdminActivityForm({
   const [organizer, setOrganizer] = useState(initialValues.organizer);
   const [category, setCategory] = useState<ActivityCategory>(initialValues.category);
   const [imageUrl, setImageUrl] = useState(initialValues.imageUrl ?? '');
+  const [latitude, setLatitude] = useState(initialValues.latitude ?? '');
+  const [longitude, setLongitude] = useState(initialValues.longitude ?? '');
+  const [address, setAddress] = useState(initialValues.address ?? '');
+  const [localImageUri, setLocalImageUri] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const validateForm = () => {
     const nextErrors: FormErrors = {};
@@ -89,6 +116,14 @@ export function AdminActivityForm({
       nextErrors.organizer = REQUIRED_FIELD_ERRORS.organizer;
     }
 
+    const parsedLatitude = parseCoordinateInput(latitude);
+    const parsedLongitude = parseCoordinateInput(longitude);
+    const coordinateError = validateActivityCoordinates(parsedLatitude, parsedLongitude);
+
+    if (coordinateError) {
+      nextErrors.address = coordinateError;
+    }
+
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -102,6 +137,22 @@ export function AdminActivityForm({
 
     setIsSaving(true);
 
+    let finalImageUrl = imageUrl.trim();
+
+    if (localImageUri) {
+      setIsUploadingImage(true);
+      const uploadResult = await uploadActivityImage(localImageUri, activityId);
+      setIsUploadingImage(false);
+
+      if (!uploadResult.ok) {
+        setIsSaving(false);
+        setSubmitError(uploadResult.errorMessage);
+        return;
+      }
+
+      finalImageUrl = uploadResult.downloadUrl;
+    }
+
     const input: ActivityFormInput = {
       title,
       description,
@@ -110,7 +161,10 @@ export function AdminActivityForm({
       location,
       organizer,
       category,
-      imageUrl,
+      imageUrl: finalImageUrl,
+      latitude,
+      longitude,
+      address,
     };
 
     const result = isEditMode
@@ -181,14 +235,36 @@ export function AdminActivityForm({
           placeholder="Till exempel Seniorföreningen"
         />
         <CategoryDropdown value={category} onChange={setCategory} error={errors.category} />
-        <FormField
-          label="Bild-URL (valfri)"
-          value={imageUrl}
-          onChangeText={setImageUrl}
-          placeholder="https://..."
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
+        <AddressSearchField
+          key={`${activityId ?? 'new'}-${initialValues.address ?? ''}`}
+          value={address}
+          onChange={(nextAddress) => {
+            setAddress(nextAddress);
+            if (!nextAddress.trim()) {
+              setLatitude('');
+              setLongitude('');
+              return;
+            }
+
+            if (!location.trim()) {
+              setLocation(nextAddress);
+            }
+          }}
+          latitude={latitude}
+          longitude={longitude}
+          onCoordinatesChange={(nextLatitude, nextLongitude) => {
+            setLatitude(nextLatitude);
+            setLongitude(nextLongitude);
+          }}
+          error={errors.address}
+          disabled={isSaving || isUploadingImage}
+        />
+        <AdminActivityImagePicker
+          imageUrl={imageUrl}
+          localImageUri={localImageUri}
+          onImageUrlChange={setImageUrl}
+          onLocalImageUriChange={setLocalImageUri}
+          disabled={isSaving || isUploadingImage}
         />
 
         {submitError ? (
@@ -200,15 +276,15 @@ export function AdminActivityForm({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={isEditMode ? 'Spara ändringar' : 'Spara aktivitet'}
-          disabled={isSaving}
+          disabled={isSaving || isUploadingImage}
           onPress={() => void handleSubmit()}
           style={({ pressed }) => [
             styles.saveButton,
             { backgroundColor: theme.primary },
-            (pressed || isSaving) && styles.saveButtonPressed,
-            isSaving && styles.saveButtonDisabled,
+            (pressed || isSaving || isUploadingImage) && styles.saveButtonPressed,
+            (isSaving || isUploadingImage) && styles.saveButtonDisabled,
           ]}>
-          {isSaving ? (
+          {isSaving || isUploadingImage ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <ThemedText type="bodyLarge" style={styles.saveButtonText}>

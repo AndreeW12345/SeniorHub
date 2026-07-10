@@ -96,6 +96,9 @@ function EditActivityScreenContent() {
         organizer: activity.organizer,
         category: activity.category,
         imageUrl: activity.imageUrl ?? '',
+        latitude: activity.latitude != null ? String(activity.latitude) : '',
+        longitude: activity.longitude != null ? String(activity.longitude) : '',
+        address: activity.address ?? '',
       }}
       onSubmitSuccess={async () => {
         await refreshActivities();

@@ -1,5 +1,6 @@
 import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { Firestore, getFirestore } from 'firebase/firestore';
+import { FirebaseStorage, getStorage } from 'firebase/storage';
 
 type FirebaseConfig = {
   apiKey: string;
@@ -21,6 +22,7 @@ const firebaseConfig: FirebaseConfig = {
 
 let firebaseApp: FirebaseApp | null = null;
 let firestoreDb: Firestore | null = null;
+let firebaseStorage: FirebaseStorage | null = null;
 
 /** Returns true when all required Firebase env vars are present. */
 export function isFirebaseConfigured(): boolean {
@@ -57,4 +59,23 @@ export function getFirestoreDb(): Firestore | null {
   }
 
   return firestoreDb;
+}
+
+/** Returns true when Firebase Storage is configured via storageBucket. */
+export function isFirebaseStorageConfigured(): boolean {
+  return isFirebaseConfigured() && Boolean(firebaseConfig.storageBucket);
+}
+
+/** Returns a shared Firebase Storage instance, or null if not configured. */
+export function getFirebaseStorage(): FirebaseStorage | null {
+  const app = getFirebaseApp();
+  if (!app || !firebaseConfig.storageBucket) {
+    return null;
+  }
+
+  if (!firebaseStorage) {
+    firebaseStorage = getStorage(app);
+  }
+
+  return firebaseStorage;
 }

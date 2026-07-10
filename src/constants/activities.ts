@@ -56,7 +56,32 @@ export type Activity = {
   organizer: string;
   category: ActivityCategory;
   imageUrl?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
 };
+
+export function getActivityDisplayLocation(activity: Activity): string {
+  const address = activity.address?.trim();
+  if (address) {
+    return address;
+  }
+
+  return activity.location;
+}
+
+export function hasActivityCoordinates(activity: Activity): boolean {
+  return (
+    typeof activity.latitude === 'number' &&
+    typeof activity.longitude === 'number' &&
+    Number.isFinite(activity.latitude) &&
+    Number.isFinite(activity.longitude)
+  );
+}
+
+export function getActivitiesWithCoordinates(activities: Activity[]): Activity[] {
+  return activities.filter(hasActivityCoordinates);
+}
 
 export function hasActivityImage(activity: Activity): boolean {
   return typeof activity.imageUrl === 'string' && activity.imageUrl.trim().length > 0;
@@ -92,6 +117,7 @@ export function filterActivities(
       activity.title.toLowerCase().includes(normalizedQuery) ||
       activity.description.toLowerCase().includes(normalizedQuery) ||
       activity.location.toLowerCase().includes(normalizedQuery) ||
+      (activity.address?.toLowerCase().includes(normalizedQuery) ?? false) ||
       activity.organizer.toLowerCase().includes(normalizedQuery) ||
       activity.category.toLowerCase().includes(normalizedQuery);
 

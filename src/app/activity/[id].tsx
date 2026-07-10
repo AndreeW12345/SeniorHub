@@ -9,7 +9,7 @@ import { ActivityImage } from '@/components/activity-image';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { getGoogleMapsUrl } from '@/constants/activities';
+import { getActivityDisplayLocation, getGoogleMapsUrl } from '@/constants/activities';
 import { CardShadow, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -37,8 +37,10 @@ export default function ActivityDetailScreen() {
     );
   }
 
+  const displayLocation = getActivityDisplayLocation(activity);
+
   const openMaps = () => {
-    void Linking.openURL(getGoogleMapsUrl(activity.location));
+    void Linking.openURL(getGoogleMapsUrl(displayLocation));
   };
 
   return (
@@ -111,7 +113,7 @@ export default function ActivityDetailScreen() {
               <ActivityDetailRow
                 icon={{ ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' }}
                 label="Plats"
-                value={activity.location}
+                value={displayLocation}
               />
               <ActivityDetailRow
                 icon={{ ios: 'person.fill', android: 'person', web: 'person' }}
@@ -124,7 +126,7 @@ export default function ActivityDetailScreen() {
           <Pressable
             onPress={openMaps}
             accessibilityRole="button"
-            accessibilityLabel={`Öppna ${activity.location} i Google Maps`}
+            accessibilityLabel={`Öppna ${displayLocation} i Google Maps`}
             style={({ pressed }) => [
               styles.mapsButton,
               { backgroundColor: theme.primary },

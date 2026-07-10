@@ -58,16 +58,48 @@ export function parseTimeValue(value: string): Date | null {
   return date;
 }
 
-/** Returns a friendly Swedish date label (e.g. "15 juli 2026") for a stored value. */
+function capitalizeFirst(text: string): string {
+  if (text.length === 0) {
+    return text;
+  }
+
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Returns a friendly Swedish date label (e.g. "Onsdag 8 juli 2026") for a stored value. */
 export function formatDateDisplay(value: string): string {
   const date = parseDateValue(value);
   if (!date) {
     return value;
   }
 
-  return new Intl.DateTimeFormat('sv-SE', {
+  const formatted = new Intl.DateTimeFormat('sv-SE', {
+    weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   }).format(date);
+
+  return capitalizeFirst(formatted);
+}
+
+/** Returns a friendly Swedish time label (e.g. "Kl. 11:00") for a stored value. */
+export function formatTimeDisplay(value: string): string {
+  const trimmed = value.trim();
+  const parsed = parseTimeValue(trimmed);
+
+  if (parsed) {
+    return `Kl. ${formatTimeValue(parsed)}`;
+  }
+
+  const rangeMatch = /^(\d{2}:\d{2})\s*[–-]\s*(\d{2}:\d{2})$/.exec(trimmed);
+  if (rangeMatch) {
+    return `Kl. ${rangeMatch[1]} – ${rangeMatch[2]}`;
+  }
+
+  if (/^\d{2}:\d{2}/.test(trimmed) && !trimmed.toLowerCase().startsWith('kl.')) {
+    return `Kl. ${trimmed}`;
+  }
+
+  return trimmed;
 }

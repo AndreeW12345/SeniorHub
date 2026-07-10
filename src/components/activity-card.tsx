@@ -2,11 +2,11 @@ import { useRouter, type Href } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ActivityDetailRow } from '@/components/activity-detail-row';
 import { ActivityImage } from '@/components/activity-image';
+import { ActivitySchedule } from '@/components/activity-schedule';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ThemedText } from '@/components/themed-text';
-import { Activity } from '@/constants/activities';
+import { Activity, getActivityDisplayLocation } from '@/constants/activities';
 import { getCategoryVisual } from '@/constants/category-visuals';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -16,11 +16,33 @@ type ActivityCardProps = {
   activity: Activity;
 };
 
+function ActivityInfoLine({
+  icon,
+  value,
+  accessibilityPrefix,
+}: {
+  icon: string;
+  value: string;
+  accessibilityPrefix: string;
+}) {
+  return (
+    <View style={styles.infoLine} accessibilityLabel={`${accessibilityPrefix}: ${value}`}>
+      <ThemedText type="bodyLarge" style={styles.infoIcon}>
+        {icon}
+      </ThemedText>
+      <ThemedText type="bodyLarge" style={styles.infoText}>
+        {value}
+      </ThemedText>
+    </View>
+  );
+}
+
 export function ActivityCard({ activity }: ActivityCardProps) {
   const theme = useTheme();
   const router = useRouter();
   const { imageHeight } = useResponsive();
   const categoryVisual = getCategoryVisual(activity.category);
+  const displayLocation = getActivityDisplayLocation(activity);
 
   const openActivity = () => {
     router.push(`/activity/${activity.id}` as Href);
@@ -69,27 +91,11 @@ export function ActivityCard({ activity }: ActivityCardProps) {
             {activity.title}
           </ThemedText>
 
+          <ActivitySchedule date={activity.date} time={activity.time} />
+
           <View style={styles.details}>
-            <ActivityDetailRow
-              icon={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }}
-              label="Datum"
-              value={activity.date}
-            />
-            <ActivityDetailRow
-              icon={{ ios: 'clock.fill', android: 'schedule', web: 'schedule' }}
-              label="Tid"
-              value={activity.time}
-            />
-            <ActivityDetailRow
-              icon={{ ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' }}
-              label="Plats"
-              value={activity.location}
-            />
-            <ActivityDetailRow
-              icon={{ ios: 'person.fill', android: 'person', web: 'person' }}
-              label="Arrangör"
-              value={activity.organizer}
-            />
+            <ActivityInfoLine icon="📍" value={displayLocation} accessibilityPrefix="Plats" />
+            <ActivityInfoLine icon="👤" value={activity.organizer} accessibilityPrefix="Arrangör" />
           </View>
         </View>
       </Pressable>
@@ -149,6 +155,20 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   details: {
-    gap: Spacing.four,
+    gap: Spacing.five,
+  },
+  infoLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  infoIcon: {
+    fontSize: 24,
+    lineHeight: 32,
+  },
+  infoText: {
+    flex: 1,
+    fontWeight: '600',
+    letterSpacing: 0.1,
   },
 });
