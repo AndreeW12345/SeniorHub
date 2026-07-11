@@ -9,6 +9,7 @@ import { useTheme } from '@/hooks/use-theme';
 import {
   formatDateDisplay,
   formatDateValue,
+  formatTimeDisplay,
   formatTimeValue,
   parseDateValue,
   parseTimeValue,
@@ -42,7 +43,7 @@ export function DateTimeField({
   const displayText = value
     ? mode === 'date'
       ? formatDateDisplay(value)
-      : value
+      : formatTimeDisplay(value)
     : (placeholder ?? (mode === 'date' ? 'Välj datum' : 'Välj tid'));
   const hasValue = value.length > 0;
 

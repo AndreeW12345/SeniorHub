@@ -1,3 +1,5 @@
+import { formatAddressDisplay } from '@/utils/address-format';
+
 export const CATEGORIES = [
   'Alla',
   'Promenad',
@@ -62,6 +64,16 @@ export type Activity = {
 };
 
 export function getActivityDisplayLocation(activity: Activity): string {
+  const address = activity.address?.trim();
+  if (address) {
+    return formatAddressDisplay(address);
+  }
+
+  return formatAddressDisplay(activity.location);
+}
+
+/** Full stored location string for map links and other non-display uses. */
+export function getActivityMapsLocation(activity: Activity): string {
   const address = activity.address?.trim();
   if (address) {
     return address;

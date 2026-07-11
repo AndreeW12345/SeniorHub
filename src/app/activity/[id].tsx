@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -9,15 +9,18 @@ import { ActivityImage } from '@/components/activity-image';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { getActivityDisplayLocation, getGoogleMapsUrl } from '@/constants/activities';
+import { getActivityDisplayLocation, getActivityMapsLocation, getGoogleMapsUrl } from '@/constants/activities';
+import { getOrganizerPath } from '@/constants/organizers';
 import { CardShadow, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useSafeBack } from '@/hooks/use-safe-back';
 import { useTheme } from '@/hooks/use-theme';
+import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
 
 export default function ActivityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const goBack = useSafeBack();
   const { getActivityById } = useActivities();
   const theme = useTheme();
@@ -40,7 +43,11 @@ export default function ActivityDetailScreen() {
   const displayLocation = getActivityDisplayLocation(activity);
 
   const openMaps = () => {
-    void Linking.openURL(getGoogleMapsUrl(displayLocation));
+    void Linking.openURL(getGoogleMapsUrl(getActivityMapsLocation(activity)));
+  };
+
+  const openOrganizer = () => {
+    router.push(getOrganizerPath(activity.organizer) as Href);
   };
 
   return (
@@ -103,12 +110,12 @@ export default function ActivityDetailScreen() {
               <ActivityDetailRow
                 icon={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }}
                 label="Datum"
-                value={activity.date}
+                value={formatDateDisplay(activity.date)}
               />
               <ActivityDetailRow
                 icon={{ ios: 'clock.fill', android: 'schedule', web: 'schedule' }}
                 label="Tid"
-                value={activity.time}
+                value={formatTimeDisplay(activity.time)}
               />
               <ActivityDetailRow
                 icon={{ ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' }}
@@ -119,6 +126,7 @@ export default function ActivityDetailScreen() {
                 icon={{ ios: 'person.fill', android: 'person', web: 'person' }}
                 label="Arrangör"
                 value={activity.organizer}
+                onPress={openOrganizer}
               />
             </View>
           </View>

@@ -8,5 +8,10 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if true;
     }
+
+    match /organizers/{organizerId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
   }
 }

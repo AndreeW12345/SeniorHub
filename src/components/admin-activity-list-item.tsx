@@ -3,12 +3,13 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { type Activity } from '@/constants/activities';
+import { getActivityDisplayLocation, type Activity } from '@/constants/activities';
 import { getCategoryVisual } from '@/constants/category-visuals';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { deleteActivityFromFirestore } from '@/services/activities';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmDestructiveAction, showErrorAlert } from '@/utils/confirm-alert';
+import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
 
 type AdminActivityListItemProps = {
   activity: Activity;
@@ -64,11 +65,11 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
         </ThemedText>
 
         <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {activity.date} · {activity.time}
+          {formatDateDisplay(activity.date)} · {formatTimeDisplay(activity.time)}
         </ThemedText>
 
         <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {activity.location}
+          {getActivityDisplayLocation(activity)}
         </ThemedText>
       </View>
 
