@@ -99,6 +99,18 @@ function EditActivityScreenContent() {
         latitude: activity.latitude != null ? String(activity.latitude) : '',
         longitude: activity.longitude != null ? String(activity.longitude) : '',
         address: activity.address ?? '',
+        registrationRequired: activity.registrationRequired === true,
+        hasParticipantLimit: activity.hasParticipantLimit === true,
+        maxParticipants:
+          activity.maxParticipants != null ? String(activity.maxParticipants) : '',
+        participants: activity.participants ?? 0,
+        membershipRequired: activity.membershipRequired === true,
+        membershipOrganization: activity.membershipOrganization ?? '',
+        membershipUrl: activity.membershipUrl ?? '',
+        registrationMethod: activity.registrationMethod ?? undefined,
+        registrationUrl: activity.registrationUrl ?? '',
+        registrationPhone: activity.registrationPhone ?? '',
+        registrationEmail: activity.registrationEmail ?? '',
       }}
       onSubmitSuccess={async () => {
         await refreshActivities();

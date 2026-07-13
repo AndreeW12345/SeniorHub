@@ -1,9 +1,14 @@
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { SymbolView } from 'expo-symbols';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ActivityMembershipActions } from '@/components/activity-membership-actions';
+import { ActivityParticipationHelper } from '@/components/activity-participation-helper';
+import { ActivityRegistrationButton } from '@/components/activity-registration-button';
+import { ActivityRegistrationStatus } from '@/components/activity-registration-status';
 import { ActivityDetailRow } from '@/components/activity-detail-row';
 import { ActivityImage } from '@/components/activity-image';
 import { FavoriteButton } from '@/components/favorite-button';
@@ -16,7 +21,10 @@ import { useActivities } from '@/contexts/activities-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useSafeBack } from '@/hooks/use-safe-back';
 import { useTheme } from '@/hooks/use-theme';
+import { addActivityToCalendar } from '@/services/calendar';
 import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
+import { showErrorAlert, showSuccessAlert } from '@/utils/confirm-alert';
+import { isActivityFull, getActivityRegistrationSectionTitle, shouldShowActivityRegistrationSection } from '@/utils/activity-registration';
 
 export default function ActivityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,6 +36,7 @@ export default function ActivityDetailScreen() {
   const { horizontalPadding, contentWidth, isDesktop } = useResponsive();
   const activity = typeof id === 'string' ? getActivityById(id) : undefined;
   const detailImageHeight = isDesktop ? 380 : 300;
+  const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
 
   if (!activity) {
     return (
@@ -48,6 +57,37 @@ export default function ActivityDetailScreen() {
 
   const openOrganizer = () => {
     router.push(getOrganizerPath(activity.organizer) as Href);
+  };
+
+  const handleAddToCalendar = async () => {
+    if (isAddingToCalendar) {
+      return;
+    }
+
+    setIsAddingToCalendar(true);
+
+    try {
+      const result = await addActivityToCalendar(activity);
+
+      if (result.ok) {
+        if (result.method === 'ics-download') {
+          showSuccessAlert(
+            'Kalenderfil skapad',
+            'Kalenderfilen har laddats ner. Öppna den för att lägga till aktiviteten i din kalender.',
+          );
+        } else {
+          showSuccessAlert(
+            'Tillagd i kalendern',
+            'Aktiviteten har lagts till i din kalender.',
+          );
+        }
+        return;
+      }
+
+      showErrorAlert('Kunde inte lägga till', result.errorMessage);
+    } finally {
+      setIsAddingToCalendar(false);
+    }
   };
 
   return (
@@ -128,8 +168,46 @@ export default function ActivityDetailScreen() {
                 value={activity.organizer}
                 onPress={openOrganizer}
               />
+              {shouldShowActivityRegistrationSection(activity) ? (
+                <View style={[styles.registrationBlock, { backgroundColor: theme.primaryLight }]}>
+                  <ThemedText type="smallBold" themeColor="textSecondary">
+                    {getActivityRegistrationSectionTitle(activity)}
+                  </ThemedText>
+                  <ActivityRegistrationStatus activity={activity} variant="detail" />
+                  <ActivityParticipationHelper activity={activity} />
+                </View>
+              ) : null}
             </View>
           </View>
+
+          <ActivityMembershipActions activity={activity} />
+          <ActivityRegistrationButton activity={activity} />
+
+          {shouldShowActivityRegistrationSection(activity) && isActivityFull(activity) ? (
+            <View
+              style={[
+                styles.waitingListPlaceholder,
+                CardShadow,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}>
+              <ThemedText type="sectionTitle" themeColor="textSecondary">
+                Reservlista
+              </ThemedText>
+              <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.waitingListText}>
+                Aktiviteten är full. Reservlista kommer snart.
+              </ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Anmäl dig till reservlista"
+                accessibilityState={{ disabled: true }}
+                disabled
+                style={[styles.waitingListButton, { borderColor: theme.border }]}>
+                <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.waitingListButtonText}>
+                  Anmäl dig till reservlista
+                </ThemedText>
+              </Pressable>
+            </View>
+          ) : null}
 
           <Pressable
             onPress={openMaps}
@@ -147,6 +225,21 @@ export default function ActivityDetailScreen() {
             />
             <ThemedText type="bodyLarge" style={styles.mapsButtonText}>
               Öppna i Google Maps
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            onPress={() => void handleAddToCalendar()}
+            accessibilityRole="button"
+            accessibilityLabel="Lägg till i min kalender"
+            disabled={isAddingToCalendar}
+            style={({ pressed }) => [
+              styles.calendarButton,
+              { backgroundColor: theme.card, borderColor: theme.primary },
+              (pressed || isAddingToCalendar) && styles.calendarButtonPressed,
+            ]}>
+            <ThemedText type="bodyLarge" themeColor="primary" style={styles.calendarButtonText}>
+              📅 Lägg till i min kalender
             </ThemedText>
           </Pressable>
         </View>
@@ -219,6 +312,34 @@ const styles = StyleSheet.create({
   details: {
     gap: Spacing.four,
   },
+  registrationBlock: {
+    gap: Spacing.two,
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+  },
+  waitingListPlaceholder: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    padding: Spacing.five,
+    gap: Spacing.three,
+  },
+  waitingListText: {
+    lineHeight: 32,
+  },
+  waitingListButton: {
+    minHeight: 56,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+    opacity: 0.7,
+  },
+  waitingListButtonText: {
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   mapsButton: {
     minHeight: 64,
     borderRadius: Radius.xl,
@@ -236,6 +357,23 @@ const styles = StyleSheet.create({
   mapsButtonText: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  calendarButton: {
+    minHeight: 64,
+    borderRadius: Radius.xl,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+    marginBottom: Spacing.two,
+  },
+  calendarButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
+  },
+  calendarButtonText: {
+    fontWeight: '700',
+    textAlign: 'center',
   },
   notFound: {
     flex: 1,

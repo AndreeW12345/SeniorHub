@@ -3,6 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ActivityImage } from '@/components/activity-image';
+import { ActivityRegistrationStatus } from '@/components/activity-registration-status';
 import { ActivitySchedule } from '@/components/activity-schedule';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ThemedText } from '@/components/themed-text';
@@ -121,6 +122,7 @@ export function ActivityCard({ activity }: ActivityCardProps) {
           <ActivitySchedule date={activity.date} time={activity.time} />
 
           <ActivityInfoLine icon="📍" value={displayLocation} accessibilityPrefix="Plats" />
+          <ActivityRegistrationStatus activity={activity} variant="card" />
         </Pressable>
 
         <ActivityInfoLine

@@ -12,6 +12,16 @@ export function showErrorAlert(title: string, message: string) {
   Alert.alert(title, message);
 }
 
+/** Shows a success alert on all platforms. */
+export function showSuccessAlert(title: string, message: string) {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+
+  Alert.alert(title, message);
+}
+
 /** Shows a destructive confirmation dialog on all platforms. */
 export function confirmDestructiveAction(
   title: string,

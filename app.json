@@ -44,6 +44,14 @@
           "cameraPermission": "SeniorHub behöver tillgång till kameran så att administratörer kan ta en aktivitetsbild.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "SeniorHub behöver tillgång till din kalender för att lägga till aktiviteter.",
+          "writeOnlyAccess": true,
+          "writeOnlyCalendarPermission": "SeniorHub behöver tillgång för att lägga till aktiviteter i din kalender."
+        }
       ]
     ],
     "experiments": {

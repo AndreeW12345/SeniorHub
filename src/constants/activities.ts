@@ -1,4 +1,5 @@
 import { formatAddressDisplay } from '@/utils/address-format';
+import type { RegistrationMethod } from '@/constants/membership';
 
 export const CATEGORIES = [
   'Alla',
@@ -61,6 +62,17 @@ export type Activity = {
   latitude?: number | null;
   longitude?: number | null;
   address?: string | null;
+  registrationRequired?: boolean | null;
+  hasParticipantLimit?: boolean | null;
+  maxParticipants?: number | null;
+  participants?: number | null;
+  membershipRequired?: boolean | null;
+  membershipOrganization?: string | null;
+  membershipUrl?: string | null;
+  registrationMethod?: RegistrationMethod | null;
+  registrationUrl?: string | null;
+  registrationPhone?: string | null;
+  registrationEmail?: string | null;
 };
 
 export function getActivityDisplayLocation(activity: Activity): string {

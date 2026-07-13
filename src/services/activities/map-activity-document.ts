@@ -1,4 +1,5 @@
 import { normalizeCategory, type Activity } from '@/constants/activities';
+import { normalizeRegistrationMethod } from '@/constants/membership';
 
 type FirestoreActivityData = Record<string, unknown>;
 
@@ -27,6 +28,31 @@ function readCoordinate(data: FirestoreActivityData, key: 'latitude' | 'longitud
   return value;
 }
 
+function readBoolean(data: FirestoreActivityData, key: string): boolean | null {
+  const value = data[key];
+  return typeof value === 'boolean' ? value : null;
+}
+
+function readNonNegativeInteger(data: FirestoreActivityData, key: string): number | null {
+  const value = data[key];
+
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+
+  return Math.floor(value);
+}
+
+function readPositiveInteger(data: FirestoreActivityData, key: string): number | null {
+  const value = data[key];
+
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  return Math.floor(value);
+}
+
 /** Maps a Firestore document to an Activity, or null if required fields are missing. */
 export function mapActivityDocument(id: string, data: FirestoreActivityData): Activity | null {
   const title = readString(data, 'title');
@@ -53,5 +79,16 @@ export function mapActivityDocument(id: string, data: FirestoreActivityData): Ac
     latitude: readCoordinate(data, 'latitude'),
     longitude: readCoordinate(data, 'longitude'),
     address: readString(data, 'address'),
+    registrationRequired: readBoolean(data, 'registrationRequired'),
+    hasParticipantLimit: readBoolean(data, 'hasParticipantLimit'),
+    maxParticipants: readPositiveInteger(data, 'maxParticipants'),
+    participants: readNonNegativeInteger(data, 'participants'),
+    membershipRequired: readBoolean(data, 'membershipRequired'),
+    membershipOrganization: readString(data, 'membershipOrganization'),
+    membershipUrl: readString(data, 'membershipUrl'),
+    registrationMethod: normalizeRegistrationMethod(data.registrationMethod),
+    registrationUrl: readString(data, 'registrationUrl'),
+    registrationPhone: readString(data, 'registrationPhone'),
+    registrationEmail: readString(data, 'registrationEmail'),
   };
 }
