@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, increment, updateDoc } from 'firebase/firestore';
 
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
@@ -72,6 +72,39 @@ export async function updateActivityInFirestore(
       ok: false,
       errorMessage:
         error instanceof Error ? error.message : 'Kunde inte uppdatera aktiviteten i Firestore.',
+    };
+  }
+}
+
+/** Increments the booked participant count for an activity by 1. */
+export async function incrementActivityParticipants(
+  activityId: string,
+): Promise<ActivityMutationResult> {
+  if (!activityId.trim()) {
+    return { ok: false, errorMessage: 'Aktiviteten kunde inte hittas.' };
+  }
+
+  if (!isFirebaseConfigured()) {
+    return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
+  }
+
+  const db = getFirestoreDb();
+  if (!db) {
+    return getFirestoreUnavailableResult();
+  }
+
+  try {
+    await updateDoc(doc(db, FIRESTORE_COLLECTIONS.activities, activityId), {
+      participants: increment(1),
+    });
+    return { ok: true, id: activityId };
+  } catch (error) {
+    return {
+      ok: false,
+      errorMessage:
+        error instanceof Error
+          ? error.message
+          : 'Kunde inte uppdatera antalet anmälda i Firestore.',
     };
   }
 }

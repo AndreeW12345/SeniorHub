@@ -1,11 +1,15 @@
 import * as Linking from 'expo-linking';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import type { Activity } from '@/constants/activities';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
+import { useActivities } from '@/contexts/activities-context';
 import { useRegistrations } from '@/contexts/registrations-context';
 import { useTheme } from '@/hooks/use-theme';
+import { incrementActivityParticipants } from '@/services/activities';
+import { showErrorAlert } from '@/utils/confirm-alert';
 import {
   getActivityRegistrationAction,
   isActivityFull,
@@ -20,7 +24,9 @@ type ActivityRegistrationButtonProps = {
 /** Primary registration button – prepared for future SeniorHub booking flow. */
 export function ActivityRegistrationButton({ activity }: ActivityRegistrationButtonProps) {
   const theme = useTheme();
+  const { refreshActivities } = useActivities();
   const { isRegistered, markAsRegistered } = useRegistrations();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isActivityRegistrationRequired(activity)) {
     return null;
@@ -30,25 +36,39 @@ export function ActivityRegistrationButton({ activity }: ActivityRegistrationBut
   const full = isActivityFull(activity);
   const registered = isRegistered(activity.id);
 
-  const handlePress = () => {
-    if (!action || full || registered) {
+  const handlePress = async () => {
+    if (!action || full || registered || isSubmitting) {
       return;
     }
 
-    markAsRegistered(activity.id);
+    setIsSubmitting(true);
 
-    if (action.method === 'external') {
-      void Linking.openURL(normalizeWebsiteUrl(action.url));
-      return;
-    }
+    try {
+      const result = await incrementActivityParticipants(activity.id);
 
-    if (action.method === 'phone') {
-      void Linking.openURL(getPhoneUrl(action.phone));
-      return;
-    }
+      if (!result.ok) {
+        showErrorAlert('Kunde inte anmäla dig', result.errorMessage);
+        return;
+      }
 
-    if (action.method === 'email') {
-      void Linking.openURL(getEmailUrl(action.email));
+      markAsRegistered(activity.id);
+      await refreshActivities();
+
+      if (action.method === 'external') {
+        void Linking.openURL(normalizeWebsiteUrl(action.url));
+        return;
+      }
+
+      if (action.method === 'phone') {
+        void Linking.openURL(getPhoneUrl(action.phone));
+        return;
+      }
+
+      if (action.method === 'email') {
+        void Linking.openURL(getEmailUrl(action.email));
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -72,16 +92,16 @@ export function ActivityRegistrationButton({ activity }: ActivityRegistrationBut
 
   return (
     <Pressable
-      onPress={handlePress}
+      onPress={() => void handlePress()}
       accessibilityRole="button"
       accessibilityLabel={full ? 'Aktiviteten är fullbokad' : 'Anmäl mig'}
-      accessibilityState={{ disabled: full }}
-      disabled={full}
+      accessibilityState={{ disabled: full || isSubmitting }}
+      disabled={full || isSubmitting}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: theme.primary },
-        (pressed || full) && styles.pressed,
-        full && styles.disabled,
+        (pressed || full || isSubmitting) && styles.pressed,
+        (full || isSubmitting) && styles.disabled,
       ]}>
       <ThemedText type="bodyLarge" style={styles.buttonText}>
         {full ? 'Fullbokad' : 'Anmäl mig'}

@@ -99,11 +99,17 @@ export function getActivityRegistrationSectionTitle(activity: Activity): string 
 }
 
 function getBookingStatusText(participantCount: number, maxParticipants: number): string {
-  if (participantCount >= maxParticipants) {
+  const remainingSeats = Math.max(0, maxParticipants - participantCount);
+
+  if (remainingSeats === 0) {
     return '🔴 Fullbokad';
   }
 
-  return `📊 ${participantCount} av ${maxParticipants} platser bokade`;
+  if (remainingSeats === 1) {
+    return '🟡 Endast 1 plats kvar';
+  }
+
+  return `🟢 ${remainingSeats} platser kvar`;
 }
 
 export function getActivityRegistrationDisplay(activity: Activity): ActivityRegistrationDisplay {

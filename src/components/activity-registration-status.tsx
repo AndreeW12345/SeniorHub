@@ -15,8 +15,12 @@ function isFullLine(line: string): boolean {
   return line.startsWith('🔴');
 }
 
-function isBookingLine(line: string): boolean {
-  return line.startsWith('📊');
+function isLowSeatsLine(line: string): boolean {
+  return line.startsWith('🟡');
+}
+
+function isRemainingSeatsLine(line: string): boolean {
+  return line.startsWith('🟢');
 }
 
 function isMembershipLine(line: string): boolean {
@@ -47,7 +51,11 @@ export function ActivityRegistrationStatus({
           key={line}
           type="bodyLarge"
           themeColor={
-            isFullLine(line) ? 'favorite' : isBookingLine(line) ? 'textSecondary' : undefined
+            isFullLine(line)
+              ? 'favorite'
+              : isLowSeatsLine(line) || isRemainingSeatsLine(line)
+                ? 'textSecondary'
+                : undefined
           }
           style={[
             styles.lineText,

@@ -3,6 +3,7 @@ export { mapActivityDocument } from '@/services/activities/map-activity-document
 export {
   saveActivityToFirestore,
   updateActivityInFirestore,
+  incrementActivityParticipants,
   deleteActivityFromFirestore,
 } from '@/services/activities/save-activity';
 export { verifyFirestoreConnection } from '@/services/activities/verify-firestore-connection';
