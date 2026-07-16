@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
+import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import { showErrorAlert } from '@/utils/confirm-alert';
 
@@ -14,6 +15,7 @@ type AdminActivityImagePickerProps = {
   onImageUrlChange: (url: string) => void;
   onLocalImageUriChange: (uri: string | null) => void;
   disabled?: boolean;
+  isUploading?: boolean;
 };
 
 function getPreviewUri(imageUrl: string, localImageUri: string | null): string | null {
@@ -30,13 +32,17 @@ export function AdminActivityImagePicker({
   onImageUrlChange,
   onLocalImageUriChange,
   disabled = false,
+  isUploading = false,
 }: AdminActivityImagePickerProps) {
   const theme = useTheme();
+  const { isCompact, isDesktop } = useResponsive();
   const previewUri = getPreviewUri(imageUrl, localImageUri);
   const hasImage = previewUri !== null;
+  const previewHeight = isCompact ? 240 : isDesktop ? 360 : 300;
+  const busy = disabled || isUploading;
 
   const handlePickImage = async () => {
-    if (disabled) {
+    if (busy) {
       return;
     }
 
@@ -64,96 +70,108 @@ export function AdminActivityImagePicker({
   };
 
   const handleRemoveImage = () => {
+    if (busy) {
+      return;
+    }
+
     onLocalImageUriChange(null);
     onImageUrlChange('');
   };
 
   return (
     <View style={styles.container}>
-      <ThemedText type="smallBold" themeColor="textSecondary">
-        Aktivitetsbild (valfri)
-      </ThemedText>
-
       {hasImage ? (
-        <View style={[styles.previewCard, CardShadow, { backgroundColor: theme.card }]}>
+        <View style={[styles.previewShell, { backgroundColor: theme.backgroundElement }]}>
           <Image
             source={{ uri: previewUri }}
-            style={styles.previewImage}
+            style={[styles.previewImage, { height: previewHeight }]}
             contentFit="cover"
             transition={200}
             accessibilityLabel="Förhandsvisning av vald aktivitetsbild"
           />
-          <View style={styles.previewActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Byt bild"
-              disabled={disabled}
-              onPress={() => void handlePickImage()}
-              style={({ pressed }) => [
-                styles.actionButton,
-                { backgroundColor: theme.primary },
-                (pressed || disabled) && styles.pressed,
-              ]}>
-              <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
-                Byt bild
+          {isUploading ? (
+            <View style={[styles.uploadOverlay, { backgroundColor: 'rgba(16, 42, 67, 0.55)' }]}>
+              <ActivityIndicator color="#FFFFFF" size="large" />
+              <ThemedText type="bodyLarge" style={styles.uploadOverlayText}>
+                Laddar upp bild...
               </ThemedText>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Ta bort bild"
-              disabled={disabled}
-              onPress={handleRemoveImage}
-              style={({ pressed }) => [
-                styles.actionButton,
-                styles.secondaryButton,
-                { borderColor: theme.border },
-                (pressed || disabled) && styles.pressed,
-              ]}>
-              <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.secondaryButtonText}>
-                Ta bort bild
-              </ThemedText>
-            </Pressable>
-          </View>
+            </View>
+          ) : null}
         </View>
       ) : (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Välj bild från enheten"
-          disabled={disabled}
+          accessibilityLabel="Välj bild"
+          disabled={busy}
           onPress={() => void handlePickImage()}
           style={({ pressed }) => [
             styles.emptyState,
-            CardShadow,
             {
-              backgroundColor: theme.card,
-              borderColor: theme.border,
+              minHeight: previewHeight,
+              backgroundColor: theme.backgroundElement,
+              borderColor: theme.primary,
             },
-            (pressed || disabled) && styles.pressed,
+            (pressed || busy) && styles.pressed,
           ]}>
           <View style={[styles.iconCircle, { backgroundColor: theme.primaryLight }]}>
             <SymbolView
               tintColor={theme.primary}
               name={{ ios: 'photo.on.rectangle.angled', android: 'image', web: 'image' }}
-              size={32}
+              size={40}
             />
           </View>
           <ThemedText type="bodyLarge" themeColor="primary" style={styles.emptyTitle}>
             Välj bild
           </ThemedText>
           <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
-            Tryck här för att välja en bild från din enhet.
+            Lägg till en bild som syns på aktivitetskortet och detaljsidan.
           </ThemedText>
         </Pressable>
       )}
 
-      {disabled ? (
-        <View style={styles.uploadingRow}>
-          <ActivityIndicator color={theme.primary} />
-          <ThemedText type="bodyLarge" themeColor="textSecondary">
-            Laddar upp bild...
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={hasImage ? 'Byt bild' : 'Välj bild'}
+        disabled={busy}
+        onPress={() => void handlePickImage()}
+        style={({ pressed }) => [
+          styles.primaryButton,
+          CardShadow,
+          { backgroundColor: theme.primary },
+          (pressed || busy) && styles.pressed,
+          busy && styles.disabled,
+        ]}>
+        <SymbolView
+          tintColor="#FFFFFF"
+          name={{ ios: 'photo', android: 'image', web: 'image' }}
+          size={24}
+        />
+        <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
+          {hasImage ? 'Byt bild' : 'Välj bild'}
+        </ThemedText>
+      </Pressable>
+
+      {hasImage ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ta bort bild"
+          disabled={busy}
+          onPress={handleRemoveImage}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            { borderColor: theme.border, backgroundColor: theme.card },
+            (pressed || busy) && styles.pressed,
+          ]}>
+          <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.secondaryButtonText}>
+            Ta bort bild
           </ThemedText>
-        </View>
+        </Pressable>
+      ) : null}
+
+      {localImageUri ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+          Ny bild vald – den laddas upp när du sparar aktiviteten.
+        </ThemedText>
       ) : null}
     </View>
   );
@@ -161,44 +179,31 @@ export function AdminActivityImagePicker({
 
 const styles = StyleSheet.create({
   container: {
-    gap: Spacing.two,
+    gap: Spacing.three,
   },
-  previewCard: {
+  previewShell: {
     borderRadius: Radius.xl,
     overflow: 'hidden',
-    gap: Spacing.four,
-    padding: Spacing.four,
+    position: 'relative',
   },
   previewImage: {
     width: '100%',
-    height: 220,
-    borderRadius: Radius.lg,
   },
-  previewActions: {
-    gap: Spacing.three,
-  },
-  actionButton: {
-    minHeight: 56,
-    borderRadius: Radius.lg,
+  uploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.three,
     paddingHorizontal: Spacing.five,
-    paddingVertical: Spacing.three,
   },
-  primaryButtonText: {
+  uploadOverlayText: {
     color: '#FFFFFF',
     fontWeight: '700',
-  },
-  secondaryButton: {
-    borderWidth: 1,
-  },
-  secondaryButtonText: {
-    fontWeight: '600',
+    textAlign: 'center',
   },
   emptyState: {
-    minHeight: 220,
     borderRadius: Radius.xl,
-    borderWidth: 1,
+    borderWidth: 2,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -207,8 +212,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   iconCircle: {
-    width: 72,
-    height: 72,
+    width: 88,
+    height: 88,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -216,18 +221,44 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontWeight: '700',
     textAlign: 'center',
+    fontSize: 24,
   },
   emptyText: {
     textAlign: 'center',
-    maxWidth: 320,
+    maxWidth: 360,
+    lineHeight: 30,
   },
-  uploadingRow: {
+  primaryButton: {
+    minHeight: 64,
+    borderRadius: Radius.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.three,
+    paddingHorizontal: Spacing.five,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    minHeight: 56,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+  },
+  secondaryButtonText: {
+    fontWeight: '600',
+  },
+  hint: {
+    textAlign: 'center',
   },
   pressed: {
-    opacity: 0.88,
+    opacity: 0.9,
+  },
+  disabled: {
+    opacity: 0.75,
   },
 });

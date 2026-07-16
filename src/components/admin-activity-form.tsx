@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 
 import { AddressSearchField } from '@/components/address-search-field';
-import { CategoryDropdown } from '@/components/category-dropdown';
 import { AdminActivityImagePicker } from '@/components/admin-activity-image-picker';
+import { AdminFormSection } from '@/components/admin-form-section';
+import { CategoryDropdown } from '@/components/category-dropdown';
 import { DateTimeField } from '@/components/date-time-field';
-import { FormField } from '@/components/form-field';
 import { FormCheckbox } from '@/components/form-checkbox';
+import { FormField } from '@/components/form-field';
 import { FormRadioGroup } from '@/components/form-radio-group';
 import {
   MembershipOrganizationPicker,
@@ -22,18 +24,24 @@ import {
   REGISTRATION_METHODS,
   type RegistrationMethod,
 } from '@/constants/membership';
-import { Radius, Spacing } from '@/constants/theme';
+import { CardShadow, Radius, Spacing } from '@/constants/theme';
+import { useResponsive } from '@/hooks/use-responsive';
+import { useTheme } from '@/hooks/use-theme';
 import {
   saveActivityToFirestore,
   updateActivityInFirestore,
   type ActivityFormInput,
 } from '@/services/activities';
 import { uploadActivityImage } from '@/services/storage';
-import { useTheme } from '@/hooks/use-theme';
 import {
   parseCoordinateInput,
   validateActivityCoordinates,
 } from '@/utils/activity-coordinates';
+import {
+  combineStoredTimeRange,
+  isEndTimeAfterStart,
+  splitStoredTimeRange,
+} from '@/utils/date-time-format';
 
 type FormErrors = Partial<
   Record<
@@ -41,6 +49,7 @@ type FormErrors = Partial<
     | 'description'
     | 'date'
     | 'time'
+    | 'endTime'
     | 'location'
     | 'organizer'
     | 'category'
@@ -61,8 +70,8 @@ type FormErrors = Partial<
 const REQUIRED_FIELD_ERRORS: FormErrors = {
   title: 'Ange en titel.',
   description: 'Ange en beskrivning.',
-  date: 'Ange ett datum.',
-  time: 'Ange en tid.',
+  date: 'Välj ett datum.',
+  time: 'Välj en starttid.',
   location: 'Ange en plats.',
   organizer: 'Ange en arrangör.',
 };
@@ -104,6 +113,16 @@ const REGISTRATION_METHOD_OPTIONS = REGISTRATION_METHODS.map((method) => ({
   label: REGISTRATION_METHOD_LABELS[method],
 }));
 
+function clearError(errors: FormErrors, key: keyof FormErrors): FormErrors {
+  if (!errors[key]) {
+    return errors;
+  }
+
+  const next = { ...errors };
+  delete next[key];
+  return next;
+}
+
 export function AdminActivityForm({
   mode,
   activityId,
@@ -111,12 +130,17 @@ export function AdminActivityForm({
   onSubmitSuccess,
 }: AdminActivityFormProps) {
   const theme = useTheme();
+  const { isCompact, isDesktop } = useResponsive();
   const isEditMode = mode === 'edit';
+  const useTwoColumns = !isCompact;
+
+  const initialTimes = splitStoredTimeRange(initialValues.time);
 
   const [title, setTitle] = useState(initialValues.title);
   const [description, setDescription] = useState(initialValues.description);
   const [date, setDate] = useState(initialValues.date);
-  const [time, setTime] = useState(initialValues.time);
+  const [startTime, setStartTime] = useState(initialTimes.startTime);
+  const [endTime, setEndTime] = useState(initialTimes.endTime);
   const [location, setLocation] = useState(initialValues.location);
   const [organizer, setOrganizer] = useState(initialValues.organizer);
   const [category, setCategory] = useState<ActivityCategory>(initialValues.category);
@@ -155,6 +179,12 @@ export function AdminActivityForm({
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
+  const isBusy = isSaving || isUploadingImage;
+  const errorMessages = useMemo(
+    () => Object.values(errors).filter((message): message is string => Boolean(message)),
+    [errors],
+  );
+
   const validateForm = () => {
     const nextErrors: FormErrors = {};
 
@@ -167,8 +197,11 @@ export function AdminActivityForm({
     if (!date.trim()) {
       nextErrors.date = REQUIRED_FIELD_ERRORS.date;
     }
-    if (!time.trim()) {
+    if (!startTime.trim()) {
       nextErrors.time = REQUIRED_FIELD_ERRORS.time;
+    }
+    if (endTime.trim() && startTime.trim() && !isEndTimeAfterStart(startTime, endTime)) {
+      nextErrors.endTime = 'Sluttiden måste vara efter starttiden.';
     }
     if (!location.trim()) {
       nextErrors.location = REQUIRED_FIELD_ERRORS.location;
@@ -226,19 +259,17 @@ export function AdminActivityForm({
     setSubmitError(null);
 
     if (!validateForm()) {
+      setSubmitError('Kontrollera de markerade fälten och försök igen.');
       return;
     }
 
     setIsSaving(true);
-    console.log('[SeniorHub][save] start', { mode, hasLocalImage: Boolean(localImageUri) });
 
     let finalImageUrl = imageUrl.trim();
 
     if (localImageUri) {
       setIsUploadingImage(true);
-      console.log('[SeniorHub][save] before uploadActivityImage');
       const uploadResult = await uploadActivityImage(localImageUri, activityId);
-      console.log('[SeniorHub][save] after uploadActivityImage', { ok: uploadResult.ok });
       setIsUploadingImage(false);
 
       if (!uploadResult.ok) {
@@ -254,7 +285,7 @@ export function AdminActivityForm({
       title,
       description,
       date,
-      time,
+      time: combineStoredTimeRange(startTime, endTime),
       location,
       organizer,
       category,
@@ -277,11 +308,9 @@ export function AdminActivityForm({
       registrationEmail: registrationRequired && registrationMethod === 'email' ? registrationEmail : '',
     };
 
-    console.log('[SeniorHub][save] before Firestore write', { mode, hasImageUrl: Boolean(finalImageUrl) });
     const result = isEditMode
       ? await updateActivityInFirestore(activityId ?? '', input)
       : await saveActivityToFirestore(input);
-    console.log('[SeniorHub][save] after Firestore write', { ok: result.ok });
 
     setIsSaving(false);
 
@@ -290,101 +319,271 @@ export function AdminActivityForm({
       return;
     }
 
-    console.log('[SeniorHub][save] before navigation');
     await onSubmitSuccess();
-    console.log('[SeniorHub][save] done');
   };
+
+  const rowStyle = useTwoColumns ? styles.row : styles.stack;
+  const fieldHalfStyle = useTwoColumns ? styles.fieldHalf : undefined;
 
   return (
     <ScreenLayout
       title={isEditMode ? 'Redigera aktivitet' : 'Lägg till aktivitet'}
       subtitle={
-        isEditMode ? 'Uppdatera aktivitetens uppgifter' : 'Fyll i aktivitetens uppgifter'
+        isEditMode
+          ? 'Uppdatera uppgifterna och spara när du är klar'
+          : 'Fyll i sektionerna nedan och spara aktiviteten'
+      }
+      omitTabInset
+      footer={
+        <>
+          {submitError ? (
+            <View
+              style={[
+                styles.alertBanner,
+                CardShadow,
+                { backgroundColor: '#FDF2F4', borderColor: theme.favorite },
+              ]}>
+              <ThemedText type="bodyLarge" themeColor="favorite" style={styles.submitError}>
+                {submitError}
+              </ThemedText>
+            </View>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              isUploadingImage
+                ? 'Laddar upp bild'
+                : isSaving
+                  ? 'Sparar aktivitet'
+                  : isEditMode
+                    ? 'Spara ändringar'
+                    : 'Spara aktivitet'
+            }
+            disabled={isBusy}
+            onPress={() => void handleSubmit()}
+            style={({ pressed }) => [
+              styles.saveButton,
+              CardShadow,
+              { backgroundColor: theme.primary },
+              (pressed || isBusy) && styles.saveButtonPressed,
+              isBusy && styles.saveButtonDisabled,
+            ]}>
+            {isBusy ? (
+              <View style={styles.saveBusyRow}>
+                <ActivityIndicator color="#FFFFFF" />
+                <ThemedText type="bodyLarge" style={styles.saveButtonText}>
+                  {isUploadingImage ? 'Laddar upp bild...' : 'Sparar aktivitet...'}
+                </ThemedText>
+              </View>
+            ) : (
+              <ThemedText type="bodyLarge" style={styles.saveButtonText}>
+                {isEditMode ? 'Spara ändringar' : 'Spara aktivitet'}
+              </ThemedText>
+            )}
+          </Pressable>
+        </>
       }>
-      <View style={styles.form}>
-        <FormField
-          label="Titel"
-          value={title}
-          onChangeText={setTitle}
-          error={errors.title}
-          placeholder="Till exempel Morgonpromenad"
-          autoCapitalize="sentences"
-        />
-        <FormField
-          label="Beskrivning"
-          value={description}
-          onChangeText={setDescription}
-          error={errors.description}
-          placeholder="Beskriv aktiviteten"
-          multiline
-        />
-        <DateTimeField
-          label="Datum"
-          mode="date"
-          value={date}
-          onChange={setDate}
-          error={errors.date}
-          placeholder="Välj datum"
-        />
-        <DateTimeField
-          label="Tid"
-          mode="time"
-          value={time}
-          onChange={setTime}
-          error={errors.time}
-          placeholder="Välj tid"
-        />
-        <FormField
-          label="Plats"
-          value={location}
-          onChangeText={setLocation}
-          error={errors.location}
-          placeholder="Till exempel Stadsparken"
-        />
-        <FormField
-          label="Arrangör"
-          value={organizer}
-          onChangeText={setOrganizer}
-          error={errors.organizer}
-          placeholder="Till exempel Seniorföreningen"
-        />
-        <CategoryDropdown value={category} onChange={setCategory} error={errors.category} />
-        <AddressSearchField
-          key={`${activityId ?? 'new'}-${initialValues.address ?? ''}`}
-          value={address}
-          onChange={(nextAddress) => {
-            setAddress(nextAddress);
-            if (!nextAddress.trim()) {
-              setLatitude('');
-              setLongitude('');
-              return;
-            }
-
-            if (!location.trim()) {
-              setLocation(nextAddress);
-            }
-          }}
-          latitude={latitude}
-          longitude={longitude}
-          onCoordinatesChange={(nextLatitude, nextLongitude) => {
-            setLatitude(nextLatitude);
-            setLongitude(nextLongitude);
-          }}
-          error={errors.address}
-          disabled={isSaving || isUploadingImage}
-        />
-        <AdminActivityImagePicker
-          imageUrl={imageUrl}
-          localImageUri={localImageUri}
-          onImageUrlChange={setImageUrl}
-          onLocalImageUriChange={setLocalImageUri}
-          disabled={isSaving || isUploadingImage}
-        />
-
-        <View style={styles.registrationSection}>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            Medlemskap
+      <View style={[styles.form, isDesktop && styles.formDesktop]}>
+        <View
+          style={[styles.infoBanner, CardShadow]}
+          accessibilityRole="text"
+          accessibilityLabel="Alla ändringar sparas först när du klickar på Spara aktivitet.">
+          <View style={styles.infoIconWrap}>
+            <SymbolView
+              tintColor="#1B7A4E"
+              name={{
+                ios: 'checkmark.circle.fill',
+                android: 'check_circle',
+                web: 'check_circle',
+              }}
+              size={28}
+            />
+          </View>
+          <ThemedText type="bodyLarge" style={styles.infoText}>
+            Alla ändringar sparas först när du klickar på &apos;Spara aktivitet&apos;.
           </ThemedText>
+        </View>
+
+        {errorMessages.length > 0 ? (
+          <View
+            style={[styles.alertBanner, CardShadow, { backgroundColor: '#FDF2F4', borderColor: theme.favorite }]}
+            accessibilityRole="alert">
+            <ThemedText type="smallBold" themeColor="favorite">
+              Saknade eller felaktiga uppgifter
+            </ThemedText>
+            {errorMessages.map((message) => (
+              <ThemedText key={message} type="bodyLarge" themeColor="favorite">
+                • {message}
+              </ThemedText>
+            ))}
+          </View>
+        ) : null}
+
+        {isBusy ? (
+          <View
+            style={[styles.statusBanner, CardShadow, { backgroundColor: theme.primaryLight }]}
+            accessibilityLiveRegion="polite">
+            <ActivityIndicator color={theme.primary} size="large" />
+            <View style={styles.statusTextWrap}>
+              <ThemedText type="bodyLarge" themeColor="primary" style={styles.statusTitle}>
+                {isUploadingImage ? 'Laddar upp bild...' : 'Sparar aktivitet...'}
+              </ThemedText>
+              <ThemedText type="bodyLarge" themeColor="textSecondary">
+                {isUploadingImage
+                  ? 'Vänta medan bilden skickas till Firebase Storage.'
+                  : 'Vänta medan uppgifterna sparas.'}
+              </ThemedText>
+            </View>
+          </View>
+        ) : null}
+
+        <AdminFormSection
+          title="Grunduppgifter"
+          description="Titel, beskrivning och kategori som syns för deltagarna.">
+          <FormField
+            label="Titel *"
+            value={title}
+            onChangeText={(value) => {
+              setTitle(value);
+              setErrors((current) => clearError(current, 'title'));
+            }}
+            error={errors.title}
+            placeholder="Till exempel Morgonpromenad"
+            autoCapitalize="sentences"
+            editable={!isBusy}
+          />
+          <FormField
+            label="Beskrivning *"
+            value={description}
+            onChangeText={(value) => {
+              setDescription(value);
+              setErrors((current) => clearError(current, 'description'));
+            }}
+            error={errors.description}
+            placeholder="Beskriv aktiviteten"
+            multiline
+            editable={!isBusy}
+          />
+          <CategoryDropdown
+            value={category}
+            onChange={setCategory}
+            error={errors.category}
+          />
+        </AdminFormSection>
+
+        <AdminFormSection
+          title="Tid och plats"
+          description="Välj datum och tid med kalender och klocka. Sluttid är valfri.">
+          <DateTimeField
+            label="Datum *"
+            mode="date"
+            value={date}
+            onChange={(value) => {
+              setDate(value);
+              setErrors((current) => clearError(current, 'date'));
+            }}
+            error={errors.date}
+            placeholder="Välj datum"
+          />
+          <View style={rowStyle}>
+            <View style={fieldHalfStyle}>
+              <DateTimeField
+                label="Starttid *"
+                mode="time"
+                value={startTime}
+                onChange={(value) => {
+                  setStartTime(value);
+                  setErrors((current) => clearError(clearError(current, 'time'), 'endTime'));
+                }}
+                error={errors.time}
+                placeholder="Välj starttid"
+              />
+            </View>
+            <View style={fieldHalfStyle}>
+              <DateTimeField
+                label="Sluttid (valfri)"
+                mode="time"
+                value={endTime}
+                onChange={(value) => {
+                  setEndTime(value);
+                  setErrors((current) => clearError(current, 'endTime'));
+                }}
+                error={errors.endTime}
+                placeholder="Välj sluttid"
+              />
+            </View>
+          </View>
+          <View style={rowStyle}>
+            <View style={fieldHalfStyle}>
+              <FormField
+                label="Plats *"
+                value={location}
+                onChangeText={(value) => {
+                  setLocation(value);
+                  setErrors((current) => clearError(current, 'location'));
+                }}
+                error={errors.location}
+                placeholder="Till exempel Stadsparken"
+                editable={!isBusy}
+              />
+            </View>
+            <View style={fieldHalfStyle}>
+              <FormField
+                label="Arrangör *"
+                value={organizer}
+                onChangeText={(value) => {
+                  setOrganizer(value);
+                  setErrors((current) => clearError(current, 'organizer'));
+                }}
+                error={errors.organizer}
+                placeholder="Till exempel Seniorföreningen"
+                editable={!isBusy}
+              />
+            </View>
+          </View>
+          <AddressSearchField
+            key={`${activityId ?? 'new'}-${initialValues.address ?? ''}`}
+            value={address}
+            onChange={(nextAddress) => {
+              setAddress(nextAddress);
+              setErrors((current) => clearError(current, 'address'));
+              if (!nextAddress.trim()) {
+                setLatitude('');
+                setLongitude('');
+                return;
+              }
+
+              if (!location.trim()) {
+                setLocation(nextAddress);
+              }
+            }}
+            latitude={latitude}
+            longitude={longitude}
+            onCoordinatesChange={(nextLatitude, nextLongitude) => {
+              setLatitude(nextLatitude);
+              setLongitude(nextLongitude);
+            }}
+            error={errors.address}
+            disabled={isBusy}
+          />
+        </AdminFormSection>
+
+        <AdminFormSection
+          title="Bild"
+          description="Välj en tydlig bild. Förhandsvisningen visas direkt när du valt en fil.">
+          <AdminActivityImagePicker
+            imageUrl={imageUrl}
+            localImageUri={localImageUri}
+            onImageUrlChange={setImageUrl}
+            onLocalImageUriChange={setLocalImageUri}
+            disabled={isBusy}
+            isUploading={isUploadingImage}
+          />
+        </AdminFormSection>
+
+        <AdminFormSection
+          title="Medlemskap"
+          description="Kräv medlemskap om aktiviteten endast är öppen för medlemmar.">
           <FormCheckbox
             label="Medlemskap krävs"
             checked={membershipRequired}
@@ -400,7 +599,7 @@ export function AdminActivityForm({
                 }));
               }
             }}
-            disabled={isSaving || isUploadingImage}
+            disabled={isBusy}
           />
           {membershipRequired ? (
             <>
@@ -411,26 +610,28 @@ export function AdminActivityForm({
                 onCustomOrganizationChange={setMembershipCustomOrganization}
                 organizationError={errors.membershipOrganization}
                 customOrganizationError={errors.membershipCustomOrganization}
-                disabled={isSaving || isUploadingImage}
+                disabled={isBusy}
               />
               <FormField
                 label="Medlemskapets länk"
                 value={membershipUrl}
-                onChangeText={setMembershipUrl}
+                onChangeText={(value) => {
+                  setMembershipUrl(value);
+                  setErrors((current) => clearError(current, 'membershipUrl'));
+                }}
                 error={errors.membershipUrl}
                 placeholder="https://example.se/bli-medlem"
                 keyboardType="url"
                 autoCapitalize="none"
-                editable={!isSaving && !isUploadingImage}
+                editable={!isBusy}
               />
             </>
           ) : null}
-        </View>
+        </AdminFormSection>
 
-        <View style={styles.registrationSection}>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            Anmälan
-          </ThemedText>
+        <AdminFormSection
+          title="Anmälan och platser"
+          description="Ställ in hur deltagare anmäler sig och om antalet platser är begränsat.">
           <FormCheckbox
             label="Anmälan krävs"
             checked={registrationRequired}
@@ -445,7 +646,7 @@ export function AdminActivityForm({
                 }));
               }
             }}
-            disabled={isSaving || isUploadingImage}
+            disabled={isBusy}
           />
           {registrationRequired ? (
             <FormRadioGroup
@@ -453,42 +654,51 @@ export function AdminActivityForm({
               value={registrationMethod}
               options={REGISTRATION_METHOD_OPTIONS}
               onChange={setRegistrationMethod}
-              disabled={isSaving || isUploadingImage}
+              disabled={isBusy}
             />
           ) : null}
           {registrationRequired && registrationMethod === 'external' ? (
             <FormField
               label="Webbadress för anmälan"
               value={registrationUrl}
-              onChangeText={setRegistrationUrl}
+              onChangeText={(value) => {
+                setRegistrationUrl(value);
+                setErrors((current) => clearError(current, 'registrationUrl'));
+              }}
               error={errors.registrationUrl}
               placeholder="https://example.se/anmalan"
               keyboardType="url"
               autoCapitalize="none"
-              editable={!isSaving && !isUploadingImage}
+              editable={!isBusy}
             />
           ) : null}
           {registrationRequired && registrationMethod === 'phone' ? (
             <FormField
               label="Telefonnummer för anmälan"
               value={registrationPhone}
-              onChangeText={setRegistrationPhone}
+              onChangeText={(value) => {
+                setRegistrationPhone(value);
+                setErrors((current) => clearError(current, 'registrationPhone'));
+              }}
               error={errors.registrationPhone}
               placeholder="Till exempel 08-123 456 78"
               keyboardType="phone-pad"
-              editable={!isSaving && !isUploadingImage}
+              editable={!isBusy}
             />
           ) : null}
           {registrationRequired && registrationMethod === 'email' ? (
             <FormField
               label="E-postadress för anmälan"
               value={registrationEmail}
-              onChangeText={setRegistrationEmail}
+              onChangeText={(value) => {
+                setRegistrationEmail(value);
+                setErrors((current) => clearError(current, 'registrationEmail'));
+              }}
               error={errors.registrationEmail}
               placeholder="Till exempel anmalan@example.se"
               keyboardType="email-address"
               autoCapitalize="none"
-              editable={!isSaving && !isUploadingImage}
+              editable={!isBusy}
             />
           ) : null}
           <FormCheckbox
@@ -498,48 +708,26 @@ export function AdminActivityForm({
               setHasParticipantLimit(checked);
               if (!checked) {
                 setMaxParticipants('');
-                setErrors((current) => ({ ...current, maxParticipants: undefined }));
+                setErrors((current) => clearError(current, 'maxParticipants'));
               }
             }}
-            disabled={isSaving || isUploadingImage}
+            disabled={isBusy}
           />
           {hasParticipantLimit ? (
             <FormField
               label="Max antal deltagare"
               value={maxParticipants}
-              onChangeText={setMaxParticipants}
+              onChangeText={(value) => {
+                setMaxParticipants(value);
+                setErrors((current) => clearError(current, 'maxParticipants'));
+              }}
               error={errors.maxParticipants}
               placeholder="Till exempel 20"
               keyboardType="number-pad"
+              editable={!isBusy}
             />
           ) : null}
-        </View>
-
-        {submitError ? (
-          <ThemedText type="bodyLarge" themeColor="favorite" style={styles.submitError}>
-            {submitError}
-          </ThemedText>
-        ) : null}
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={isEditMode ? 'Spara ändringar' : 'Spara aktivitet'}
-          disabled={isSaving || isUploadingImage}
-          onPress={() => void handleSubmit()}
-          style={({ pressed }) => [
-            styles.saveButton,
-            { backgroundColor: theme.primary },
-            (pressed || isSaving || isUploadingImage) && styles.saveButtonPressed,
-            (isSaving || isUploadingImage) && styles.saveButtonDisabled,
-          ]}>
-          {isSaving || isUploadingImage ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <ThemedText type="bodyLarge" style={styles.saveButtonText}>
-              {isEditMode ? 'Spara ändringar' : 'Spara aktivitet'}
-            </ThemedText>
-          )}
-        </Pressable>
+        </AdminFormSection>
       </View>
     </ScreenLayout>
   );
@@ -547,29 +735,93 @@ export function AdminActivityForm({
 
 const styles = StyleSheet.create({
   form: {
+    gap: Spacing.five,
+    width: '100%',
+  },
+  formDesktop: {
+    gap: Spacing.six,
+  },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.four,
   },
-  registrationSection: {
+  stack: {
+    gap: Spacing.four,
+  },
+  fieldHalf: {
+    flexGrow: 1,
+    flexBasis: 260,
+    minWidth: 220,
+  },
+  alertBanner: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.four,
+    gap: Spacing.two,
+  },
+  infoBanner: {
+    borderRadius: Radius.xl,
+    backgroundColor: '#E8F6EE',
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.four,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.three,
+  },
+  infoIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    backgroundColor: '#D4EFDF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoText: {
+    flex: 1,
+    color: '#1B7A4E',
+    fontWeight: '600',
+    lineHeight: 30,
+  },
+  statusBanner: {
+    borderRadius: Radius.xl,
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.four,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.four,
+  },
+  statusTextWrap: {
+    flex: 1,
+    gap: Spacing.one,
+  },
+  statusTitle: {
+    fontWeight: '700',
   },
   submitError: {
     textAlign: 'center',
+    fontWeight: '600',
   },
   saveButton: {
-    minHeight: 64,
+    minHeight: 68,
     borderRadius: Radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.five,
     paddingVertical: Spacing.four,
-    marginTop: Spacing.two,
+  },
+  saveBusyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
   },
   saveButtonPressed: {
     opacity: 0.9,
     transform: [{ scale: 0.99 }],
   },
   saveButtonDisabled: {
-    opacity: 0.75,
+    opacity: 0.8,
   },
   saveButtonText: {
     color: '#FFFFFF',

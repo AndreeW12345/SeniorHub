@@ -103,3 +103,46 @@ export function formatTimeDisplay(value: string): string {
 
   return trimmed;
 }
+
+/** Splits a stored time or range into start/end values for admin form pickers. */
+export function splitStoredTimeRange(value: string): { startTime: string; endTime: string } {
+  const trimmed = value.trim();
+  const rangeMatch = /^(\d{2}:\d{2})\s*[–-]\s*(\d{2}:\d{2})$/.exec(trimmed);
+
+  if (rangeMatch) {
+    return { startTime: rangeMatch[1], endTime: rangeMatch[2] };
+  }
+
+  if (parseTimeValue(trimmed)) {
+    return { startTime: trimmed, endTime: '' };
+  }
+
+  return { startTime: '', endTime: '' };
+}
+
+/**
+ * Combines start/end picker values into the single Firestore `time` string.
+ * End time is optional and does not require a new database field.
+ */
+export function combineStoredTimeRange(startTime: string, endTime: string): string {
+  const start = startTime.trim();
+  const end = endTime.trim();
+
+  if (start && end) {
+    return `${start} – ${end}`;
+  }
+
+  return start;
+}
+
+/** True when both times are valid and end is strictly after start. */
+export function isEndTimeAfterStart(startTime: string, endTime: string): boolean {
+  const start = parseTimeValue(startTime);
+  const end = parseTimeValue(endTime);
+
+  if (!start || !end) {
+    return false;
+  }
+
+  return end.getHours() * 60 + end.getMinutes() > start.getHours() * 60 + start.getMinutes();
+}
