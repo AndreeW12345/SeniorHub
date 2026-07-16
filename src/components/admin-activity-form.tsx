@@ -230,12 +230,15 @@ export function AdminActivityForm({
     }
 
     setIsSaving(true);
+    console.log('[SeniorHub][save] start', { mode, hasLocalImage: Boolean(localImageUri) });
 
     let finalImageUrl = imageUrl.trim();
 
     if (localImageUri) {
       setIsUploadingImage(true);
+      console.log('[SeniorHub][save] before uploadActivityImage');
       const uploadResult = await uploadActivityImage(localImageUri, activityId);
+      console.log('[SeniorHub][save] after uploadActivityImage', { ok: uploadResult.ok });
       setIsUploadingImage(false);
 
       if (!uploadResult.ok) {
@@ -274,9 +277,11 @@ export function AdminActivityForm({
       registrationEmail: registrationRequired && registrationMethod === 'email' ? registrationEmail : '',
     };
 
+    console.log('[SeniorHub][save] before Firestore write', { mode, hasImageUrl: Boolean(finalImageUrl) });
     const result = isEditMode
       ? await updateActivityInFirestore(activityId ?? '', input)
       : await saveActivityToFirestore(input);
+    console.log('[SeniorHub][save] after Firestore write', { ok: result.ok });
 
     setIsSaving(false);
 
@@ -285,7 +290,9 @@ export function AdminActivityForm({
       return;
     }
 
+    console.log('[SeniorHub][save] before navigation');
     await onSubmitSuccess();
+    console.log('[SeniorHub][save] done');
   };
 
   return (
