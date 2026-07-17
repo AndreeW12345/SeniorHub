@@ -36,7 +36,7 @@ export default function ActivityDetailScreen() {
   const insets = useSafeAreaInsets();
   const { horizontalPadding, contentWidth, isDesktop } = useResponsive();
   const activity = typeof id === 'string' ? getActivityById(id) : undefined;
-  const { bookedCount, isFull, refresh: refreshSeatAvailability } = useActivitySeatAvailability(activity);
+  const { bookedCount, refresh: refreshSeatAvailability } = useActivitySeatAvailability(activity);
   const detailImageHeight = isDesktop ? 380 : 300;
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
 
@@ -193,32 +193,6 @@ export default function ActivityDetailScreen() {
             onRegistrationComplete={refreshSeatAvailability}
           />
 
-          {shouldShowActivityRegistrationSection(activity) && isFull ? (
-            <View
-              style={[
-                styles.waitingListPlaceholder,
-                CardShadow,
-                { backgroundColor: theme.card, borderColor: theme.border },
-              ]}>
-              <ThemedText type="sectionTitle" themeColor="textSecondary">
-                Reservlista
-              </ThemedText>
-              <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.waitingListText}>
-                Aktiviteten är full. Reservlista kommer snart.
-              </ThemedText>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Anmäl dig till reservlista"
-                accessibilityState={{ disabled: true }}
-                disabled
-                style={[styles.waitingListButton, { borderColor: theme.border }]}>
-                <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.waitingListButtonText}>
-                  Anmäl dig till reservlista
-                </ThemedText>
-              </Pressable>
-            </View>
-          ) : null}
-
           <Pressable
             onPress={openMaps}
             accessibilityRole="button"
@@ -327,28 +301,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
-  },
-  waitingListPlaceholder: {
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    padding: Spacing.five,
-    gap: Spacing.three,
-  },
-  waitingListText: {
-    lineHeight: 32,
-  },
-  waitingListButton: {
-    minHeight: 56,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.five,
-    opacity: 0.7,
-  },
-  waitingListButtonText: {
-    fontWeight: '700',
-    textAlign: 'center',
   },
   mapsButton: {
     minHeight: 64,

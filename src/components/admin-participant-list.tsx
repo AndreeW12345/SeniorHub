@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import type { ActivityRegistration } from '@/constants/registrations';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { fetchActivityRegistrations } from '@/services/registrations';
+import { subscribeActivityRegistrations } from '@/services/registrations';
 
 type AdminParticipantListProps = {
   activityId: string;
@@ -29,13 +29,19 @@ function formatRegisteredAt(date: Date): string {
   return `${capitalized} kl. ${timeLabel}`;
 }
 
-function ParticipantRow({ registration }: { registration: ActivityRegistration }) {
+function ParticipantRow({
+  registration,
+  timeLabelPrefix = 'Anmäld',
+}: {
+  registration: ActivityRegistration;
+  timeLabelPrefix?: string;
+}) {
   const theme = useTheme();
 
   return (
     <View
       style={[styles.row, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-      accessibilityLabel={`${registration.name}, telefon ${registration.phone}, anmäld ${formatRegisteredAt(registration.registeredAt)}`}>
+      accessibilityLabel={`${registration.name}, telefon ${registration.phone}, ${timeLabelPrefix} ${formatRegisteredAt(registration.registeredAt)}`}>
       <ThemedText type="bodyLarge" style={styles.name}>
         {registration.name}
       </ThemedText>
@@ -43,80 +49,134 @@ function ParticipantRow({ registration }: { registration: ActivityRegistration }
         {registration.phone}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.registeredAt}>
-        Anmäld {formatRegisteredAt(registration.registeredAt)}
+        {timeLabelPrefix} {formatRegisteredAt(registration.registeredAt)}
       </ThemedText>
     </View>
   );
 }
 
-/** Lists registered participants for an activity in the admin editor. */
+/** Lists registered participants and waitlist for an activity in the admin editor. */
 export function AdminParticipantList({ activityId }: AdminParticipantListProps) {
   const theme = useTheme();
   const [registrations, setRegistrations] = useState<ActivityRegistration[]>([]);
+  const [waitlist, setWaitlist] = useState<ActivityRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadRegistrations = useCallback(async () => {
+  const applyRegistrations = useCallback((next: ActivityRegistration[]) => {
+    setRegistrations(next.filter((registration) => registration.status === 'registered'));
+    setWaitlist(next.filter((registration) => registration.status === 'waitlist'));
+    setIsLoading(false);
+    setErrorMessage(null);
+  }, []);
+
+  useEffect(() => {
     setIsLoading(true);
     setErrorMessage(null);
 
-    try {
-      const next = await fetchActivityRegistrations(activityId);
-      setRegistrations(next);
-    } catch (error) {
-      console.warn('[SeniorHub] Kunde inte hämta deltagarlista:', error);
-      setRegistrations([]);
-      setErrorMessage('Kunde inte hämta deltagarlistan. Försök igen senare.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activityId]);
+    const unsubscribe = subscribeActivityRegistrations(
+      activityId,
+      applyRegistrations,
+      () => {
+        setRegistrations([]);
+        setWaitlist([]);
+        setIsLoading(false);
+        setErrorMessage('Kunde inte hämta deltagarlistan. Försök igen senare.');
+      },
+      { includeStatuses: ['registered', 'waitlist'] },
+    );
 
-  useEffect(() => {
-    void loadRegistrations();
-  }, [loadRegistrations]);
+    return unsubscribe;
+  }, [activityId, applyRegistrations]);
 
   return (
-    <AdminFormSection
-      title="Anmälda deltagare"
-      description={
-        isLoading
-          ? 'Hämtar anmälningar...'
-          : registrations.length > 0
-            ? `${registrations.length} ${registrations.length === 1 ? 'deltagare' : 'deltagare'} anmälda.`
-            : 'Här visas personer som anmält sig till aktiviteten.'
-      }>
-      {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={theme.primary} />
-          <ThemedText type="bodyLarge" themeColor="textSecondary">
-            Laddar deltagare...
+    <>
+      <AdminFormSection
+        title="Anmälda deltagare"
+        description={
+          isLoading
+            ? 'Hämtar anmälningar...'
+            : registrations.length > 0
+              ? `${registrations.length} ${registrations.length === 1 ? 'deltagare' : 'deltagare'} anmälda.`
+              : 'Här visas personer som anmält sig till aktiviteten.'
+        }>
+        {isLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={theme.primary} />
+            <ThemedText type="bodyLarge" themeColor="textSecondary">
+              Laddar deltagare...
+            </ThemedText>
+          </View>
+        ) : null}
+
+        {!isLoading && errorMessage ? (
+          <ThemedText type="bodyLarge" themeColor="favorite">
+            {errorMessage}
           </ThemedText>
-        </View>
-      ) : null}
+        ) : null}
 
-      {!isLoading && errorMessage ? (
-        <ThemedText type="bodyLarge" themeColor="favorite">
-          {errorMessage}
-        </ThemedText>
-      ) : null}
+        {!isLoading && !errorMessage && registrations.length === 0 ? (
+          <View style={[styles.emptyState, { backgroundColor: theme.backgroundElement }]}>
+            <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
+              Inga deltagare ännu.
+            </ThemedText>
+          </View>
+        ) : null}
 
-      {!isLoading && !errorMessage && registrations.length === 0 ? (
-        <View style={[styles.emptyState, { backgroundColor: theme.backgroundElement }]}>
-          <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
-            Inga deltagare ännu.
+        {!isLoading && registrations.length > 0 ? (
+          <View style={styles.list}>
+            {registrations.map((registration) => (
+              <ParticipantRow key={registration.id} registration={registration} />
+            ))}
+          </View>
+        ) : null}
+      </AdminFormSection>
+
+      <AdminFormSection
+        title="Reservlista"
+        description={
+          isLoading
+            ? 'Hämtar reservlista...'
+            : waitlist.length > 0
+              ? `${waitlist.length} ${waitlist.length === 1 ? 'person' : 'personer'} på reservlistan.`
+              : 'Här visas personer som står på reservlistan.'
+        }>
+        {isLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={theme.primary} />
+            <ThemedText type="bodyLarge" themeColor="textSecondary">
+              Laddar reservlista...
+            </ThemedText>
+          </View>
+        ) : null}
+
+        {!isLoading && errorMessage ? (
+          <ThemedText type="bodyLarge" themeColor="favorite">
+            {errorMessage}
           </ThemedText>
-        </View>
-      ) : null}
+        ) : null}
 
-      {!isLoading && registrations.length > 0 ? (
-        <View style={styles.list}>
-          {registrations.map((registration) => (
-            <ParticipantRow key={registration.id} registration={registration} />
-          ))}
-        </View>
-      ) : null}
-    </AdminFormSection>
+        {!isLoading && !errorMessage && waitlist.length === 0 ? (
+          <View style={[styles.emptyState, { backgroundColor: theme.backgroundElement }]}>
+            <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
+              Ingen står på reservlistan.
+            </ThemedText>
+          </View>
+        ) : null}
+
+        {!isLoading && waitlist.length > 0 ? (
+          <View style={styles.list}>
+            {waitlist.map((registration) => (
+              <ParticipantRow
+                key={registration.id}
+                registration={registration}
+                timeLabelPrefix="Tillagd"
+              />
+            ))}
+          </View>
+        ) : null}
+      </AdminFormSection>
+    </>
   );
 }
 

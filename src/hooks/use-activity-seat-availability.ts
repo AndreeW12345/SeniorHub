@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { Activity } from '@/constants/activities';
-import { countActivityRegistrations } from '@/services/registrations/count-registrations';
+import { subscribeActivityRegistrations } from '@/services/registrations/subscribe-activity-registrations';
 import {
   getSeatAvailability,
   isSeatAvailabilityFull,
@@ -22,8 +22,8 @@ type UseActivitySeatAvailabilityResult = {
 };
 
 /**
- * Loads registered participant count and derives seat availability for an activity.
- * Ready for waitlist: countActivityRegistrations(..., 'waitlist') can be added later.
+ * Live registered participant count and seat availability for an activity.
+ * Updates automatically when registrations change (e.g. cancel + waitlist promotion).
  */
 export function useActivitySeatAvailability(
   activity: Activity | undefined,
@@ -36,7 +36,7 @@ export function useActivitySeatAvailability(
   const [bookedCount, setBookedCount] = useState(fallbackBooked);
   const [isLoading, setIsLoading] = useState(needsLiveCount);
 
-  const refresh = useCallback(async () => {
+  useEffect(() => {
     if (!activity || !needsLiveCount) {
       setBookedCount(fallbackBooked);
       setIsLoading(false);
@@ -45,20 +45,25 @@ export function useActivitySeatAvailability(
 
     setIsLoading(true);
 
-    try {
-      const count = await countActivityRegistrations(activity.id, 'registered');
-      setBookedCount(count);
-    } catch (error) {
-      console.warn('[SeniorHub] Kunde inte hämta antal anmälda:', error);
-      setBookedCount(fallbackBooked);
-    } finally {
-      setIsLoading(false);
-    }
+    const unsubscribe = subscribeActivityRegistrations(
+      activity.id,
+      (registrations) => {
+        setBookedCount(registrations.length);
+        setIsLoading(false);
+      },
+      () => {
+        setBookedCount(fallbackBooked);
+        setIsLoading(false);
+      },
+      { includeStatuses: ['registered'] },
+    );
+
+    return unsubscribe;
   }, [activity, fallbackBooked, needsLiveCount]);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  const refresh = useCallback(async () => {
+    // Count is kept live via Firestore subscription.
+  }, []);
 
   const availability = activity
     ? getSeatAvailability(activity, bookedCount)

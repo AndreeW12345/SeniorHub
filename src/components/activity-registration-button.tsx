@@ -3,7 +3,10 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 
-import { ActivityRegistrationFormModal } from '@/components/activity-registration-form-modal';
+import {
+  ActivityRegistrationFormModal,
+  type ActivityRegistrationFormMode,
+} from '@/components/activity-registration-form-modal';
 import { ThemedText } from '@/components/themed-text';
 import type { Activity } from '@/constants/activities';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
@@ -11,7 +14,10 @@ import { useActivities } from '@/contexts/activities-context';
 import { useRegistrations } from '@/contexts/registrations-context';
 import { useTheme } from '@/hooks/use-theme';
 import { incrementActivityParticipants } from '@/services/activities';
-import { cancelActivityRegistration } from '@/services/registrations';
+import {
+  cancelActivityRegistration,
+  leaveWaitlistRegistration,
+} from '@/services/registrations';
 import { confirmDestructiveAction, showErrorAlert } from '@/utils/confirm-alert';
 import {
   getActivityRegistrationAction,
@@ -51,7 +57,7 @@ function SuccessBanner({ message }: { message: string }) {
   );
 }
 
-/** Primary registration button – book, cancel, or open external contact methods. */
+/** Primary registration button – book, waitlist, cancel, or open external contact methods. */
 export function ActivityRegistrationButton({
   activity,
   bookedCount,
@@ -59,11 +65,17 @@ export function ActivityRegistrationButton({
 }: ActivityRegistrationButtonProps) {
   const theme = useTheme();
   const { refreshActivities } = useActivities();
-  const { isRegistered, getRegistrationId, markAsRegistered, removeRegistration } =
-    useRegistrations();
+  const {
+    isRegistered,
+    isOnWaitlist,
+    getRegistrationId,
+    markAsRegistered,
+    markAsWaitlisted,
+    removeRegistration,
+  } = useRegistrations();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormVisible, setIsFormVisible] = useState(false);
-  const [justCancelled, setJustCancelled] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   if (!isActivityRegistrationRequired(activity)) {
     return null;
@@ -72,8 +84,13 @@ export function ActivityRegistrationButton({
   const action = getActivityRegistrationAction(activity);
   const full = isActivityFullWithBookedCount(activity, bookedCount);
   const registered = isRegistered(activity.id);
+  const onWaitlist = isOnWaitlist(activity.id);
   const usesSeniorHubForm = action?.method === 'seniorhub';
   const registrationId = getRegistrationId(activity.id);
+  const formMode: ActivityRegistrationFormMode =
+    full && usesSeniorHubForm ? 'waitlist' : 'registered';
+  /** SeniorHub waitlist is allowed when full; external methods stay blocked when full. */
+  const canOpenRegistration = usesSeniorHubForm ? !registered && !onWaitlist : !full && !registered;
 
   const handleExternalRegistration = async () => {
     if (!action || action.method === 'seniorhub' || full || registered || isSubmitting) {
@@ -81,7 +98,7 @@ export function ActivityRegistrationButton({
     }
 
     setIsSubmitting(true);
-    setJustCancelled(false);
+    setSuccessMessage(null);
 
     try {
       const result = await incrementActivityParticipants(activity.id);
@@ -114,11 +131,11 @@ export function ActivityRegistrationButton({
   };
 
   const handlePress = () => {
-    if (!action || full || registered || isSubmitting) {
+    if (!action || !canOpenRegistration || isSubmitting) {
       return;
     }
 
-    setJustCancelled(false);
+    setSuccessMessage(null);
 
     if (usesSeniorHubForm) {
       setIsFormVisible(true);
@@ -128,9 +145,18 @@ export function ActivityRegistrationButton({
     void handleExternalRegistration();
   };
 
-  const handleFormSuccess = async (nextRegistrationId: string) => {
-    markAsRegistered(activity.id, nextRegistrationId);
-    setJustCancelled(false);
+  const handleFormSuccess = async (
+    nextRegistrationId: string,
+    mode: ActivityRegistrationFormMode,
+  ) => {
+    if (mode === 'waitlist') {
+      markAsWaitlisted(activity.id, nextRegistrationId);
+      setSuccessMessage('Du har lagts till på reservlistan.');
+    } else {
+      markAsRegistered(activity.id, nextRegistrationId);
+      setSuccessMessage(null);
+    }
+
     setIsFormVisible(false);
     await refreshActivities();
     await onRegistrationComplete?.();
@@ -154,7 +180,33 @@ export function ActivityRegistrationButton({
       }
 
       removeRegistration(activity.id);
-      setJustCancelled(true);
+      setSuccessMessage('Du har avanmält dig från aktiviteten.');
+      await refreshActivities();
+      await onRegistrationComplete?.();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const performLeaveWaitlist = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      if (registrationId) {
+        const result = await leaveWaitlistRegistration(activity.id, registrationId);
+
+        if (!result.ok) {
+          showErrorAlert('Kunde inte lämna reservlistan', result.errorMessage);
+          return;
+        }
+      }
+
+      removeRegistration(activity.id);
+      setSuccessMessage('Du har lämnat reservlistan.');
       await refreshActivities();
       await onRegistrationComplete?.();
     } finally {
@@ -169,6 +221,17 @@ export function ActivityRegistrationButton({
       'Avanmäl mig',
       () => {
         void performCancel();
+      },
+    );
+  };
+
+  const handleLeaveWaitlistPress = () => {
+    confirmDestructiveAction(
+      'Lämna reservlista',
+      'Är du säker på att du vill lämna reservlistan?',
+      'Lämna reservlista',
+      () => {
+        void performLeaveWaitlist();
       },
     );
   };
@@ -204,37 +267,74 @@ export function ActivityRegistrationButton({
     );
   }
 
+  if (onWaitlist) {
+    return (
+      <>
+        {successMessage ? <SuccessBanner message={successMessage} /> : null}
+        <Pressable
+          onPress={handleLeaveWaitlistPress}
+          accessibilityRole="button"
+          accessibilityLabel="Lämna reservlista"
+          accessibilityState={{ disabled: isSubmitting }}
+          disabled={isSubmitting}
+          style={({ pressed }) => [
+            styles.cancelButton,
+            CardShadow,
+            { backgroundColor: theme.card, borderColor: theme.favorite },
+            (pressed || isSubmitting) && styles.pressed,
+            isSubmitting && styles.disabled,
+          ]}>
+          {isSubmitting ? (
+            <View style={styles.busyRow}>
+              <ActivityIndicator color={theme.favorite} />
+              <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
+                Lämnar...
+              </ThemedText>
+            </View>
+          ) : (
+            <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
+              Lämna reservlista
+            </ThemedText>
+          )}
+        </Pressable>
+      </>
+    );
+  }
+
+  const buttonDisabled = !canOpenRegistration || isSubmitting;
+  const buttonLabel =
+    !usesSeniorHubForm && full ? 'Fullbokad' : 'Anmäl mig';
+
   return (
     <>
-      {justCancelled ? (
-        <SuccessBanner message="Du har avanmält dig från aktiviteten." />
-      ) : null}
+      {successMessage ? <SuccessBanner message={successMessage} /> : null}
 
       <Pressable
         onPress={handlePress}
         accessibilityRole="button"
-        accessibilityLabel={full ? 'Fullbokad' : 'Anmäl mig'}
-        accessibilityState={{ disabled: full || isSubmitting }}
-        disabled={full || isSubmitting}
+        accessibilityLabel={buttonLabel}
+        accessibilityState={{ disabled: buttonDisabled }}
+        disabled={buttonDisabled}
         style={({ pressed }) => [
           styles.button,
           { backgroundColor: theme.primary },
-          (pressed || full || isSubmitting) && styles.pressed,
-          (full || isSubmitting) && styles.disabled,
+          (pressed || buttonDisabled) && styles.pressed,
+          buttonDisabled && styles.disabled,
         ]}>
         <ThemedText type="bodyLarge" style={styles.buttonText}>
-          {full ? 'Fullbokad' : 'Anmäl mig'}
+          {buttonLabel}
         </ThemedText>
       </Pressable>
 
       {usesSeniorHubForm ? (
         <ActivityRegistrationFormModal
-          visible={isFormVisible && !full}
+          visible={isFormVisible}
           activityId={activity.id}
           activityTitle={activity.title}
+          mode={formMode}
           onClose={() => setIsFormVisible(false)}
-          onSuccess={(nextRegistrationId) => {
-            void handleFormSuccess(nextRegistrationId);
+          onSuccess={(nextRegistrationId, mode) => {
+            void handleFormSuccess(nextRegistrationId, mode);
           }}
         />
       ) : null}

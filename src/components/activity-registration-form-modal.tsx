@@ -15,13 +15,18 @@ import { ThemedText } from '@/components/themed-text';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { submitActivityRegistration } from '@/services/registrations/submit-activity-registration';
+import { submitWaitlistRegistration } from '@/services/registrations/submit-waitlist-registration';
+
+export type ActivityRegistrationFormMode = 'registered' | 'waitlist';
 
 type ActivityRegistrationFormModalProps = {
   visible: boolean;
   activityId: string;
   activityTitle: string;
+  /** When "waitlist", saves status waitlist without taking a seat. */
+  mode?: ActivityRegistrationFormMode;
   onClose: () => void;
-  onSuccess: (registrationId: string) => void;
+  onSuccess: (registrationId: string, mode: ActivityRegistrationFormMode) => void;
 };
 
 type FormErrors = {
@@ -34,6 +39,7 @@ export function ActivityRegistrationFormModal({
   visible,
   activityId,
   activityTitle,
+  mode = 'registered',
   onClose,
   onSuccess,
 }: ActivityRegistrationFormModalProps) {
@@ -44,6 +50,8 @@ export function ActivityRegistrationFormModal({
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isWaitlist = mode === 'waitlist';
 
   const resetForm = () => {
     setName('');
@@ -87,10 +95,14 @@ export function ActivityRegistrationFormModal({
     setIsSubmitting(true);
 
     try {
-      const result = await submitActivityRegistration(activityId, {
+      const input = {
         name: name.trim(),
         phone: phone.trim(),
-      });
+      };
+
+      const result = isWaitlist
+        ? await submitWaitlistRegistration(activityId, input)
+        : await submitActivityRegistration(activityId, input);
 
       if (!result.ok) {
         setSubmitError(result.errorMessage);
@@ -98,7 +110,7 @@ export function ActivityRegistrationFormModal({
       }
 
       resetForm();
-      onSuccess(result.registrationId);
+      onSuccess(result.registrationId, mode);
     } finally {
       setIsSubmitting(false);
     }
@@ -125,10 +137,12 @@ export function ActivityRegistrationFormModal({
               },
             ]}>
             <ThemedText type="sectionTitle" style={styles.title}>
-              Anmäl dig
+              {isWaitlist ? 'Reservlista' : 'Anmäl dig'}
             </ThemedText>
             <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.subtitle}>
-              {activityTitle}
+              {isWaitlist
+                ? `Aktiviteten är fullbokad. Du kan ställa dig i kö till ${activityTitle}.`
+                : activityTitle}
             </ThemedText>
 
             <FormField
@@ -169,7 +183,7 @@ export function ActivityRegistrationFormModal({
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Bekräfta anmälan"
+              accessibilityLabel={isWaitlist ? 'Bekräfta reservlista' : 'Bekräfta anmälan'}
               disabled={isSubmitting}
               onPress={() => void handleConfirm()}
               style={({ pressed }) => [
@@ -182,12 +196,12 @@ export function ActivityRegistrationFormModal({
                 <View style={styles.busyRow}>
                   <ActivityIndicator color="#FFFFFF" />
                   <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
-                    Sparar anmälan...
+                    {isWaitlist ? 'Sparar...' : 'Sparar anmälan...'}
                   </ThemedText>
                 </View>
               ) : (
                 <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
-                  Bekräfta anmälan
+                  {isWaitlist ? 'Ställ dig på reservlistan' : 'Bekräfta anmälan'}
                 </ThemedText>
               )}
             </Pressable>

@@ -145,6 +145,9 @@ export function getActivityRegistrationDisplay(
     isFull = participantCount >= maxParticipants;
 
     lines.push(getBookingStatusText(participantCount, maxParticipants));
+    if (isFull && getActivityRegistrationAction(activity)?.method === 'seniorhub') {
+      lines.push('Reservlista tillgänglig');
+    }
   } else if (registrationRequired) {
     lines.push('Obegränsat antal platser');
   }
