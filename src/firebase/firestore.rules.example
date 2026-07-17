@@ -7,6 +7,12 @@ service cloud.firestore {
     match /activities/{activityId} {
       allow read: if true;
       allow create, update, delete: if true;
+
+      // Participant registrations for the booking system.
+      match /registrations/{registrationId} {
+        allow read: if true;
+        allow create, update, delete: if true;
+      }
     }
 
     match /organizers/{organizerId} {

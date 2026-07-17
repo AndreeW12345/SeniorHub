@@ -5,6 +5,7 @@ import { SymbolView } from 'expo-symbols';
 import { AddressSearchField } from '@/components/address-search-field';
 import { AdminActivityImagePicker } from '@/components/admin-activity-image-picker';
 import { AdminFormSection } from '@/components/admin-form-section';
+import { AdminParticipantList } from '@/components/admin-participant-list';
 import { CategoryDropdown } from '@/components/category-dropdown';
 import { DateTimeField } from '@/components/date-time-field';
 import { FormCheckbox } from '@/components/form-checkbox';
@@ -728,6 +729,8 @@ export function AdminActivityForm({
             />
           ) : null}
         </AdminFormSection>
+
+        {isEditMode && activityId ? <AdminParticipantList activityId={activityId} /> : null}
       </View>
     </ScreenLayout>
   );
