@@ -11,17 +11,24 @@ import {
 
 const REGISTRATIONS_STORAGE_KEY = '@seniorhub/registrations';
 
+export type LocalRegistration = {
+  activityId: string;
+  /** Firestore registration document id when booked via SeniorHub. */
+  registrationId?: string;
+};
+
 type RegistrationsContextValue = {
   registeredActivityIds: string[];
   isLoading: boolean;
   isRegistered: (activityId: string) => boolean;
-  markAsRegistered: (activityId: string) => void;
+  getRegistrationId: (activityId: string) => string | null;
+  markAsRegistered: (activityId: string, registrationId?: string) => void;
   removeRegistration: (activityId: string) => void;
 };
 
 const RegistrationsContext = createContext<RegistrationsContextValue | null>(null);
 
-function parseStoredRegistrations(value: string | null): string[] {
+function parseStoredRegistrations(value: string | null): LocalRegistration[] {
   if (!value) {
     return [];
   }
@@ -32,14 +39,42 @@ function parseStoredRegistrations(value: string | null): string[] {
       return [];
     }
 
-    return parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    return parsed
+      .map((item): LocalRegistration | null => {
+        if (typeof item === 'string' && item.trim().length > 0) {
+          return { activityId: item.trim() };
+        }
+
+        if (
+          item &&
+          typeof item === 'object' &&
+          'activityId' in item &&
+          typeof (item as { activityId: unknown }).activityId === 'string'
+        ) {
+          const activityId = (item as { activityId: string }).activityId.trim();
+          if (!activityId) {
+            return null;
+          }
+
+          const registrationIdValue = (item as { registrationId?: unknown }).registrationId;
+          const registrationId =
+            typeof registrationIdValue === 'string' && registrationIdValue.trim().length > 0
+              ? registrationIdValue.trim()
+              : undefined;
+
+          return { activityId, registrationId };
+        }
+
+        return null;
+      })
+      .filter((item): item is LocalRegistration => item !== null);
   } catch {
     return [];
   }
 }
 
 export function RegistrationsProvider({ children }: { children: ReactNode }) {
-  const [registeredActivityIds, setRegisteredActivityIds] = useState<string[]>([]);
+  const [localRegistrations, setLocalRegistrations] = useState<LocalRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -50,7 +85,7 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
         const stored = await AsyncStorage.getItem(REGISTRATIONS_STORAGE_KEY);
 
         if (isMounted) {
-          setRegisteredActivityIds(parseStoredRegistrations(stored));
+          setLocalRegistrations(parseStoredRegistrations(stored));
         }
       } finally {
         if (isMounted) {
@@ -66,28 +101,61 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const persistRegistrations = useCallback(async (activityIds: string[]) => {
-    await AsyncStorage.setItem(REGISTRATIONS_STORAGE_KEY, JSON.stringify(activityIds));
+  const persistRegistrations = useCallback(async (registrations: LocalRegistration[]) => {
+    await AsyncStorage.setItem(REGISTRATIONS_STORAGE_KEY, JSON.stringify(registrations));
   }, []);
 
+  const registeredActivityIds = useMemo(
+    () => localRegistrations.map((registration) => registration.activityId),
+    [localRegistrations],
+  );
+
   const isRegistered = useCallback(
-    (activityId: string) => registeredActivityIds.includes(activityId),
-    [registeredActivityIds],
+    (activityId: string) =>
+      localRegistrations.some((registration) => registration.activityId === activityId),
+    [localRegistrations],
+  );
+
+  const getRegistrationId = useCallback(
+    (activityId: string) => {
+      const match = localRegistrations.find((registration) => registration.activityId === activityId);
+      return match?.registrationId?.trim() || null;
+    },
+    [localRegistrations],
   );
 
   const markAsRegistered = useCallback(
-    (activityId: string) => {
-      const trimmed = activityId.trim();
-      if (!trimmed) {
+    (activityId: string, registrationId?: string) => {
+      const trimmedActivityId = activityId.trim();
+      if (!trimmedActivityId) {
         return;
       }
 
-      setRegisteredActivityIds((current) => {
-        if (current.includes(trimmed)) {
-          return current;
+      const trimmedRegistrationId = registrationId?.trim() || undefined;
+
+      setLocalRegistrations((current) => {
+        const existingIndex = current.findIndex(
+          (registration) => registration.activityId === trimmedActivityId,
+        );
+
+        let next: LocalRegistration[];
+
+        if (existingIndex >= 0) {
+          next = current.map((registration, index) =>
+            index === existingIndex
+              ? {
+                  activityId: trimmedActivityId,
+                  registrationId: trimmedRegistrationId ?? registration.registrationId,
+                }
+              : registration,
+          );
+        } else {
+          next = [
+            ...current,
+            { activityId: trimmedActivityId, registrationId: trimmedRegistrationId },
+          ];
         }
 
-        const next = [...current, trimmed];
         void persistRegistrations(next);
         return next;
       });
@@ -97,8 +165,8 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
 
   const removeRegistration = useCallback(
     (activityId: string) => {
-      setRegisteredActivityIds((current) => {
-        const next = current.filter((id) => id !== activityId);
+      setLocalRegistrations((current) => {
+        const next = current.filter((registration) => registration.activityId !== activityId);
         void persistRegistrations(next);
         return next;
       });
@@ -111,10 +179,18 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
       registeredActivityIds,
       isLoading,
       isRegistered,
+      getRegistrationId,
       markAsRegistered,
       removeRegistration,
     }),
-    [registeredActivityIds, isLoading, isRegistered, markAsRegistered, removeRegistration],
+    [
+      registeredActivityIds,
+      isLoading,
+      isRegistered,
+      getRegistrationId,
+      markAsRegistered,
+      removeRegistration,
+    ],
   );
 
   return <RegistrationsContext.Provider value={value}>{children}</RegistrationsContext.Provider>;

@@ -1,26 +1,24 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
 import type { Activity } from '@/constants/activities';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getActivityRegistrationDisplay } from '@/utils/activity-registration';
 
 type ActivityRegistrationStatusProps = {
   activity: Activity;
   variant?: 'card' | 'detail';
+  /** Live booked count from registrations (status "registered"). */
+  bookedCount?: number;
 };
 
 function isFullLine(line: string): boolean {
-  return line.startsWith('🔴');
+  return line.includes('Fullbokad') || line.startsWith('🔴');
 }
 
-function isLowSeatsLine(line: string): boolean {
-  return line.startsWith('🟡');
-}
-
-function isRemainingSeatsLine(line: string): boolean {
-  return line.startsWith('🟢');
+function isSeatsLine(line: string): boolean {
+  return line.includes('platser kvar') || line === 'Obegränsat antal platser';
 }
 
 function isMembershipLine(line: string): boolean {
@@ -30,9 +28,10 @@ function isMembershipLine(line: string): boolean {
 export function ActivityRegistrationStatus({
   activity,
   variant = 'card',
+  bookedCount,
 }: ActivityRegistrationStatusProps) {
   const theme = useTheme();
-  const status = getActivityRegistrationDisplay(activity);
+  const status = getActivityRegistrationDisplay(activity, { bookedCount });
 
   if (status.kind === 'hidden') {
     return null;
@@ -51,11 +50,7 @@ export function ActivityRegistrationStatus({
           key={line}
           type="bodyLarge"
           themeColor={
-            isFullLine(line)
-              ? 'favorite'
-              : isLowSeatsLine(line) || isRemainingSeatsLine(line)
-                ? 'textSecondary'
-                : undefined
+            isFullLine(line) ? 'favorite' : isSeatsLine(line) ? 'textSecondary' : undefined
           }
           style={[
             styles.lineText,

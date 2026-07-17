@@ -109,6 +109,40 @@ export async function incrementActivityParticipants(
   }
 }
 
+/** Decrements the booked participant count for an activity by 1 (not below 0). */
+export async function decrementActivityParticipants(
+  activityId: string,
+): Promise<ActivityMutationResult> {
+  if (!activityId.trim()) {
+    return { ok: false, errorMessage: 'Aktiviteten kunde inte hittas.' };
+  }
+
+  if (!isFirebaseConfigured()) {
+    return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
+  }
+
+  const db = getFirestoreDb();
+  if (!db) {
+    return getFirestoreUnavailableResult();
+  }
+
+  try {
+    // increment(-1) keeps the counter in sync; seat UI primarily uses registration counts.
+    await updateDoc(doc(db, FIRESTORE_COLLECTIONS.activities, activityId), {
+      participants: increment(-1),
+    });
+    return { ok: true, id: activityId };
+  } catch (error) {
+    return {
+      ok: false,
+      errorMessage:
+        error instanceof Error
+          ? error.message
+          : 'Kunde inte uppdatera antalet anmälda i Firestore.',
+    };
+  }
+}
+
 /** Deletes an activity document from Firestore. */
 export async function deleteActivityFromFirestore(
   activityId: string,

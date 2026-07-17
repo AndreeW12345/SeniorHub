@@ -102,17 +102,21 @@ function getBookingStatusText(participantCount: number, maxParticipants: number)
   const remainingSeats = Math.max(0, maxParticipants - participantCount);
 
   if (remainingSeats === 0) {
-    return '🔴 Fullbokad';
+    return `0 av ${maxParticipants} platser kvar – Fullbokad`;
   }
 
-  if (remainingSeats === 1) {
-    return '🟡 Endast 1 plats kvar';
-  }
-
-  return `🟢 ${remainingSeats} platser kvar`;
+  return `${remainingSeats} av ${maxParticipants} platser kvar`;
 }
 
-export function getActivityRegistrationDisplay(activity: Activity): ActivityRegistrationDisplay {
+export type ActivityRegistrationDisplayOptions = {
+  /** Prefer live registration count when available (status "registered"). */
+  bookedCount?: number;
+};
+
+export function getActivityRegistrationDisplay(
+  activity: Activity,
+  options?: ActivityRegistrationDisplayOptions,
+): ActivityRegistrationDisplay {
   const membershipRequired = isActivityMembershipRequired(activity);
   const registrationRequired = isActivityRegistrationRequired(activity);
   const hasParticipantLimit = hasActivityParticipantLimit(activity);
@@ -134,11 +138,15 @@ export function getActivityRegistrationDisplay(activity: Activity): ActivityRegi
   }
 
   if (hasParticipantLimit && maxParticipants !== null) {
-    const participantCount = getActivityParticipantCount(activity);
+    const participantCount =
+      typeof options?.bookedCount === 'number' && Number.isFinite(options.bookedCount)
+        ? Math.max(0, Math.floor(options.bookedCount))
+        : getActivityParticipantCount(activity);
     isFull = participantCount >= maxParticipants;
 
-    lines.push(`👥 Max ${maxParticipants} deltagare`);
     lines.push(getBookingStatusText(participantCount, maxParticipants));
+  } else if (registrationRequired) {
+    lines.push('Obegränsat antal platser');
   }
 
   if (lines.length === 0) {
@@ -146,6 +154,28 @@ export function getActivityRegistrationDisplay(activity: Activity): ActivityRegi
   }
 
   return { kind: 'lines', lines, isFull };
+}
+
+/** Capacity check that can use a live booked count from registrations. */
+export function isActivityFullWithBookedCount(
+  activity: Activity,
+  bookedCount?: number,
+): boolean {
+  if (!isActivityRegistrationRequired(activity) || !hasActivityParticipantLimit(activity)) {
+    return false;
+  }
+
+  const maxParticipants = getActivityMaxParticipants(activity);
+  if (maxParticipants === null) {
+    return false;
+  }
+
+  const count =
+    typeof bookedCount === 'number' && Number.isFinite(bookedCount)
+      ? Math.max(0, Math.floor(bookedCount))
+      : getActivityParticipantCount(activity);
+
+  return count >= maxParticipants;
 }
 
 export function getActivityRegistrationAction(activity: Activity): RegistrationAction | null {

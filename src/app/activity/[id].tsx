@@ -18,13 +18,14 @@ import { getActivityDisplayLocation, getActivityMapsLocation, getGoogleMapsUrl }
 import { getOrganizerPath } from '@/constants/organizers';
 import { CardShadow, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
+import { useActivitySeatAvailability } from '@/hooks/use-activity-seat-availability';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useSafeBack } from '@/hooks/use-safe-back';
 import { useTheme } from '@/hooks/use-theme';
 import { addActivityToCalendar } from '@/services/calendar';
 import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
 import { showErrorAlert, showSuccessAlert } from '@/utils/confirm-alert';
-import { isActivityFull, getActivityRegistrationSectionTitle, shouldShowActivityRegistrationSection } from '@/utils/activity-registration';
+import { getActivityRegistrationSectionTitle, shouldShowActivityRegistrationSection } from '@/utils/activity-registration';
 
 export default function ActivityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,6 +36,7 @@ export default function ActivityDetailScreen() {
   const insets = useSafeAreaInsets();
   const { horizontalPadding, contentWidth, isDesktop } = useResponsive();
   const activity = typeof id === 'string' ? getActivityById(id) : undefined;
+  const { bookedCount, isFull, refresh: refreshSeatAvailability } = useActivitySeatAvailability(activity);
   const detailImageHeight = isDesktop ? 380 : 300;
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
 
@@ -173,7 +175,11 @@ export default function ActivityDetailScreen() {
                   <ThemedText type="smallBold" themeColor="textSecondary">
                     {getActivityRegistrationSectionTitle(activity)}
                   </ThemedText>
-                  <ActivityRegistrationStatus activity={activity} variant="detail" />
+                  <ActivityRegistrationStatus
+                    activity={activity}
+                    variant="detail"
+                    bookedCount={bookedCount}
+                  />
                   <ActivityParticipationHelper activity={activity} />
                 </View>
               ) : null}
@@ -181,9 +187,13 @@ export default function ActivityDetailScreen() {
           </View>
 
           <ActivityMembershipActions activity={activity} />
-          <ActivityRegistrationButton activity={activity} />
+          <ActivityRegistrationButton
+            activity={activity}
+            bookedCount={bookedCount}
+            onRegistrationComplete={refreshSeatAvailability}
+          />
 
-          {shouldShowActivityRegistrationSection(activity) && isActivityFull(activity) ? (
+          {shouldShowActivityRegistrationSection(activity) && isFull ? (
             <View
               style={[
                 styles.waitingListPlaceholder,

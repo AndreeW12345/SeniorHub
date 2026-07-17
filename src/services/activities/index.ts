@@ -4,6 +4,7 @@ export {
   saveActivityToFirestore,
   updateActivityInFirestore,
   incrementActivityParticipants,
+  decrementActivityParticipants,
   deleteActivityFromFirestore,
 } from '@/services/activities/save-activity';
 export { verifyFirestoreConnection } from '@/services/activities/verify-firestore-connection';
