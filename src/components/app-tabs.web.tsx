@@ -22,6 +22,11 @@ const TAB_ICONS = {
   aktiviteter: { ios: 'calendar', android: 'event', web: 'event' },
   karta: { ios: 'map.fill', android: 'map', web: 'map' },
   favoriter: { ios: 'heart.fill', android: 'favorite', web: 'favorite' },
+  'mina-bokningar': {
+    ios: 'ticket.fill',
+    android: 'confirmation_number',
+    web: 'confirmation_number',
+  },
   information: { ios: 'info.circle.fill', android: 'info', web: 'info' },
   admin: { ios: 'gearshape.fill', android: 'settings', web: 'settings' },
 } as const satisfies Record<string, SymbolViewProps['name']>;
@@ -42,6 +47,9 @@ export default function AppTabs() {
           </TabTrigger>
           <TabTrigger name="favoriter" href="/favoriter" asChild>
             <TabButton icon={TAB_ICONS.favoriter}>Favoriter</TabButton>
+          </TabTrigger>
+          <TabTrigger name="mina-bokningar" href="/mina-bokningar" asChild>
+            <TabButton icon={TAB_ICONS['mina-bokningar']}>Mina bokningar</TabButton>
           </TabTrigger>
           <TabTrigger name="information" href="/information" asChild>
             <TabButton icon={TAB_ICONS.information}>Information</TabButton>

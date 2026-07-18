@@ -8,6 +8,7 @@ import { FavoritesProvider } from '@/contexts/favorites-context';
 import { MembershipsProvider } from '@/contexts/memberships-context';
 import { OrganizersProvider } from '@/contexts/organizers-context';
 import { RegistrationsProvider } from '@/contexts/registrations-context';
+import { ToastProvider } from '@/contexts/toast-context';
 
 const SeniorHubTheme = {
   ...DefaultTheme,
@@ -28,51 +29,53 @@ export default function RootLayout() {
           <FavoritesProvider>
             <MembershipsProvider>
               <RegistrationsProvider>
-                <ThemeProvider value={SeniorHubTheme}>
-                  <StatusBar style="light" />
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      contentStyle: { flex: 1 },
-                    }}>
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen
-                      name="activity/[id]"
-                      options={{
-                        presentation: 'card',
-                        animation: 'slide_from_right',
-                      }}
-                    />
-                    <Stack.Screen
-                      name="organizer/[slug]"
-                      options={{
-                        presentation: 'card',
-                        animation: 'slide_from_right',
-                      }}
-                    />
-                    <Stack.Screen
-                      name="login"
-                      options={{
-                        presentation: 'card',
-                        animation: 'slide_from_right',
-                      }}
-                    />
-                    <Stack.Screen
-                      name="admin/add-activity"
-                      options={{
-                        presentation: 'card',
-                        animation: 'slide_from_right',
-                      }}
-                    />
-                    <Stack.Screen
-                      name="admin/edit-activity/[id]"
-                      options={{
-                        presentation: 'card',
-                        animation: 'slide_from_right',
-                      }}
-                    />
-                  </Stack>
-                </ThemeProvider>
+                <ToastProvider>
+                  <ThemeProvider value={SeniorHubTheme}>
+                    <StatusBar style="light" />
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        contentStyle: { flex: 1 },
+                      }}>
+                      <Stack.Screen name="(tabs)" />
+                      <Stack.Screen
+                        name="activity/[id]"
+                        options={{
+                          presentation: 'card',
+                          animation: 'slide_from_right',
+                        }}
+                      />
+                      <Stack.Screen
+                        name="organizer/[slug]"
+                        options={{
+                          presentation: 'card',
+                          animation: 'slide_from_right',
+                        }}
+                      />
+                      <Stack.Screen
+                        name="login"
+                        options={{
+                          presentation: 'card',
+                          animation: 'slide_from_right',
+                        }}
+                      />
+                      <Stack.Screen
+                        name="admin/add-activity"
+                        options={{
+                          presentation: 'card',
+                          animation: 'slide_from_right',
+                        }}
+                      />
+                      <Stack.Screen
+                        name="admin/edit-activity/[id]"
+                        options={{
+                          presentation: 'card',
+                          animation: 'slide_from_right',
+                        }}
+                      />
+                    </Stack>
+                  </ThemeProvider>
+                </ToastProvider>
               </RegistrationsProvider>
             </MembershipsProvider>
           </FavoritesProvider>

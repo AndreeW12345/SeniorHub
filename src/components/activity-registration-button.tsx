@@ -1,7 +1,6 @@
 import * as Linking from 'expo-linking';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
-import { SymbolView } from 'expo-symbols';
 
 import {
   ActivityRegistrationFormModal,
@@ -12,6 +11,7 @@ import type { Activity } from '@/constants/activities';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
 import { useRegistrations } from '@/contexts/registrations-context';
+import { useToast } from '@/contexts/toast-context';
 import { useTheme } from '@/hooks/use-theme';
 import { incrementActivityParticipants } from '@/services/activities';
 import {
@@ -34,29 +34,6 @@ type ActivityRegistrationButtonProps = {
   onRegistrationComplete?: () => void | Promise<void>;
 };
 
-function SuccessBanner({ message }: { message: string }) {
-  return (
-    <View
-      style={[styles.successBanner, CardShadow, { backgroundColor: '#E8F6EE' }]}
-      accessibilityLabel={message}>
-      <View style={[styles.successIconWrap, { backgroundColor: '#D4EFDF' }]}>
-        <SymbolView
-          tintColor="#1B7A4E"
-          name={{
-            ios: 'checkmark.circle.fill',
-            android: 'check_circle',
-            web: 'check_circle',
-          }}
-          size={28}
-        />
-      </View>
-      <ThemedText type="bodyLarge" style={styles.successText}>
-        {message}
-      </ThemedText>
-    </View>
-  );
-}
-
 /** Primary registration button – book, waitlist, cancel, or open external contact methods. */
 export function ActivityRegistrationButton({
   activity,
@@ -64,6 +41,7 @@ export function ActivityRegistrationButton({
   onRegistrationComplete,
 }: ActivityRegistrationButtonProps) {
   const theme = useTheme();
+  const { showToast } = useToast();
   const { refreshActivities } = useActivities();
   const {
     isRegistered,
@@ -75,7 +53,6 @@ export function ActivityRegistrationButton({
   } = useRegistrations();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormVisible, setIsFormVisible] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   if (!isActivityRegistrationRequired(activity)) {
     return null;
@@ -98,7 +75,6 @@ export function ActivityRegistrationButton({
     }
 
     setIsSubmitting(true);
-    setSuccessMessage(null);
 
     try {
       const result = await incrementActivityParticipants(activity.id);
@@ -109,6 +85,10 @@ export function ActivityRegistrationButton({
       }
 
       markAsRegistered(activity.id);
+      showToast({
+        type: 'success',
+        title: '✅ Du är nu anmäld till aktiviteten.',
+      });
       await refreshActivities();
       await onRegistrationComplete?.();
 
@@ -135,8 +115,6 @@ export function ActivityRegistrationButton({
       return;
     }
 
-    setSuccessMessage(null);
-
     if (usesSeniorHubForm) {
       setIsFormVisible(true);
       return;
@@ -151,10 +129,16 @@ export function ActivityRegistrationButton({
   ) => {
     if (mode === 'waitlist') {
       markAsWaitlisted(activity.id, nextRegistrationId);
-      setSuccessMessage('Du har lagts till på reservlistan.');
+      showToast({
+        type: 'success',
+        title: 'Du har lagts till på reservlistan.',
+      });
     } else {
       markAsRegistered(activity.id, nextRegistrationId);
-      setSuccessMessage(null);
+      showToast({
+        type: 'success',
+        title: '✅ Du är nu anmäld till aktiviteten.',
+      });
     }
 
     setIsFormVisible(false);
@@ -180,7 +164,10 @@ export function ActivityRegistrationButton({
       }
 
       removeRegistration(activity.id);
-      setSuccessMessage('Du har avanmält dig från aktiviteten.');
+      showToast({
+        type: 'success',
+        title: 'Du har avanmält dig från aktiviteten.',
+      });
       await refreshActivities();
       await onRegistrationComplete?.();
     } finally {
@@ -206,7 +193,10 @@ export function ActivityRegistrationButton({
       }
 
       removeRegistration(activity.id);
-      setSuccessMessage('Du har lämnat reservlistan.');
+      showToast({
+        type: 'success',
+        title: 'Du har lämnat reservlistan.',
+      });
       await refreshActivities();
       await onRegistrationComplete?.();
     } finally {
@@ -269,35 +259,32 @@ export function ActivityRegistrationButton({
 
   if (onWaitlist) {
     return (
-      <>
-        {successMessage ? <SuccessBanner message={successMessage} /> : null}
-        <Pressable
-          onPress={handleLeaveWaitlistPress}
-          accessibilityRole="button"
-          accessibilityLabel="Lämna reservlista"
-          accessibilityState={{ disabled: isSubmitting }}
-          disabled={isSubmitting}
-          style={({ pressed }) => [
-            styles.cancelButton,
-            CardShadow,
-            { backgroundColor: theme.card, borderColor: theme.favorite },
-            (pressed || isSubmitting) && styles.pressed,
-            isSubmitting && styles.disabled,
-          ]}>
-          {isSubmitting ? (
-            <View style={styles.busyRow}>
-              <ActivityIndicator color={theme.favorite} />
-              <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
-                Lämnar...
-              </ThemedText>
-            </View>
-          ) : (
+      <Pressable
+        onPress={handleLeaveWaitlistPress}
+        accessibilityRole="button"
+        accessibilityLabel="Lämna reservlista"
+        accessibilityState={{ disabled: isSubmitting }}
+        disabled={isSubmitting}
+        style={({ pressed }) => [
+          styles.cancelButton,
+          CardShadow,
+          { backgroundColor: theme.card, borderColor: theme.favorite },
+          (pressed || isSubmitting) && styles.pressed,
+          isSubmitting && styles.disabled,
+        ]}>
+        {isSubmitting ? (
+          <View style={styles.busyRow}>
+            <ActivityIndicator color={theme.favorite} />
             <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
-              Lämna reservlista
+              Lämnar...
             </ThemedText>
-          )}
-        </Pressable>
-      </>
+          </View>
+        ) : (
+          <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
+            Lämna reservlista
+          </ThemedText>
+        )}
+      </Pressable>
     );
   }
 
@@ -307,8 +294,6 @@ export function ActivityRegistrationButton({
 
   return (
     <>
-      {successMessage ? <SuccessBanner message={successMessage} /> : null}
-
       <Pressable
         onPress={handlePress}
         accessibilityRole="button"
@@ -373,28 +358,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-  },
-  successBanner: {
-    borderRadius: Radius.xl,
-    paddingHorizontal: Spacing.five,
-    paddingVertical: Spacing.four,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    marginBottom: Spacing.two,
-  },
-  successIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  successText: {
-    flex: 1,
-    color: '#1B7A4E',
-    fontWeight: '700',
-    lineHeight: 30,
   },
   pressed: {
     opacity: 0.9,

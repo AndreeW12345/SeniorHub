@@ -26,6 +26,8 @@ export type LocalRegistration = {
 
 type RegistrationsContextValue = {
   registeredActivityIds: string[];
+  /** Local bookings on this device (registered + waitlist). */
+  localBookings: LocalRegistration[];
   isLoading: boolean;
   isRegistered: (activityId: string) => boolean;
   isOnWaitlist: (activityId: string) => boolean;
@@ -146,6 +148,15 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
       localRegistrations
         .filter((registration) => (registration.status ?? 'registered') === 'registered')
         .map((registration) => registration.activityId),
+    [localRegistrations],
+  );
+
+  const localBookings = useMemo(
+    () =>
+      localRegistrations.map((registration) => ({
+        ...registration,
+        status: (registration.status ?? 'registered') as LocalRegistrationStatus,
+      })),
     [localRegistrations],
   );
 
@@ -300,6 +311,7 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       registeredActivityIds,
+      localBookings,
       isLoading,
       isRegistered,
       isOnWaitlist,
@@ -310,6 +322,7 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
     }),
     [
       registeredActivityIds,
+      localBookings,
       isLoading,
       isRegistered,
       isOnWaitlist,

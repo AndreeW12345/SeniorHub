@@ -31,6 +31,11 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf="heart.fill" md="favorite" />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="mina-bokningar">
+        <NativeTabs.Trigger.Label>Mina bokningar</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="ticket.fill" md="confirmation_number" />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="information">
         <NativeTabs.Trigger.Label>Information</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="info.circle.fill" md="info" />
