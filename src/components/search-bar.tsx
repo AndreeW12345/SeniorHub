@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Radius, SoftShadow, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -7,15 +7,23 @@ import { useTheme } from '@/hooks/use-theme';
 type SearchBarProps = {
   value: string;
   onChangeText: (text: string) => void;
+  onClear?: () => void;
   placeholder?: string;
 };
 
 export function SearchBar({
   value,
   onChangeText,
-  placeholder = 'Sök aktivitet, plats eller arrangör...',
+  onClear,
+  placeholder = 'Sök på namn, beskrivning eller plats...',
 }: SearchBarProps) {
   const theme = useTheme();
+  const hasValue = value.trim().length > 0;
+
+  const handleClear = () => {
+    onChangeText('');
+    onClear?.();
+  };
 
   return (
     <View
@@ -36,10 +44,25 @@ export function SearchBar({
         placeholderTextColor={theme.textSecondary}
         style={[styles.input, { color: theme.text }]}
         accessibilityLabel="Sök aktiviteter"
-        accessibilityHint="Skriv för att filtrera aktiviteter"
-        clearButtonMode="while-editing"
+        accessibilityHint="Skriv för att filtrera aktiviteter på namn, beskrivning eller plats"
         returnKeyType="search"
+        autoCorrect={false}
+        autoCapitalize="none"
       />
+      {hasValue ? (
+        <Pressable
+          onPress={handleClear}
+          accessibilityRole="button"
+          accessibilityLabel="Rensa sökning"
+          hitSlop={10}
+          style={({ pressed }) => [styles.clearButton, pressed && styles.clearPressed]}>
+          <SymbolView
+            tintColor={theme.textSecondary}
+            name={{ ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' }}
+            size={26}
+          />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -61,5 +84,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     paddingVertical: 0,
     letterSpacing: 0.1,
+  },
+  clearButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearPressed: {
+    opacity: 0.7,
   },
 });

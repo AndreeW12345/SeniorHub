@@ -2,6 +2,7 @@ import { Stack, DefaultTheme, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { Colors } from '@/constants/theme';
+import { ActivitiesBrowseProvider } from '@/contexts/activities-browse-context';
 import { ActivitiesProvider } from '@/contexts/activities-context';
 import { AuthProvider } from '@/contexts/auth-context';
 import { FavoritesProvider } from '@/contexts/favorites-context';
@@ -27,64 +28,66 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ActivitiesProvider>
-        <OrganizersProvider>
-          <FavoritesProvider>
-            <MembershipsProvider>
-              <RegistrationsProvider>
-                <NotificationsProvider>
-                  <ToastProvider>
-                    <ThemeProvider value={SeniorHubTheme}>
-                      <StatusBar style="light" />
-                      <WaitlistPromotionNotifier />
-                      <Stack
-                        screenOptions={{
-                          headerShown: false,
-                          contentStyle: { flex: 1 },
-                        }}>
-                        <Stack.Screen name="(tabs)" />
-                        <Stack.Screen
-                          name="activity/[id]"
-                          options={{
-                            presentation: 'card',
-                            animation: 'slide_from_right',
-                          }}
-                        />
-                        <Stack.Screen
-                          name="organizer/[slug]"
-                          options={{
-                            presentation: 'card',
-                            animation: 'slide_from_right',
-                          }}
-                        />
-                        <Stack.Screen
-                          name="login"
-                          options={{
-                            presentation: 'card',
-                            animation: 'slide_from_right',
-                          }}
-                        />
-                        <Stack.Screen
-                          name="admin/add-activity"
-                          options={{
-                            presentation: 'card',
-                            animation: 'slide_from_right',
-                          }}
-                        />
-                        <Stack.Screen
-                          name="admin/edit-activity/[id]"
-                          options={{
-                            presentation: 'card',
-                            animation: 'slide_from_right',
-                          }}
-                        />
-                      </Stack>
-                    </ThemeProvider>
-                  </ToastProvider>
-                </NotificationsProvider>
-              </RegistrationsProvider>
-            </MembershipsProvider>
-          </FavoritesProvider>
-        </OrganizersProvider>
+        <ActivitiesBrowseProvider>
+          <OrganizersProvider>
+            <FavoritesProvider>
+              <MembershipsProvider>
+                <RegistrationsProvider>
+                  <NotificationsProvider>
+                    <ToastProvider>
+                      <ThemeProvider value={SeniorHubTheme}>
+                        <StatusBar style="light" />
+                        <WaitlistPromotionNotifier />
+                        <Stack
+                          screenOptions={{
+                            headerShown: false,
+                            contentStyle: { flex: 1 },
+                          }}>
+                          <Stack.Screen name="(tabs)" />
+                          <Stack.Screen
+                            name="activity/[id]"
+                            options={{
+                              presentation: 'card',
+                              animation: 'slide_from_right',
+                            }}
+                          />
+                          <Stack.Screen
+                            name="organizer/[slug]"
+                            options={{
+                              presentation: 'card',
+                              animation: 'slide_from_right',
+                            }}
+                          />
+                          <Stack.Screen
+                            name="login"
+                            options={{
+                              presentation: 'card',
+                              animation: 'slide_from_right',
+                            }}
+                          />
+                          <Stack.Screen
+                            name="admin/add-activity"
+                            options={{
+                              presentation: 'card',
+                              animation: 'slide_from_right',
+                            }}
+                          />
+                          <Stack.Screen
+                            name="admin/edit-activity/[id]"
+                            options={{
+                              presentation: 'card',
+                              animation: 'slide_from_right',
+                            }}
+                          />
+                        </Stack>
+                      </ThemeProvider>
+                    </ToastProvider>
+                  </NotificationsProvider>
+                </RegistrationsProvider>
+              </MembershipsProvider>
+            </FavoritesProvider>
+          </OrganizersProvider>
+        </ActivitiesBrowseProvider>
       </ActivitiesProvider>
     </AuthProvider>
   );

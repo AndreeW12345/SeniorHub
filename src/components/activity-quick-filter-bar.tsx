@@ -1,17 +1,22 @@
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { CATEGORIES, type Category } from '@/constants/activities';
+import {
+  ACTIVITY_QUICK_FILTERS,
+  ACTIVITY_QUICK_FILTER_LABELS,
+  type ActivityQuickFilter,
+} from '@/constants/activity-filters';
 import { Radius, SoftShadow, Spacing } from '@/constants/theme';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 
-type CategoryFilterProps = {
-  selected: Category;
-  onSelect: (category: Category) => void;
+type ActivityQuickFilterBarProps = {
+  selected: readonly ActivityQuickFilter[];
+  onToggle: (filter: ActivityQuickFilter) => void;
 };
 
-export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
+/** Multi-select quick filter chips. Empty selection shows all activities. */
+export function ActivityQuickFilterBar({ selected, onToggle }: ActivityQuickFilterBarProps) {
   const theme = useTheme();
   const { isCompact } = useResponsive();
 
@@ -20,16 +25,19 @@ export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.scrollContent}
-      accessibilityRole="tablist">
-      {CATEGORIES.map((category) => {
-        const isSelected = category === selected;
+      accessibilityRole="tablist"
+      accessibilityLabel="Snabbfilter">
+      {ACTIVITY_QUICK_FILTERS.map((filter) => {
+        const isSelected = selected.includes(filter);
+        const label = ACTIVITY_QUICK_FILTER_LABELS[filter];
 
         return (
           <Pressable
-            key={category}
-            onPress={() => onSelect(category)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isSelected }}
+            key={filter}
+            onPress={() => onToggle(filter)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isSelected }}
+            accessibilityLabel={label}
             style={({ pressed }) => [
               styles.chip,
               !isSelected && SoftShadow,
@@ -46,7 +54,7 @@ export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
                 { color: isSelected ? '#FFFFFF' : theme.text },
                 isCompact && styles.chipTextCompact,
               ]}>
-              {category === 'Alla' ? 'Alla kategorier' : category}
+              {label}
             </ThemedText>
           </Pressable>
         );

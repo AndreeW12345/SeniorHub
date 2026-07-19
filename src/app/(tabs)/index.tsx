@@ -1,37 +1,80 @@
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  LayoutAnimation,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  UIManager,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActivitiesEmptyState } from '@/components/activities-empty-state';
 import { ActivityCard } from '@/components/activity-card';
 import { ActivityList, ActivityListItem } from '@/components/activity-list';
+import { ActivityQuickFilterBar } from '@/components/activity-quick-filter-bar';
 import { CategoryFilter } from '@/components/category-filter';
 import { ScreenHeader } from '@/components/screen-header';
 import { SearchBar } from '@/components/search-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { type Category } from '@/constants/activities';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
+import { useActivitiesBrowse } from '@/contexts/activities-browse-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
+import { browseActivities } from '@/utils/activity-browse';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function AktiviteterScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { horizontalPadding, sectionGap, contentWidth } = useResponsive();
-  const { activities, isLoading, filterActivities, refreshActivities } = useActivities();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<Category>('Alla');
+  const { activities, isLoading, refreshActivities } = useActivities();
+  const {
+    searchQuery,
+    setSearchQuery,
+    clearSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    quickFilters,
+    toggleQuickFilter,
+  } = useActivitiesBrowse();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const listOpacity = useRef(new Animated.Value(1)).current;
 
   const filteredActivities = useMemo(
-    () => filterActivities(searchQuery, selectedCategory),
-    [filterActivities, searchQuery, selectedCategory],
+    () =>
+      browseActivities(activities, {
+        query: searchQuery,
+        category: selectedCategory,
+        quickFilters,
+      }),
+    [activities, searchQuery, selectedCategory, quickFilters],
   );
+
+  const hasActiveBrowse =
+    searchQuery.trim().length > 0 ||
+    selectedCategory !== 'Alla' ||
+    quickFilters.length > 0;
 
   const showFirestoreEmptyState = !isLoading && activities.length === 0;
   const shouldCenterRemainingArea = isLoading || showFirestoreEmptyState;
+
+  useEffect(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    listOpacity.setValue(0.88);
+    Animated.timing(listOpacity, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [filteredActivities, listOpacity]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -49,7 +92,13 @@ export default function AktiviteterScreen() {
         <ScreenHeader
           title="Aktiviteter"
           subtitle="Upptäck vad som händer i kommunen"
-          footer={<SearchBar value={searchQuery} onChangeText={setSearchQuery} />}
+          footer={
+            <SearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onClear={clearSearchQuery}
+            />
+          }
         />
 
         <View
@@ -60,6 +109,7 @@ export default function AktiviteterScreen() {
               maxWidth: contentWidth,
             },
           ]}>
+          <ActivityQuickFilterBar selected={quickFilters} onToggle={toggleQuickFilter} />
           <CategoryFilter selected={selectedCategory} onSelect={setSelectedCategory} />
         </View>
       </View>
@@ -83,52 +133,56 @@ export default function AktiviteterScreen() {
         ) : showFirestoreEmptyState ? (
           <ActivitiesEmptyState onRefresh={handleRefresh} isRefreshing={isRefreshing} />
         ) : (
-          <ScrollView
-            style={styles.listScroll}
-            contentContainerStyle={[
-              styles.scrollContent,
-              {
-                paddingHorizontal: horizontalPadding,
-                paddingTop: sectionGap,
-                paddingBottom: Spacing.four,
-                maxWidth: contentWidth,
-                gap: sectionGap,
-              },
-            ]}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled">
-            <View style={styles.resultsHeader}>
-              <ThemedText type="sectionTitle">
-                {filteredActivities.length === 1
-                  ? '1 aktivitet'
-                  : `${filteredActivities.length} aktiviteter`}
-              </ThemedText>
-              {selectedCategory !== 'Alla' && (
-                <ThemedText type="bodyLarge" themeColor="textSecondary">
-                  Kategori: {selectedCategory}
+          <Animated.View style={[styles.listScroll, { opacity: listOpacity }]}>
+            <ScrollView
+              style={styles.listScroll}
+              contentContainerStyle={[
+                styles.scrollContent,
+                {
+                  paddingHorizontal: horizontalPadding,
+                  paddingTop: sectionGap,
+                  paddingBottom: Spacing.four,
+                  maxWidth: contentWidth,
+                  gap: sectionGap,
+                },
+              ]}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled">
+              <View style={styles.resultsHeader}>
+                <ThemedText type="sectionTitle">
+                  {filteredActivities.length === 1
+                    ? '1 aktivitet'
+                    : `${filteredActivities.length} aktiviteter`}
                 </ThemedText>
-              )}
-            </View>
-
-            {filteredActivities.length > 0 ? (
-              <ActivityList>
-                {filteredActivities.map((activity) => (
-                  <ActivityListItem key={activity.id}>
-                    <ActivityCard activity={activity} />
-                  </ActivityListItem>
-                ))}
-              </ActivityList>
-            ) : (
-              <View style={styles.filterEmptyState}>
-                <ThemedText type="subtitle" style={styles.emptyTitle}>
-                  Inga aktiviteter hittades
-                </ThemedText>
-                <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
-                  Prova att ändra sökord eller välj en annan kategori.
-                </ThemedText>
+                {selectedCategory !== 'Alla' ? (
+                  <ThemedText type="bodyLarge" themeColor="textSecondary">
+                    Kategori: {selectedCategory}
+                  </ThemedText>
+                ) : null}
               </View>
-            )}
-          </ScrollView>
+
+              {filteredActivities.length > 0 ? (
+                <ActivityList>
+                  {filteredActivities.map((activity) => (
+                    <ActivityListItem key={activity.id}>
+                      <ActivityCard activity={activity} />
+                    </ActivityListItem>
+                  ))}
+                </ActivityList>
+              ) : (
+                <View style={styles.filterEmptyState}>
+                  <ThemedText type="subtitle" style={styles.emptyTitle}>
+                    Inga aktiviteter matchar din sökning.
+                  </ThemedText>
+                  {hasActiveBrowse ? (
+                    <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
+                      Prova att ändra sökord eller filter.
+                    </ThemedText>
+                  ) : null}
+                </View>
+              )}
+            </ScrollView>
+          </Animated.View>
         )}
       </View>
     </ThemedView>
@@ -148,6 +202,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingTop: Spacing.four,
     paddingBottom: Spacing.two,
+    gap: Spacing.two,
   },
   remainingArea: {
     flex: 1,
