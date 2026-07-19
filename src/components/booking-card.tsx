@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import type { Activity } from '@/constants/activities';
 import { getActivityDisplayLocation } from '@/constants/activities';
 import { useActivities } from '@/contexts/activities-context';
+import { useNotifications } from '@/contexts/notifications-context';
 import {
   useRegistrations,
   type LocalRegistrationStatus,
@@ -19,6 +20,7 @@ import {
 import { confirmDestructiveAction, showErrorAlert } from '@/utils/confirm-alert';
 import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
 import { getBookingStatusLabel } from '@/utils/my-bookings';
+import { createCancellationNotification } from '@/utils/notifications';
 
 type BookingCardProps = {
   activity: Activity;
@@ -32,6 +34,7 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
   const theme = useTheme();
   const router = useRouter();
   const { refreshActivities } = useActivities();
+  const { addNotification } = useNotifications();
   const { getRegistrationId, removeRegistration } = useRegistrations();
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -64,6 +67,9 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
       }
 
       removeRegistration(activity.id);
+      if (!isWaitlist) {
+        addNotification(createCancellationNotification(activity.title));
+      }
       await refreshActivities();
       onCancelled?.();
     } finally {

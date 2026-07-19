@@ -2,16 +2,24 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useNotifications } from '@/contexts/notifications-context';
 
 const theme = Colors.light;
 
+function formatUnreadBadge(count: number): string {
+  return count > 99 ? '99+' : String(count);
+}
+
 export default function AppTabs() {
   const { isAuthenticated } = useAuth();
+  const { unreadCount } = useNotifications();
 
   return (
     <NativeTabs
       backgroundColor={theme.background}
       indicatorColor={theme.primaryLight}
+      badgeBackgroundColor={theme.favorite}
+      badgeTextColor="#FFFFFF"
       labelStyle={{
         selected: { color: theme.primary },
         default: { color: theme.textSecondary },
@@ -39,6 +47,14 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="information">
         <NativeTabs.Trigger.Label>Information</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="info.circle.fill" md="info" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="notiser">
+        <NativeTabs.Trigger.Label>Notiser</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="bell.fill" md="notifications" />
+        {unreadCount > 0 ? (
+          <NativeTabs.Trigger.Badge>{formatUnreadBadge(unreadCount)}</NativeTabs.Trigger.Badge>
+        ) : null}
       </NativeTabs.Trigger>
 
       {isAuthenticated ? (

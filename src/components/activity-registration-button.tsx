@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import type { Activity } from '@/constants/activities';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
+import { useNotifications } from '@/contexts/notifications-context';
 import { useRegistrations } from '@/contexts/registrations-context';
 import { useToast } from '@/contexts/toast-context';
 import { useTheme } from '@/hooks/use-theme';
@@ -24,6 +25,10 @@ import {
   isActivityFullWithBookedCount,
   isActivityRegistrationRequired,
 } from '@/utils/activity-registration';
+import {
+  createCancellationNotification,
+  createRegistrationConfirmedNotification,
+} from '@/utils/notifications';
 import { getEmailUrl, getPhoneUrl, normalizeWebsiteUrl } from '@/utils/organizer-links';
 
 type ActivityRegistrationButtonProps = {
@@ -42,6 +47,7 @@ export function ActivityRegistrationButton({
 }: ActivityRegistrationButtonProps) {
   const theme = useTheme();
   const { showToast } = useToast();
+  const { addNotification } = useNotifications();
   const { refreshActivities } = useActivities();
   const {
     isRegistered,
@@ -85,6 +91,7 @@ export function ActivityRegistrationButton({
       }
 
       markAsRegistered(activity.id);
+      addNotification(createRegistrationConfirmedNotification(activity.title));
       showToast({
         type: 'success',
         title: '✅ Du är nu anmäld till aktiviteten.',
@@ -135,6 +142,7 @@ export function ActivityRegistrationButton({
       });
     } else {
       markAsRegistered(activity.id, nextRegistrationId);
+      addNotification(createRegistrationConfirmedNotification(activity.title));
       showToast({
         type: 'success',
         title: '✅ Du är nu anmäld till aktiviteten.',
@@ -164,6 +172,7 @@ export function ActivityRegistrationButton({
       }
 
       removeRegistration(activity.id);
+      addNotification(createCancellationNotification(activity.title));
       showToast({
         type: 'success',
         title: 'Du har avanmält dig från aktiviteten.',

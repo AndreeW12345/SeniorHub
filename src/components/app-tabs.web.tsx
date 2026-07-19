@@ -13,8 +13,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useNotifications } from '@/contexts/notifications-context';
 
 const theme = Colors.light;
 
@@ -28,11 +29,21 @@ const TAB_ICONS = {
     web: 'confirmation_number',
   },
   information: { ios: 'info.circle.fill', android: 'info', web: 'info' },
+  notiser: {
+    ios: 'bell.fill',
+    android: 'notifications',
+    web: 'notifications',
+  },
   admin: { ios: 'gearshape.fill', android: 'settings', web: 'settings' },
 } as const satisfies Record<string, SymbolViewProps['name']>;
 
+function formatUnreadBadge(count: number): string {
+  return count > 99 ? '99+' : String(count);
+}
+
 export default function AppTabs() {
   const { isAuthenticated } = useAuth();
+  const { unreadCount } = useNotifications();
 
   return (
     <Tabs style={styles.tabsRoot}>
@@ -54,6 +65,11 @@ export default function AppTabs() {
           <TabTrigger name="information" href="/information" asChild>
             <TabButton icon={TAB_ICONS.information}>Information</TabButton>
           </TabTrigger>
+          <TabTrigger name="notiser" href="/notiser" asChild>
+            <TabButton icon={TAB_ICONS.notiser} badgeCount={unreadCount}>
+              Notiser
+            </TabButton>
+          </TabTrigger>
           {isAuthenticated ? (
             <TabTrigger name="admin" href="/admin" asChild>
               <TabButton icon={TAB_ICONS.admin}>Admin</TabButton>
@@ -69,18 +85,30 @@ function TabButton({
   children,
   isFocused,
   icon,
+  badgeCount = 0,
   ...props
-}: TabTriggerSlotProps & { icon: SymbolViewProps['name'] }) {
+}: TabTriggerSlotProps & { icon: SymbolViewProps['name']; badgeCount?: number }) {
   return (
     <Pressable {...props} style={({ pressed }) => [styles.tabPressable, pressed && styles.pressed]}>
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
         style={styles.tabButtonView}>
-        <SymbolView
-          tintColor={isFocused ? theme.primary : theme.textSecondary}
-          name={icon}
-          size={20}
-        />
+        <View style={styles.iconWrap}>
+          <SymbolView
+            tintColor={isFocused ? theme.primary : theme.textSecondary}
+            name={icon}
+            size={20}
+          />
+          {badgeCount > 0 ? (
+            <View
+              style={[styles.badge, { backgroundColor: theme.favorite }]}
+              accessibilityLabel={`${badgeCount} olästa notiser`}>
+              <ThemedText type="smallBold" style={styles.badgeText}>
+                {formatUnreadBadge(badgeCount)}
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
         <ThemedText
           type="smallBold"
           themeColor={isFocused ? 'primary' : 'textSecondary'}
@@ -150,6 +178,28 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     alignItems: 'center',
     gap: Spacing.one,
+  },
+  iconWrap: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: -14,
+    minWidth: 18,
+    height: 18,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
   },
   tabLabel: {
     fontSize: 13,
