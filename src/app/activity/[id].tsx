@@ -36,7 +36,7 @@ export default function ActivityDetailScreen() {
   const insets = useSafeAreaInsets();
   const { horizontalPadding, contentWidth, isDesktop } = useResponsive();
   const activity = typeof id === 'string' ? getActivityById(id) : undefined;
-  const { bookedCount, refresh: refreshSeatAvailability } = useActivitySeatAvailability(activity);
+  const { bookedCount, adjustBookedCount } = useActivitySeatAvailability(activity);
   const detailImageHeight = isDesktop ? 380 : 300;
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
 
@@ -190,7 +190,11 @@ export default function ActivityDetailScreen() {
           <ActivityRegistrationButton
             activity={activity}
             bookedCount={bookedCount}
-            onRegistrationComplete={refreshSeatAvailability}
+            onRegistrationComplete={(seatDelta) => {
+              if (typeof seatDelta === 'number') {
+                adjustBookedCount(seatDelta);
+              }
+            }}
           />
 
           <Pressable

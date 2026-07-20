@@ -19,6 +19,8 @@ type UseActivitySeatAvailabilityResult = {
   isFull: boolean;
   isLoading: boolean;
   refresh: () => Promise<void>;
+  /** Instant local seat-count adjustment before the Firestore snapshot arrives. */
+  adjustBookedCount: (delta: number) => void;
 };
 
 /**
@@ -65,6 +67,14 @@ export function useActivitySeatAvailability(
     // Count is kept live via Firestore subscription.
   }, []);
 
+  const adjustBookedCount = useCallback((delta: number) => {
+    if (!Number.isFinite(delta) || delta === 0) {
+      return;
+    }
+
+    setBookedCount((current) => Math.max(0, current + Math.trunc(delta)));
+  }, []);
+
   const availability = activity
     ? getSeatAvailability(activity, bookedCount)
     : { kind: 'hidden' as const };
@@ -75,5 +85,6 @@ export function useActivitySeatAvailability(
     isFull: isSeatAvailabilityFull(availability),
     isLoading,
     refresh,
+    adjustBookedCount,
   };
 }

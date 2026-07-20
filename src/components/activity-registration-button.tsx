@@ -35,8 +35,11 @@ type ActivityRegistrationButtonProps = {
   activity: Activity;
   /** Live booked count from registrations; used for full/capacity checks. */
   bookedCount?: number;
-  /** Called after registration or cancellation so parents can refresh seat counts. */
-  onRegistrationComplete?: () => void | Promise<void>;
+  /**
+   * Called after registration or cancellation so parents can refresh seat counts.
+   * `seatDelta` is +1 on book and -1 on cancel for instant UI updates.
+   */
+  onRegistrationComplete?: (seatDelta?: number) => void | Promise<void>;
 };
 
 /** Primary registration button – book, waitlist, cancel, or open external contact methods. */
@@ -94,10 +97,10 @@ export function ActivityRegistrationButton({
       addNotification(createRegistrationConfirmedNotification(activity.title));
       showToast({
         type: 'success',
-        title: '✅ Du är nu anmäld till aktiviteten.',
+        title: 'Du är nu anmäld.',
       });
+      await onRegistrationComplete?.(1);
       await refreshActivities();
-      await onRegistrationComplete?.();
 
       if (action.method === 'external') {
         void Linking.openURL(normalizeWebsiteUrl(action.url));
@@ -140,18 +143,21 @@ export function ActivityRegistrationButton({
         type: 'success',
         title: 'Du har lagts till på reservlistan.',
       });
-    } else {
-      markAsRegistered(activity.id, nextRegistrationId);
-      addNotification(createRegistrationConfirmedNotification(activity.title));
-      showToast({
-        type: 'success',
-        title: '✅ Du är nu anmäld till aktiviteten.',
-      });
+      setIsFormVisible(false);
+      await onRegistrationComplete?.(0);
+      await refreshActivities();
+      return;
     }
 
+    markAsRegistered(activity.id, nextRegistrationId);
+    addNotification(createRegistrationConfirmedNotification(activity.title));
+    showToast({
+      type: 'success',
+      title: 'Du är nu anmäld.',
+    });
     setIsFormVisible(false);
+    await onRegistrationComplete?.(1);
     await refreshActivities();
-    await onRegistrationComplete?.();
   };
 
   const performCancel = async () => {
@@ -166,7 +172,7 @@ export function ActivityRegistrationButton({
         const result = await cancelActivityRegistration(activity.id, registrationId);
 
         if (!result.ok) {
-          showErrorAlert('Kunde inte avanmäla dig', result.errorMessage);
+          showErrorAlert('Kunde inte avboka', result.errorMessage);
           return;
         }
       }
@@ -174,11 +180,11 @@ export function ActivityRegistrationButton({
       removeRegistration(activity.id);
       addNotification(createCancellationNotification(activity.title));
       showToast({
-        type: 'success',
-        title: 'Du har avanmält dig från aktiviteten.',
+        type: 'warning',
+        title: 'Din bokning har tagits bort.',
       });
+      await onRegistrationComplete?.(-1);
       await refreshActivities();
-      await onRegistrationComplete?.();
     } finally {
       setIsSubmitting(false);
     }
@@ -206,8 +212,8 @@ export function ActivityRegistrationButton({
         type: 'success',
         title: 'Du har lämnat reservlistan.',
       });
+      await onRegistrationComplete?.(0);
       await refreshActivities();
-      await onRegistrationComplete?.();
     } finally {
       setIsSubmitting(false);
     }
@@ -215,9 +221,9 @@ export function ActivityRegistrationButton({
 
   const handleCancelPress = () => {
     confirmDestructiveAction(
-      'Avanmälan',
-      'Är du säker på att du vill avanmäla dig från aktiviteten?',
-      'Avanmäl mig',
+      'Avbokning',
+      'Är du säker på att du vill avboka din plats?',
+      'Avboka',
       () => {
         void performCancel();
       },
@@ -237,32 +243,43 @@ export function ActivityRegistrationButton({
 
   if (registered) {
     return (
-      <Pressable
-        onPress={handleCancelPress}
-        accessibilityRole="button"
-        accessibilityLabel="Avanmäl mig"
-        accessibilityState={{ disabled: isSubmitting }}
-        disabled={isSubmitting}
-        style={({ pressed }) => [
-          styles.cancelButton,
-          CardShadow,
-          { backgroundColor: theme.card, borderColor: theme.favorite },
-          (pressed || isSubmitting) && styles.pressed,
-          isSubmitting && styles.disabled,
-        ]}>
-        {isSubmitting ? (
-          <View style={styles.busyRow}>
-            <ActivityIndicator color={theme.favorite} />
-            <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
-              Avanmäler...
-            </ThemedText>
-          </View>
-        ) : (
-          <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
-            Avanmäl mig
+      <View style={styles.registeredBlock}>
+        <View
+          style={[styles.registeredBadge, { backgroundColor: '#E8F6EE', borderColor: '#D4EFDF' }]}
+          accessibilityRole="text"
+          accessibilityLabel="Anmäld">
+          <ThemedText type="bodyLarge" style={styles.registeredBadgeText}>
+            Anmäld ✓
           </ThemedText>
-        )}
-      </Pressable>
+        </View>
+
+        <Pressable
+          onPress={handleCancelPress}
+          accessibilityRole="button"
+          accessibilityLabel="Avboka"
+          accessibilityState={{ disabled: isSubmitting }}
+          disabled={isSubmitting}
+          style={({ pressed }) => [
+            styles.cancelButton,
+            CardShadow,
+            { backgroundColor: theme.card, borderColor: theme.favorite },
+            (pressed || isSubmitting) && styles.pressed,
+            isSubmitting && styles.disabled,
+          ]}>
+          {isSubmitting ? (
+            <View style={styles.busyRow}>
+              <ActivityIndicator color={theme.favorite} />
+              <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
+                Avbokar...
+              </ThemedText>
+            </View>
+          ) : (
+            <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
+              Avboka
+            </ThemedText>
+          )}
+        </Pressable>
+      </View>
     );
   }
 
@@ -347,6 +364,23 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#FFFFFF',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  registeredBlock: {
+    gap: Spacing.three,
+    marginBottom: Spacing.two,
+  },
+  registeredBadge: {
+    minHeight: 64,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+  },
+  registeredBadgeText: {
+    color: '#1B7A4E',
     fontWeight: '700',
     textAlign: 'center',
   },
