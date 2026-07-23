@@ -71,5 +71,14 @@ export const SoftShadow = Platform.select({
   },
 });
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+/**
+ * Space reserved above the bottom tab bar so scroll content (and last buttons)
+ * stay visible. Web uses a floating absolute tab list that needs more room.
+ */
+export const BottomTabInset = Platform.select({
+  ios: 50,
+  android: 80,
+  web: 120,
+  default: 80,
+}) as number;
 export const MaxContentWidth = 880;

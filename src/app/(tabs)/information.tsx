@@ -50,8 +50,11 @@ export default function InformationScreen() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    router.replace('/');
+    const result = await signOut();
+    if (!result.ok) {
+      return;
+    }
+    router.replace('/login' as Href);
   };
 
   return (

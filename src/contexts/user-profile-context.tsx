@@ -28,6 +28,8 @@ type UserProfileContextValue = {
     update: UserProfileUpdate,
   ) => Promise<{ ok: true } | { ok: false; errorMessage: string }>;
   deleteProfile: () => Promise<{ ok: true } | { ok: false; errorMessage: string }>;
+  /** Clears only the local AsyncStorage profile cache (not Firestore). */
+  clearLocalProfileCache: () => Promise<void>;
 };
 
 const UserProfileContext = createContext<UserProfileContextValue | null>(null);
@@ -147,6 +149,12 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     return { ok: true as const };
   }, [deviceId]);
 
+  const clearLocalProfileCache = useCallback(async () => {
+    const empty = { ...EMPTY_USER_PROFILE };
+    setProfile(empty);
+    await AsyncStorage.removeItem(PROFILE_CACHE_KEY);
+  }, []);
+
   const value = useMemo(
     () => ({
       profile,
@@ -155,8 +163,17 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       refreshProfile,
       updateProfile,
       deleteProfile,
+      clearLocalProfileCache,
     }),
-    [profile, deviceId, isLoading, refreshProfile, updateProfile, deleteProfile],
+    [
+      profile,
+      deviceId,
+      isLoading,
+      refreshProfile,
+      updateProfile,
+      deleteProfile,
+      clearLocalProfileCache,
+    ],
   );
 
   return <UserProfileContext.Provider value={value}>{children}</UserProfileContext.Provider>;

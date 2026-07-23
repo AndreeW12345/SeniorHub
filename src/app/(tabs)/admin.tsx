@@ -1,4 +1,4 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
@@ -64,8 +64,11 @@ function AdminScreenContent() {
   );
 
   const handleSignOut = useCallback(async () => {
-    await signOut();
-    router.replace('/');
+    const result = await signOut();
+    if (!result.ok) {
+      return;
+    }
+    router.replace('/login' as Href);
   }, [router, signOut]);
 
   return (

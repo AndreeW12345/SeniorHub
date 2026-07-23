@@ -9,6 +9,7 @@ import {
 import { getFirebaseAuth } from '@/firebase';
 
 export type SignInResult = { ok: true; user: User } | { ok: false; errorMessage: string };
+export type SignOutResult = { ok: true } | { ok: false; errorMessage: string };
 
 /** Maps Firebase auth error codes to friendly Swedish messages. */
 function getSwedishAuthErrorMessage(code: string): string {
@@ -64,15 +65,27 @@ export async function signInAdmin(email: string, password: string): Promise<Sign
   }
 }
 
-/** Signs the current admin out. */
-export async function signOutAdmin(): Promise<void> {
+/** Signs the current user out via Firebase Auth `signOut(auth)`. */
+export async function signOutAdmin(): Promise<SignOutResult> {
   const auth = getFirebaseAuth();
 
   if (!auth) {
-    return;
+    return {
+      ok: false,
+      errorMessage: 'Firebase är inte konfigurerat. Kontrollera .env-inställningarna.',
+    };
   }
 
-  await signOut(auth);
+  try {
+    await signOut(auth);
+    return { ok: true };
+  } catch (error) {
+    console.error('[SeniorHub] Utloggning misslyckades:', error);
+    return {
+      ok: false,
+      errorMessage: 'Kunde inte logga ut just nu. Försök igen.',
+    };
+  }
 }
 
 /**

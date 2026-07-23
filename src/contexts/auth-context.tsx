@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { User } from 'firebase/auth';
 
-import { signInAdmin, signOutAdmin, subscribeToAuthState, type SignInResult } from '@/services/auth';
+import { signInAdmin, signOutAdmin, subscribeToAuthState, type SignInResult, type SignOutResult } from '@/services/auth';
 
 type AuthContextValue = {
   /** The signed-in admin, or null when browsing anonymously. */
@@ -19,7 +19,7 @@ type AuthContextValue = {
   /** True when an admin is signed in. */
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<SignInResult>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<SignOutResult>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -46,8 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await signOutAdmin();
-    setUser(null);
+    const result = await signOutAdmin();
+    // `onAuthStateChanged` updates `user` when Firebase confirms sign-out.
+    // Do not clear local state if Firebase logout failed.
+    return result;
   }, []);
 
   const value = useMemo<AuthContextValue>(
