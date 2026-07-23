@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 
 import { NotificationCard } from '@/components/notification-card';
+import { NotificationReminderSettings } from '@/components/notification-reminder-settings';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
@@ -9,7 +10,7 @@ import { useNotifications } from '@/contexts/notifications-context';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmDestructiveAction } from '@/utils/confirm-alert';
 
-/** Local notifications inbox – newest first. */
+/** Notiser – reminder settings and local notification inbox. */
 export default function NotificationScreen() {
   const theme = useTheme();
   const {
@@ -33,90 +34,104 @@ export default function NotificationScreen() {
   };
 
   return (
-    <ScreenLayout title="Notiser" subtitle="Dina senaste uppdateringar">
-      {isLoading ? (
-        <View style={styles.loadingState}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <ThemedText type="bodyLarge" themeColor="textSecondary">
-            Laddar notiser...
-          </ThemedText>
-        </View>
-      ) : notifications.length > 0 ? (
-        <View style={styles.content}>
-          <View style={styles.actions}>
-            <Pressable
-              onPress={markAllAsRead}
-              accessibilityRole="button"
-              accessibilityLabel="Markera alla som lästa"
-              accessibilityState={{ disabled: unreadCount === 0 }}
-              disabled={unreadCount === 0}
-              style={({ pressed }) => [
-                styles.actionButton,
-                { borderColor: theme.primary, backgroundColor: theme.card },
-                (pressed || unreadCount === 0) && styles.pressed,
-                unreadCount === 0 && styles.disabled,
-              ]}>
-              <ThemedText type="bodyLarge" themeColor="primary" style={styles.actionButtonText}>
-                Markera alla som lästa
-              </ThemedText>
-            </Pressable>
+    <ScreenLayout title="Notiser" subtitle="Påminnelser och uppdateringar">
+      <View style={styles.content}>
+        <NotificationReminderSettings />
 
-            <Pressable
-              onPress={handleClearAll}
-              accessibilityRole="button"
-              accessibilityLabel="Rensa alla notiser"
-              style={({ pressed }) => [
-                styles.actionButton,
-                { borderColor: theme.favorite, backgroundColor: theme.card },
-                pressed && styles.pressed,
-              ]}>
-              <ThemedText type="bodyLarge" themeColor="favorite" style={styles.actionButtonText}>
-                Rensa alla notiser
-              </ThemedText>
-            </Pressable>
-          </View>
+        <ThemedText type="sectionTitle" style={styles.inboxTitle}>
+          Dina notiser
+        </ThemedText>
 
-          <View style={styles.list}>
-            {notifications.map((notification) => (
-              <NotificationCard
-                key={notification.id}
-                notification={notification}
-                onPress={(item) => {
-                  if (!item.read) {
-                    markAsRead(item.id);
-                  }
-                }}
-              />
-            ))}
+        {isLoading ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <ThemedText type="bodyLarge" themeColor="textSecondary">
+              Laddar notiser...
+            </ThemedText>
           </View>
-        </View>
-      ) : (
-        <View style={[styles.emptyState, CardShadow, { backgroundColor: theme.card }]}>
-          <SymbolView
-            tintColor={theme.primary}
-            name={{
-              ios: 'bell',
-              android: 'notifications_none',
-              web: 'notifications_none',
-            }}
-            size={52}
-          />
-          <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
-            Du har inga notiser ännu.
-          </ThemedText>
-        </View>
-      )}
+        ) : notifications.length > 0 ? (
+          <View style={styles.inbox}>
+            <View style={styles.actions}>
+              <Pressable
+                onPress={markAllAsRead}
+                accessibilityRole="button"
+                accessibilityLabel="Markera alla som lästa"
+                accessibilityState={{ disabled: unreadCount === 0 }}
+                disabled={unreadCount === 0}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  { borderColor: theme.primary, backgroundColor: theme.card },
+                  (pressed || unreadCount === 0) && styles.pressed,
+                  unreadCount === 0 && styles.disabled,
+                ]}>
+                <ThemedText type="bodyLarge" themeColor="primary" style={styles.actionButtonText}>
+                  Markera alla som lästa
+                </ThemedText>
+              </Pressable>
+
+              <Pressable
+                onPress={handleClearAll}
+                accessibilityRole="button"
+                accessibilityLabel="Rensa alla notiser"
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  { borderColor: theme.favorite, backgroundColor: theme.card },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="bodyLarge" themeColor="favorite" style={styles.actionButtonText}>
+                  Rensa alla notiser
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <View style={styles.list}>
+              {notifications.map((notification) => (
+                <NotificationCard
+                  key={notification.id}
+                  notification={notification}
+                  onPress={(item) => {
+                    if (!item.read) {
+                      markAsRead(item.id);
+                    }
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.emptyState, CardShadow, { backgroundColor: theme.card }]}>
+            <SymbolView
+              tintColor={theme.primary}
+              name={{
+                ios: 'bell',
+                android: 'notifications_none',
+                web: 'notifications_none',
+              }}
+              size={52}
+            />
+            <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
+              Du har inga notiser ännu.
+            </ThemedText>
+          </View>
+        )}
+      </View>
     </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    gap: Spacing.five,
+  },
+  inboxTitle: {
+    letterSpacing: -0.2,
+  },
   loadingState: {
     alignItems: 'center',
     paddingVertical: Spacing.seven,
     gap: Spacing.four,
   },
-  content: {
+  inbox: {
     gap: Spacing.four,
   },
   actions: {
@@ -142,7 +157,6 @@ const styles = StyleSheet.create({
     padding: Spacing.six,
     alignItems: 'center',
     gap: Spacing.four,
-    marginTop: Spacing.two,
   },
   emptyText: {
     textAlign: 'center',

@@ -1,40 +1,11 @@
 import * as Calendar from 'expo-calendar/legacy';
-import { Platform } from 'react-native';
 
 import type { Activity } from '@/constants/activities';
 import type { AddActivityToCalendarResult } from '@/services/calendar/add-activity-to-calendar.types';
+import { exportActivityAsIcs } from '@/services/calendar/export-activity-as-ics';
 import { buildActivityCalendarEvent } from '@/utils/activity-calendar-event';
 
-async function ensureCalendarPermission(): Promise<boolean> {
-  const current = await Calendar.getCalendarPermissionsAsync();
-  if (current.status === 'granted') {
-    return true;
-  }
-
-  const requested = await Calendar.requestCalendarPermissionsAsync();
-  return requested.status === 'granted';
-}
-
-async function getWritableCalendarId(): Promise<string | null> {
-  try {
-    const defaultCalendar = await Calendar.getDefaultCalendarAsync();
-    if (defaultCalendar?.id) {
-      return defaultCalendar.id;
-    }
-  } catch {
-    // Android has no single default calendar; fall back to the list below.
-  }
-
-  const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-  const writableCalendar =
-    calendars.find((calendar) => calendar.allowsModifications && calendar.isPrimary) ??
-    calendars.find((calendar) => calendar.allowsModifications);
-
-  return writableCalendar?.id ?? null;
-}
-
-/** Adds an activity directly to the device calendar on iOS and Android. */
-export async function addActivityToCalendar(activity: Activity): Promise<AddActivityToCalendarResult> {
+async function openDeviceCalendarForm(activity: Activity): Promise<AddActivityToCalendarResult | null> {
   const event = buildActivityCalendarEvent(activity);
   if (!event) {
     return {
@@ -43,38 +14,50 @@ export async function addActivityToCalendar(activity: Activity): Promise<AddActi
     };
   }
 
-  const hasPermission = await ensureCalendarPermission();
-  if (!hasPermission) {
-    return {
-      ok: false,
-      errorMessage: 'Kalenderbehörighet krävs för att lägga till aktiviteten.',
-    };
+  const isAvailable = await Calendar.isAvailableAsync();
+  if (!isAvailable) {
+    return null;
   }
 
-  const calendarId = await getWritableCalendarId();
-  if (!calendarId) {
-    return {
-      ok: false,
-      errorMessage: 'Kunde inte hitta en kalender att spara aktiviteten i.',
-    };
-  }
-
+  // Best-effort permission request. The system create-event UI may still work
+  // with write-only access on newer iOS versions even if this is denied.
   try {
-    await Calendar.createEventAsync(calendarId, {
-      title: event.title,
-      startDate: event.startDate,
-      endDate: event.endDate,
-      location: event.location,
-      notes: event.notes,
-      timeZone: Platform.OS === 'android' ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined,
-    });
-
-    return { ok: true, method: 'device-calendar' };
+    const current = await Calendar.getCalendarPermissionsAsync();
+    if (current.status !== 'granted') {
+      await Calendar.requestCalendarPermissionsAsync();
+    }
   } catch (error) {
-    console.error('[SeniorHub] Kunde inte skapa kalenderhändelse:', error);
-    return {
-      ok: false,
-      errorMessage: 'Kunde inte lägga till aktiviteten i kalendern just nu.',
-    };
+    console.warn('[SeniorHub] Kunde inte begära kalenderbehörighet:', error);
   }
+
+  const result = await Calendar.createEventInCalendarAsync({
+    title: event.title,
+    notes: event.notes,
+    location: event.location,
+    startDate: event.startDate,
+    endDate: event.endDate,
+  });
+
+  if (result.action === Calendar.CalendarDialogResultActions.canceled) {
+    return { ok: false, cancelled: true };
+  }
+
+  return { ok: true, method: 'device-calendar' };
+}
+
+/**
+ * Opens the OS calendar UI with a pre-filled event on iOS/Android.
+ * Falls back to sharing an .ics file when the device calendar cannot be opened.
+ */
+export async function addActivityToCalendar(activity: Activity): Promise<AddActivityToCalendarResult> {
+  try {
+    const deviceResult = await openDeviceCalendarForm(activity);
+    if (deviceResult) {
+      return deviceResult;
+    }
+  } catch (error) {
+    console.warn('[SeniorHub] Kunde inte öppna enhetskalendern, faller tillbaka till .ics:', error);
+  }
+
+  return exportActivityAsIcs(activity);
 }

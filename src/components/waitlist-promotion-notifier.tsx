@@ -1,8 +1,13 @@
 import { useEffect, useRef } from 'react';
 
 import { useActivities } from '@/contexts/activities-context';
+import { useNotificationPreferences } from '@/contexts/notification-preferences-context';
 import { useNotifications } from '@/contexts/notifications-context';
 import { useRegistrations } from '@/contexts/registrations-context';
+import {
+  scheduleActivityReminders,
+  sendLocalBookingConfirmation,
+} from '@/services/notifications';
 import { createWaitlistPromotedNotification } from '@/utils/notifications';
 
 /**
@@ -13,6 +18,7 @@ export function WaitlistPromotionNotifier() {
   const { localBookings } = useRegistrations();
   const { getActivityById } = useActivities();
   const { addNotification } = useNotifications();
+  const { preferences } = useNotificationPreferences();
   const previousWaitlistIdsRef = useRef<Set<string> | null>(null);
   const isReadyRef = useRef(false);
 
@@ -39,13 +45,19 @@ export function WaitlistPromotionNotifier() {
 
     for (const activityId of previousWaitlistIds) {
       if (!waitlistIds.has(activityId) && registeredIds.has(activityId)) {
-        const activityTitle = getActivityById(activityId)?.title?.trim() || 'aktiviteten';
+        const activity = getActivityById(activityId);
+        const activityTitle = activity?.title?.trim() || 'aktiviteten';
         addNotification(createWaitlistPromotedNotification(activityTitle));
+
+        if (activity) {
+          void sendLocalBookingConfirmation(activityTitle);
+          void scheduleActivityReminders(activity, preferences);
+        }
       }
     }
 
     previousWaitlistIdsRef.current = waitlistIds;
-  }, [localBookings, getActivityById, addNotification]);
+  }, [localBookings, getActivityById, addNotification, preferences]);
 
   return null;
 }

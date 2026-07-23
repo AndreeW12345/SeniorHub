@@ -19,5 +19,11 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if true;
     }
+
+    // Device user profiles + Expo push tokens (document id = stable local device id).
+    match /users/{deviceId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
   }
 }

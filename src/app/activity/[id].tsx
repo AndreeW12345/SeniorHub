@@ -71,22 +71,21 @@ export default function ActivityDetailScreen() {
     try {
       const result = await addActivityToCalendar(activity);
 
-      if (result.ok) {
-        if (result.method === 'ics-download') {
-          showSuccessAlert(
-            'Kalenderfil skapad',
-            'Kalenderfilen har laddats ner. Öppna den för att lägga till aktiviteten i din kalender.',
-          );
-        } else {
-          showSuccessAlert(
-            'Tillagd i kalendern',
-            'Aktiviteten har lagts till i din kalender.',
-          );
+      if (!result.ok) {
+        if (result.cancelled) {
+          return;
         }
+
+        showErrorAlert('Kunde inte lägga till', result.errorMessage);
         return;
       }
 
-      showErrorAlert('Kunde inte lägga till', result.errorMessage);
+      if (result.method === 'ics-download') {
+        showSuccessAlert(
+          'Kalenderfil skapad',
+          'Kalenderfilen är klar. Öppna den för att lägga till aktiviteten i din kalender.',
+        );
+      }
     } finally {
       setIsAddingToCalendar(false);
     }

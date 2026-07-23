@@ -10,11 +10,17 @@ import { ThemedText } from '@/components/themed-text';
 import type { Activity } from '@/constants/activities';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
+import { useNotificationPreferences } from '@/contexts/notification-preferences-context';
 import { useNotifications } from '@/contexts/notifications-context';
 import { useRegistrations } from '@/contexts/registrations-context';
 import { useToast } from '@/contexts/toast-context';
 import { useTheme } from '@/hooks/use-theme';
 import { incrementActivityParticipants } from '@/services/activities';
+import {
+  cancelActivityReminders,
+  scheduleActivityReminders,
+  sendLocalBookingConfirmation,
+} from '@/services/notifications';
 import {
   cancelActivityRegistration,
   leaveWaitlistRegistration,
@@ -51,6 +57,7 @@ export function ActivityRegistrationButton({
   const theme = useTheme();
   const { showToast } = useToast();
   const { addNotification } = useNotifications();
+  const { preferences } = useNotificationPreferences();
   const { refreshActivities } = useActivities();
   const {
     isRegistered,
@@ -62,6 +69,12 @@ export function ActivityRegistrationButton({
   } = useRegistrations();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormVisible, setIsFormVisible] = useState(false);
+
+  const notifyBookingConfirmed = async () => {
+    addNotification(createRegistrationConfirmedNotification(activity.title));
+    await sendLocalBookingConfirmation(activity.title);
+    await scheduleActivityReminders(activity, preferences);
+  };
 
   if (!isActivityRegistrationRequired(activity)) {
     return null;
@@ -94,7 +107,7 @@ export function ActivityRegistrationButton({
       }
 
       markAsRegistered(activity.id);
-      addNotification(createRegistrationConfirmedNotification(activity.title));
+      await notifyBookingConfirmed();
       showToast({
         type: 'success',
         title: 'Du är nu anmäld.',
@@ -150,7 +163,7 @@ export function ActivityRegistrationButton({
     }
 
     markAsRegistered(activity.id, nextRegistrationId);
-    addNotification(createRegistrationConfirmedNotification(activity.title));
+    await notifyBookingConfirmed();
     showToast({
       type: 'success',
       title: 'Du är nu anmäld.',
@@ -178,6 +191,7 @@ export function ActivityRegistrationButton({
       }
 
       removeRegistration(activity.id);
+      await cancelActivityReminders(activity.id);
       addNotification(createCancellationNotification(activity.title));
       showToast({
         type: 'warning',

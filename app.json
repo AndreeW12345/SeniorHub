@@ -52,6 +52,15 @@
           "writeOnlyAccess": true,
           "writeOnlyCalendarPermission": "SeniorHub behöver tillgång för att lägga till aktiviteter i din kalender."
         }
+      ],
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "color": "#004E87",
+          "defaultChannel": "activity-reminders",
+          "enableBackgroundRemoteNotifications": false
+        }
       ]
     ],
     "experiments": {

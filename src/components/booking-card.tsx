@@ -13,6 +13,7 @@ import {
 } from '@/contexts/registrations-context';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { cancelActivityReminders } from '@/services/notifications';
 import {
   cancelActivityRegistration,
   leaveWaitlistRegistration,
@@ -68,6 +69,7 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
 
       removeRegistration(activity.id);
       if (!isWaitlist) {
+        await cancelActivityReminders(activity.id);
         addNotification(createCancellationNotification(activity.title));
       }
       await refreshActivities();

@@ -34,6 +34,7 @@ const TAB_ICONS = {
     android: 'notifications',
     web: 'notifications',
   },
+  profil: { ios: 'person.fill', android: 'person', web: 'person' },
   admin: { ios: 'gearshape.fill', android: 'settings', web: 'settings' },
 } as const satisfies Record<string, SymbolViewProps['name']>;
 
@@ -69,6 +70,9 @@ export default function AppTabs() {
             <TabButton icon={TAB_ICONS.notiser} badgeCount={unreadCount}>
               Notiser
             </TabButton>
+          </TabTrigger>
+          <TabTrigger name="profil" href="/profil" asChild>
+            <TabButton icon={TAB_ICONS.profil}>Profil</TabButton>
           </TabTrigger>
           {isAuthenticated ? (
             <TabTrigger name="admin" href="/admin" asChild>

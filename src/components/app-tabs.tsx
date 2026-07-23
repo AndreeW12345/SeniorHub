@@ -57,6 +57,11 @@ export default function AppTabs() {
         ) : null}
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="profil">
+        <NativeTabs.Trigger.Label>Profil</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="person.fill" md="person" />
+      </NativeTabs.Trigger>
+
       {isAuthenticated ? (
         <NativeTabs.Trigger name="admin">
           <NativeTabs.Trigger.Label>Admin</NativeTabs.Trigger.Label>

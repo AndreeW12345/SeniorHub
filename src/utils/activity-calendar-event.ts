@@ -95,7 +95,18 @@ function escapeIcsText(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
 }
 
-/** Builds an iCalendar (.ics) file for download on web. */
+/** Safe filename stem for an activity .ics download/share. */
+export function buildActivityIcsFilename(activity: Activity): string {
+  const safeFilename = activity.title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9åäö]+/gi, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return `${safeFilename || 'aktivitet'}.ics`;
+}
+
+/** Builds an iCalendar (.ics) file for download or share. */
 export function buildActivityIcsContent(event: ActivityCalendarEvent, uid: string): string {
   const timestamp = formatIcsDate(new Date());
 
