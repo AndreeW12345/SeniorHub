@@ -26,7 +26,7 @@ export function createWaitlistPromotedNotification(
   return {
     icon: '🎉',
     title: 'Plats tillgänglig',
-    description: 'Du har fått en plats från reservlistan.',
+    description: 'Du har fått en plats på aktiviteten!',
     type: 'waitlist_promoted',
   };
 }

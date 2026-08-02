@@ -6,7 +6,7 @@ import { useNotifications } from '@/contexts/notifications-context';
 import { useRegistrations } from '@/contexts/registrations-context';
 import {
   scheduleActivityReminders,
-  sendLocalBookingConfirmation,
+  sendLocalWaitlistPromotedNotification,
 } from '@/services/notifications';
 import { createWaitlistPromotedNotification } from '@/utils/notifications';
 
@@ -48,9 +48,9 @@ export function WaitlistPromotionNotifier() {
         const activity = getActivityById(activityId);
         const activityTitle = activity?.title?.trim() || 'aktiviteten';
         addNotification(createWaitlistPromotedNotification(activityTitle));
+        void sendLocalWaitlistPromotedNotification();
 
         if (activity) {
-          void sendLocalBookingConfirmation(activityTitle);
           void scheduleActivityReminders(activity, preferences);
         }
       }

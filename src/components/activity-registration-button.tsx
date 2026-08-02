@@ -154,7 +154,7 @@ export function ActivityRegistrationButton({
       markAsWaitlisted(activity.id, nextRegistrationId);
       showToast({
         type: 'success',
-        title: 'Du har lagts till på reservlistan.',
+        title: 'Du har lagts till på väntelistan.',
       });
       setIsFormVisible(false);
       await onRegistrationComplete?.(0);
@@ -216,7 +216,7 @@ export function ActivityRegistrationButton({
         const result = await leaveWaitlistRegistration(activity.id, registrationId);
 
         if (!result.ok) {
-          showErrorAlert('Kunde inte lämna reservlistan', result.errorMessage);
+          showErrorAlert('Kunde inte lämna väntelistan', result.errorMessage);
           return;
         }
       }
@@ -224,7 +224,7 @@ export function ActivityRegistrationButton({
       removeRegistration(activity.id);
       showToast({
         type: 'success',
-        title: 'Du har lämnat reservlistan.',
+        title: 'Du har lämnat väntelistan.',
       });
       await onRegistrationComplete?.(0);
       await refreshActivities();
@@ -246,9 +246,9 @@ export function ActivityRegistrationButton({
 
   const handleLeaveWaitlistPress = () => {
     confirmDestructiveAction(
-      'Lämna reservlista',
-      'Är du säker på att du vill lämna reservlistan?',
-      'Lämna reservlista',
+      'Lämna väntelistan',
+      'Är du säker på att du vill lämna väntelistan?',
+      'Lämna väntelistan',
       () => {
         void performLeaveWaitlist();
       },
@@ -302,7 +302,7 @@ export function ActivityRegistrationButton({
       <Pressable
         onPress={handleLeaveWaitlistPress}
         accessibilityRole="button"
-        accessibilityLabel="Lämna reservlista"
+        accessibilityLabel="Lämna väntelistan"
         accessibilityState={{ disabled: isSubmitting }}
         disabled={isSubmitting}
         style={({ pressed }) => [
@@ -321,7 +321,7 @@ export function ActivityRegistrationButton({
           </View>
         ) : (
           <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
-            Lämna reservlista
+            Lämna väntelistan
           </ThemedText>
         )}
       </Pressable>

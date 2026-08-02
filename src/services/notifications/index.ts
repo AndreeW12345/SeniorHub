@@ -4,6 +4,7 @@ export {
   cancelActivityReminders,
   scheduleActivityReminders,
   sendLocalBookingConfirmation,
+  sendLocalWaitlistPromotedNotification,
 } from './local-activity-notifications';
 export { registerPushNotifications } from './register-push-notifications';
 export {

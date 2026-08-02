@@ -98,19 +98,55 @@ export function getActivityRegistrationSectionTitle(activity: Activity): string 
   return 'Information';
 }
 
-function getBookingStatusText(participantCount: number, maxParticipants: number): string {
+function getBookingStatusLines(
+  participantCount: number,
+  maxParticipants: number,
+  options?: {
+    waitlistCount?: number;
+    waitlistAvailable?: boolean;
+  },
+): string[] {
   const remainingSeats = Math.max(0, maxParticipants - participantCount);
+  const lines = [`${participantCount} av ${maxParticipants} platser bokade`];
 
   if (remainingSeats === 0) {
-    return `0 av ${maxParticipants} platser kvar – Fullbokad`;
+    lines.push('Fullbokad');
+
+    const waitlistCount =
+      typeof options?.waitlistCount === 'number' && Number.isFinite(options.waitlistCount)
+        ? Math.max(0, Math.floor(options.waitlistCount))
+        : null;
+
+    if (waitlistCount !== null && waitlistCount > 0) {
+      lines.push(
+        `Väntelista: ${waitlistCount} ${waitlistCount === 1 ? 'person' : 'personer'}`,
+      );
+    } else if (options?.waitlistAvailable) {
+      lines.push('Väntelista tillgänglig');
+    }
+  } else {
+    lines.push(`${remainingSeats} ${remainingSeats === 1 ? 'plats' : 'platser'} kvar`);
+
+    const waitlistCount =
+      typeof options?.waitlistCount === 'number' && Number.isFinite(options.waitlistCount)
+        ? Math.max(0, Math.floor(options.waitlistCount))
+        : 0;
+
+    if (waitlistCount > 0) {
+      lines.push(
+        `Väntelista: ${waitlistCount} ${waitlistCount === 1 ? 'person' : 'personer'}`,
+      );
+    }
   }
 
-  return `${remainingSeats} av ${maxParticipants} platser kvar`;
+  return lines;
 }
 
 export type ActivityRegistrationDisplayOptions = {
   /** Prefer live registration count when available (status "registered"). */
   bookedCount?: number;
+  /** Live waitlist size for SeniorHub activities. */
+  waitlistCount?: number;
 };
 
 export function getActivityRegistrationDisplay(
@@ -143,11 +179,15 @@ export function getActivityRegistrationDisplay(
         ? Math.max(0, Math.floor(options.bookedCount))
         : getActivityParticipantCount(activity);
     isFull = participantCount >= maxParticipants;
+    const waitlistAvailable =
+      isFull && getActivityRegistrationAction(activity)?.method === 'seniorhub';
 
-    lines.push(getBookingStatusText(participantCount, maxParticipants));
-    if (isFull && getActivityRegistrationAction(activity)?.method === 'seniorhub') {
-      lines.push('Reservlista tillgänglig');
-    }
+    lines.push(
+      ...getBookingStatusLines(participantCount, maxParticipants, {
+        waitlistCount: options?.waitlistCount,
+        waitlistAvailable,
+      }),
+    );
   } else if (registrationRequired) {
     lines.push('Obegränsat antal platser');
   }

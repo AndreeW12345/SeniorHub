@@ -60,7 +60,7 @@ export async function cancelActivityRegistration(
 
       if (!promotion.ok) {
         console.warn(
-          '[SeniorHub] Uppflyttning från reservlistan misslyckades, frigör platsen:',
+          '[SeniorHub] Uppflyttning från väntelistan misslyckades, frigör platsen:',
           promotion.errorMessage,
         );
         const countResult = await decrementActivityParticipants(trimmedActivityId);

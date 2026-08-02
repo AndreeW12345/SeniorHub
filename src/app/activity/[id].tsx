@@ -18,6 +18,7 @@ import { getActivityDisplayLocation, getActivityMapsLocation, getGoogleMapsUrl }
 import { getOrganizerPath } from '@/constants/organizers';
 import { CardShadow, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
+import { useRegistrations } from '@/contexts/registrations-context';
 import { useActivitySeatAvailability } from '@/hooks/use-activity-seat-availability';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useSafeBack } from '@/hooks/use-safe-back';
@@ -36,7 +37,13 @@ export default function ActivityDetailScreen() {
   const insets = useSafeAreaInsets();
   const { horizontalPadding, contentWidth, isDesktop } = useResponsive();
   const activity = typeof id === 'string' ? getActivityById(id) : undefined;
-  const { bookedCount, adjustBookedCount } = useActivitySeatAvailability(activity);
+  const { bookedCount, waitlistCount, getWaitlistPositionFor, adjustBookedCount } =
+    useActivitySeatAvailability(activity);
+  const { isOnWaitlist, getRegistrationId } = useRegistrations();
+  const waitlistPosition =
+    activity && isOnWaitlist(activity.id)
+      ? getWaitlistPositionFor(getRegistrationId(activity.id))
+      : null;
   const detailImageHeight = isDesktop ? 380 : 300;
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
 
@@ -178,6 +185,8 @@ export default function ActivityDetailScreen() {
                     activity={activity}
                     variant="detail"
                     bookedCount={bookedCount}
+                    waitlistCount={waitlistCount}
+                    waitlistPosition={waitlistPosition}
                   />
                   <ActivityParticipationHelper activity={activity} />
                 </View>

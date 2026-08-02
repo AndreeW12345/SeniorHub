@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { WaitlistInfoBanner } from '@/components/waitlist-info-banner';
 import type { Activity } from '@/constants/activities';
 import { getActivityDisplayLocation } from '@/constants/activities';
 import { useActivities } from '@/contexts/activities-context';
@@ -13,6 +14,7 @@ import {
 } from '@/contexts/registrations-context';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useActivitySeatAvailability } from '@/hooks/use-activity-seat-availability';
 import { cancelActivityReminders } from '@/services/notifications';
 import {
   cancelActivityRegistration,
@@ -22,6 +24,7 @@ import { confirmDestructiveAction, showErrorAlert } from '@/utils/confirm-alert'
 import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
 import { getBookingStatusLabel } from '@/utils/my-bookings';
 import { createCancellationNotification } from '@/utils/notifications';
+import { formatWaitlistPositionLabel } from '@/utils/waitlist';
 
 type BookingCardProps = {
   activity: Activity;
@@ -38,11 +41,16 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
   const { addNotification } = useNotifications();
   const { getRegistrationId, removeRegistration } = useRegistrations();
   const [isCancelling, setIsCancelling] = useState(false);
+  const registrationId = getRegistrationId(activity.id);
+  const { getWaitlistPositionFor } = useActivitySeatAvailability(
+    status === 'waitlist' ? activity : undefined,
+  );
+  const waitlistPosition =
+    status === 'waitlist' ? getWaitlistPositionFor(registrationId) : null;
 
-  const statusLabel = getBookingStatusLabel(status);
+  const statusLabel = getBookingStatusLabel(status, waitlistPosition);
   const isWaitlist = status === 'waitlist';
   const displayLocation = getActivityDisplayLocation(activity);
-  const registrationId = getRegistrationId(activity.id);
 
   const openActivity = () => {
     router.push(`/activity/${activity.id}` as Href);
@@ -81,9 +89,11 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
 
   const handleCancelPress = () => {
     confirmDestructiveAction(
-      'Avanmälan',
-      'Vill du avanmäla dig från denna aktivitet?',
-      'Ja, avanmäl mig',
+      isWaitlist ? 'Lämna väntelistan' : 'Avanmälan',
+      isWaitlist
+        ? 'Vill du lämna väntelistan för denna aktivitet?'
+        : 'Vill du avanmäla dig från denna aktivitet?',
+      isWaitlist ? 'Lämna väntelistan' : 'Ja, avanmäl mig',
       () => {
         void performCancel();
       },
@@ -123,6 +133,12 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
         <ThemedText type="bodyLarge" themeColor="textSecondary">
           {displayLocation}
         </ThemedText>
+        {isWaitlist && typeof waitlistPosition === 'number' ? (
+          <ThemedText type="bodyLarge" themeColor="primary" style={styles.positionText}>
+            {formatWaitlistPositionLabel(waitlistPosition)}
+          </ThemedText>
+        ) : null}
+        {isWaitlist ? <WaitlistInfoBanner /> : null}
       </View>
 
       <Pressable
@@ -144,7 +160,7 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
       <Pressable
         onPress={handleCancelPress}
         accessibilityRole="button"
-        accessibilityLabel="Avanmäl"
+        accessibilityLabel={isWaitlist ? 'Lämna väntelistan' : 'Avanmäl'}
         accessibilityState={{ disabled: isCancelling }}
         disabled={isCancelling}
         style={({ pressed }) => [
@@ -157,12 +173,12 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
           <View style={styles.busyRow}>
             <ActivityIndicator color={theme.favorite} />
             <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
-              Avanmäler...
+              {isWaitlist ? 'Lämnar...' : 'Avanmäler...'}
             </ThemedText>
           </View>
         ) : (
           <ThemedText type="bodyLarge" themeColor="favorite" style={styles.cancelButtonText}>
-            Avanmäl
+            {isWaitlist ? 'Lämna väntelistan' : 'Avanmäl'}
           </ThemedText>
         )}
       </Pressable>
@@ -196,6 +212,9 @@ const styles = StyleSheet.create({
   },
   details: {
     gap: Spacing.two,
+  },
+  positionText: {
+    fontWeight: '700',
   },
   button: {
     minHeight: 56,

@@ -298,7 +298,7 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
           }
         },
         (error) => {
-          console.warn('[SeniorHub] Kunde inte synka reservlistestatus:', error);
+          console.warn('[SeniorHub] Kunde inte synka väntelistestatus:', error);
         },
       ),
     );

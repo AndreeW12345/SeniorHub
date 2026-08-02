@@ -5,10 +5,11 @@ import {
   hasActivityParticipantLimit,
   isActivityRegistrationRequired,
 } from '@/utils/activity-registration';
+import { formatWaitlistCountLabel } from '@/utils/waitlist';
 
 export type SeatAvailability =
   | { kind: 'hidden' }
-  | { kind: 'unlimited'; label: string; isFull: false }
+  | { kind: 'unlimited'; label: string; lines: string[]; isFull: false }
   | {
       kind: 'limited';
       booked: number;
@@ -16,16 +17,56 @@ export type SeatAvailability =
       remaining: number;
       isFull: boolean;
       label: string;
+      lines: string[];
     };
 
-function getLimitedSeatLabel(booked: number, max: number): string {
+export type LimitedSeatLabelOptions = {
+  /** Live waitlist size; when omitted, full activities only show "Väntelista tillgänglig". */
+  waitlistCount?: number;
+  /** When true, advertise waitlist on full SeniorHub activities even if count is 0. */
+  waitlistAvailable?: boolean;
+};
+
+/** Builds the seat/waitlist status lines shown on activity cards and detail. */
+export function getLimitedSeatLines(
+  booked: number,
+  max: number,
+  options?: LimitedSeatLabelOptions,
+): string[] {
   const remaining = Math.max(0, max - booked);
+  const lines = [`${booked} av ${max} platser bokade`];
 
   if (remaining === 0) {
-    return `0 av ${max} platser kvar – Fullbokad`;
+    lines.push('Fullbokad');
+
+    const waitlistCount =
+      typeof options?.waitlistCount === 'number' && Number.isFinite(options.waitlistCount)
+        ? Math.max(0, Math.floor(options.waitlistCount))
+        : null;
+
+    if (waitlistCount !== null && waitlistCount > 0) {
+      lines.push(formatWaitlistCountLabel(waitlistCount));
+    } else if (options?.waitlistAvailable) {
+      lines.push('Väntelista tillgänglig');
+    }
+  } else {
+    lines.push(`${remaining} ${remaining === 1 ? 'plats' : 'platser'} kvar`);
+
+    const waitlistCount =
+      typeof options?.waitlistCount === 'number' && Number.isFinite(options.waitlistCount)
+        ? Math.max(0, Math.floor(options.waitlistCount))
+        : 0;
+
+    if (waitlistCount > 0) {
+      lines.push(formatWaitlistCountLabel(waitlistCount));
+    }
   }
 
-  return `${remaining} av ${max} platser kvar`;
+  return lines;
+}
+
+function getLimitedSeatLabel(booked: number, max: number, options?: LimitedSeatLabelOptions): string {
+  return getLimitedSeatLines(booked, max, options).join(' · ');
 }
 
 /**
@@ -35,6 +76,7 @@ function getLimitedSeatLabel(booked: number, max: number): string {
 export function getSeatAvailability(
   activity: Activity,
   bookedCount?: number,
+  options?: LimitedSeatLabelOptions,
 ): SeatAvailability {
   const booked =
     typeof bookedCount === 'number' && Number.isFinite(bookedCount)
@@ -49,6 +91,7 @@ export function getSeatAvailability(
 
     const remaining = Math.max(0, max - booked);
     const isFull = remaining === 0;
+    const lines = getLimitedSeatLines(booked, max, options);
 
     return {
       kind: 'limited',
@@ -56,7 +99,8 @@ export function getSeatAvailability(
       max,
       remaining,
       isFull,
-      label: getLimitedSeatLabel(booked, max),
+      label: getLimitedSeatLabel(booked, max, options),
+      lines,
     };
   }
 
@@ -64,6 +108,7 @@ export function getSeatAvailability(
     return {
       kind: 'unlimited',
       label: 'Obegränsat antal platser',
+      lines: ['Obegränsat antal platser'],
       isFull: false,
     };
   }

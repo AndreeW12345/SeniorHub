@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { Activity } from '@/constants/activities';
+import type { ActivityRegistration } from '@/constants/registrations';
 import { subscribeActivityRegistrations } from '@/services/registrations/subscribe-activity-registrations';
 import {
   getSeatAvailability,
@@ -9,13 +10,19 @@ import {
 } from '@/utils/seat-availability';
 import {
   getActivityParticipantCount,
+  getActivityRegistrationAction,
   hasActivityParticipantLimit,
   isActivityRegistrationRequired,
 } from '@/utils/activity-registration';
+import { getWaitlistPosition, sortWaitlistFifo } from '@/utils/waitlist';
 
 type UseActivitySeatAvailabilityResult = {
   availability: SeatAvailability;
   bookedCount: number;
+  waitlistCount: number;
+  waitlist: ActivityRegistration[];
+  /** 1-based position when `registrationId` is on the waitlist. */
+  getWaitlistPositionFor: (registrationId: string | null | undefined) => number | null;
   isFull: boolean;
   isLoading: boolean;
   refresh: () => Promise<void>;
@@ -24,7 +31,7 @@ type UseActivitySeatAvailabilityResult = {
 };
 
 /**
- * Live registered participant count and seat availability for an activity.
+ * Live registered + waitlist counts for an activity.
  * Updates automatically when registrations change (e.g. cancel + waitlist promotion).
  */
 export function useActivitySeatAvailability(
@@ -36,11 +43,13 @@ export function useActivitySeatAvailability(
 
   const fallbackBooked = activity ? getActivityParticipantCount(activity) : 0;
   const [bookedCount, setBookedCount] = useState(fallbackBooked);
+  const [waitlist, setWaitlist] = useState<ActivityRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(needsLiveCount);
 
   useEffect(() => {
     if (!activity || !needsLiveCount) {
       setBookedCount(fallbackBooked);
+      setWaitlist([]);
       setIsLoading(false);
       return;
     }
@@ -50,14 +59,22 @@ export function useActivitySeatAvailability(
     const unsubscribe = subscribeActivityRegistrations(
       activity.id,
       (registrations) => {
-        setBookedCount(registrations.length);
+        const registered = registrations.filter(
+          (registration) => registration.status === 'registered',
+        );
+        const waiting = sortWaitlistFifo(
+          registrations.filter((registration) => registration.status === 'waitlist'),
+        );
+        setBookedCount(registered.length);
+        setWaitlist(waiting);
         setIsLoading(false);
       },
       () => {
         setBookedCount(fallbackBooked);
+        setWaitlist([]);
         setIsLoading(false);
       },
-      { includeStatuses: ['registered'] },
+      { includeStatuses: ['registered', 'waitlist'] },
     );
 
     return unsubscribe;
@@ -75,16 +92,43 @@ export function useActivitySeatAvailability(
     setBookedCount((current) => Math.max(0, current + Math.trunc(delta)));
   }, []);
 
+  const waitlistCount = waitlist.length;
+  const waitlistAvailable =
+    !!activity && getActivityRegistrationAction(activity)?.method === 'seniorhub';
+
   const availability = activity
-    ? getSeatAvailability(activity, bookedCount)
+    ? getSeatAvailability(activity, bookedCount, {
+        waitlistCount,
+        waitlistAvailable,
+      })
     : { kind: 'hidden' as const };
 
-  return {
-    availability,
-    bookedCount,
-    isFull: isSeatAvailabilityFull(availability),
-    isLoading,
-    refresh,
-    adjustBookedCount,
-  };
+  const getWaitlistPositionFor = useCallback(
+    (registrationId: string | null | undefined) => getWaitlistPosition(waitlist, registrationId),
+    [waitlist],
+  );
+
+  return useMemo(
+    () => ({
+      availability,
+      bookedCount,
+      waitlistCount,
+      waitlist,
+      getWaitlistPositionFor,
+      isFull: isSeatAvailabilityFull(availability),
+      isLoading,
+      refresh,
+      adjustBookedCount,
+    }),
+    [
+      availability,
+      bookedCount,
+      waitlistCount,
+      waitlist,
+      getWaitlistPositionFor,
+      isLoading,
+      refresh,
+      adjustBookedCount,
+    ],
+  );
 }

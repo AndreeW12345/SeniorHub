@@ -1,14 +1,20 @@
 import type { Activity } from '@/constants/activities';
 import type { LocalRegistration, LocalRegistrationStatus } from '@/contexts/registrations-context';
 import { parseDateValue, parseTimeValue, splitStoredTimeRange } from '@/utils/date-time-format';
+import { formatWaitlistBookingBadge } from '@/utils/waitlist';
 
 export type MyBooking = {
   activity: Activity;
   status: LocalRegistrationStatus;
 };
 
-export function getBookingStatusLabel(status: LocalRegistrationStatus): string {
-  return status === 'waitlist' ? 'Reservplats' : 'Anmäld';
+export function getBookingStatusLabel(
+  status: LocalRegistrationStatus,
+  waitlistPosition?: number | null,
+): string {
+  return status === 'waitlist'
+    ? formatWaitlistBookingBadge(waitlistPosition)
+    : 'Anmäld';
 }
 
 function getActivitySortTimestamp(activity: Activity): number {

@@ -5,6 +5,9 @@ import type { NotificationPreferences } from '@/constants/notification-preferenc
 export async function sendLocalBookingConfirmation(_activityTitle: string): Promise<void> {}
 
 /** Web no-op. */
+export async function sendLocalWaitlistPromotedNotification(): Promise<void> {}
+
+/** Web no-op. */
 export async function scheduleActivityReminders(
   _activity: Activity,
   _preferences: NotificationPreferences,

@@ -66,6 +66,28 @@ export async function sendLocalBookingConfirmation(activityTitle: string): Promi
   }
 }
 
+/** Local notification when the user is promoted from the waitlist. */
+export async function sendLocalWaitlistPromotedNotification(): Promise<void> {
+  if (!canUseLocalNotifications()) {
+    return;
+  }
+
+  try {
+    await ensureAndroidNotificationChannel();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Plats tillgänglig',
+        body: 'Du har fått en plats på aktiviteten!',
+        data: { type: 'waitlist_promoted' },
+        sound: true,
+      },
+      trigger: null,
+    });
+  } catch (error) {
+    console.warn('[SeniorHub] Kunde inte visa väntelistenotis:', error);
+  }
+}
+
 /**
  * Schedules day-before / one-hour-before reminders based on user preferences.
  * Replaces any previous reminders for the same activity.

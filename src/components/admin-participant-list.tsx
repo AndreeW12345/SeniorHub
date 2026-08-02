@@ -7,6 +7,7 @@ import type { ActivityRegistration } from '@/constants/registrations';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { subscribeActivityRegistrations } from '@/services/registrations';
+import { sortWaitlistFifo } from '@/utils/waitlist';
 
 type AdminParticipantListProps = {
   activityId: string;
@@ -133,19 +134,19 @@ export function AdminParticipantList({ activityId }: AdminParticipantListProps) 
       </AdminFormSection>
 
       <AdminFormSection
-        title="Reservlista"
+        title="Väntelista"
         description={
           isLoading
-            ? 'Hämtar reservlista...'
+            ? 'Hämtar väntelista...'
             : waitlist.length > 0
-              ? `${waitlist.length} ${waitlist.length === 1 ? 'person' : 'personer'} på reservlistan.`
-              : 'Här visas personer som står på reservlistan.'
+              ? `${waitlist.length} ${waitlist.length === 1 ? 'person' : 'personer'} på väntelistan.`
+              : 'Här visas personer som står på väntelistan.'
         }>
         {isLoading ? (
           <View style={styles.centered}>
             <ActivityIndicator color={theme.primary} />
             <ThemedText type="bodyLarge" themeColor="textSecondary">
-              Laddar reservlista...
+              Laddar väntelista...
             </ThemedText>
           </View>
         ) : null}
@@ -159,18 +160,18 @@ export function AdminParticipantList({ activityId }: AdminParticipantListProps) 
         {!isLoading && !errorMessage && waitlist.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
-              Ingen står på reservlistan.
+              Ingen står på väntelistan.
             </ThemedText>
           </View>
         ) : null}
 
         {!isLoading && waitlist.length > 0 ? (
           <View style={styles.list}>
-            {waitlist.map((registration) => (
+            {sortWaitlistFifo(waitlist).map((registration, index) => (
               <ParticipantRow
                 key={registration.id}
                 registration={registration}
-                timeLabelPrefix="Tillagd"
+                timeLabelPrefix={`Plats ${index + 1} · Tillagd`}
               />
             ))}
           </View>

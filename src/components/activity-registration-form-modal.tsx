@@ -137,11 +137,11 @@ export function ActivityRegistrationFormModal({
               },
             ]}>
             <ThemedText type="sectionTitle" style={styles.title}>
-              {isWaitlist ? 'Reservlista' : 'Anmäl dig'}
+              {isWaitlist ? 'Väntelista' : 'Anmäl dig'}
             </ThemedText>
             <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.subtitle}>
               {isWaitlist
-                ? `Aktiviteten är fullbokad. Du kan ställa dig i kö till ${activityTitle}.`
+                ? `Aktiviteten är fullbokad. Du kan ställa dig i väntelistan till ${activityTitle}.`
                 : activityTitle}
             </ThemedText>
 
@@ -183,7 +183,7 @@ export function ActivityRegistrationFormModal({
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={isWaitlist ? 'Bekräfta reservlista' : 'Bekräfta anmälan'}
+              accessibilityLabel={isWaitlist ? 'Bekräfta väntelista' : 'Bekräfta anmälan'}
               disabled={isSubmitting}
               onPress={() => void handleConfirm()}
               style={({ pressed }) => [
@@ -201,7 +201,7 @@ export function ActivityRegistrationFormModal({
                 </View>
               ) : (
                 <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
-                  {isWaitlist ? 'Ställ dig på reservlistan' : 'Bekräfta anmälan'}
+                  {isWaitlist ? 'Ställ dig på väntelistan' : 'Bekräfta anmälan'}
                 </ThemedText>
               )}
             </Pressable>

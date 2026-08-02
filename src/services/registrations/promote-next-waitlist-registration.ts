@@ -87,7 +87,7 @@ export async function promoteNextWaitlistRegistration(
       errorMessage:
         error instanceof Error
           ? error.message
-          : 'Kunde inte flytta någon från reservlistan.',
+          : 'Kunde inte flytta någon från väntelistan.',
     };
   }
 }
