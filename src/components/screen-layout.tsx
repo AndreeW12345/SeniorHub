@@ -17,6 +17,8 @@ type ScreenLayoutProps = {
   contentStyle?: StyleProp<ViewStyle>;
   /** When true, omits tab-bar inset (useful for stack screens with a sticky footer). */
   omitTabInset?: boolean;
+  /** Shows the shared top-left back control (stack/sub pages only). */
+  showBackButton?: boolean;
 };
 
 const FooterShadow = Platform.select({
@@ -43,6 +45,7 @@ export function ScreenLayout({
   scrollable = true,
   contentStyle,
   omitTabInset = false,
+  showBackButton = false,
 }: ScreenLayoutProps) {
   const insets = useSafeAreaInsets();
   const { horizontalPadding, sectionGap, contentWidth } = useResponsive();
@@ -76,7 +79,7 @@ export function ScreenLayout({
   if (!scrollable) {
     return (
       <ThemedView style={styles.container}>
-        <ScreenHeader title={title} subtitle={subtitle} />
+        <ScreenHeader title={title} subtitle={subtitle} showBackButton={showBackButton} />
         <View style={[styles.staticContent, { paddingBottom }, ...contentStyles]}>{children}</View>
         {footerBar}
       </ThemedView>
@@ -85,7 +88,7 @@ export function ScreenLayout({
 
   return (
     <ThemedView style={styles.container}>
-      <ScreenHeader title={title} subtitle={subtitle} />
+      <ScreenHeader title={title} subtitle={subtitle} showBackButton={showBackButton} />
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom }, ...contentStyles]}
         showsVerticalScrollIndicator={false}

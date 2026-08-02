@@ -14,7 +14,7 @@ export default function AboutSeniorHubScreen() {
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   return (
-    <ScreenLayout title="Om SeniorHub" subtitle="Aktiviteter nära dig" omitTabInset>
+    <ScreenLayout title="Om SeniorHub" subtitle="Aktiviteter nära dig" showBackButton omitTabInset>
       <View style={[styles.card, CardShadow, { backgroundColor: theme.card }]}>
         <ThemedText type="sectionTitle">SeniorHub</ThemedText>
         <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.paragraph}>

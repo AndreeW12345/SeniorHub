@@ -31,6 +31,22 @@ export function createWaitlistPromotedNotification(
   };
 }
 
+export function createActivityAnnouncementNotification(input: {
+  announcementId: string;
+  title: string;
+  message: string;
+  createdAt: Date;
+}): CreateNotificationInput {
+  return {
+    id: `announcement-${input.announcementId}`,
+    icon: '📢',
+    title: input.title.trim(),
+    description: input.message.trim(),
+    type: 'activity_announcement',
+    createdAt: input.createdAt.toISOString(),
+  };
+}
+
 /** Newest notifications first. */
 export function sortNotificationsNewestFirst(
   notifications: AppNotification[],

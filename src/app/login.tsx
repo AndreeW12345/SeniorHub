@@ -53,7 +53,10 @@ export default function LoginScreen() {
   };
 
   return (
-    <ScreenLayout title="Administratörsinloggning" subtitle="Logga in för att hantera aktiviteter">
+    <ScreenLayout
+      title="Administratörsinloggning"
+      subtitle="Logga in för att hantera aktiviteter"
+      showBackButton>
       <View style={styles.form}>
         <ThemedText type="bodyLarge" themeColor="textSecondary">
           Endast administratörer behöver logga in. Vanliga användare kan fortsätta bläddra i appen utan

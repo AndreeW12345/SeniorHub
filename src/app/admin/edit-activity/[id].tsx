@@ -62,7 +62,7 @@ function EditActivityScreenContent() {
 
   if (isLoading) {
     return (
-      <ScreenLayout title="Redigera aktivitet" subtitle="Hämtar aktivitet">
+      <ScreenLayout title="Redigera aktivitet" subtitle="Hämtar aktivitet" showBackButton>
         <View style={{ alignItems: 'center', paddingVertical: Spacing.six, gap: Spacing.four }}>
           <ActivityIndicator size="large" color={theme.primary} />
           <ThemedText type="bodyLarge" themeColor="textSecondary">
@@ -75,7 +75,7 @@ function EditActivityScreenContent() {
 
   if (!activity) {
     return (
-      <ScreenLayout title="Redigera aktivitet" subtitle="Aktiviteten hittades inte">
+      <ScreenLayout title="Redigera aktivitet" subtitle="Aktiviteten hittades inte" showBackButton>
         <ThemedText type="bodyLarge" themeColor="textSecondary">
           Aktiviteten kunde inte hittas. Gå tillbaka till administratörsvyn och försök igen.
         </ThemedText>

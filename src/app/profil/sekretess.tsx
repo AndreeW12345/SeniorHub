@@ -12,7 +12,11 @@ export default function PrivacyScreen() {
   const goBack = useSafeBack();
 
   return (
-    <ScreenLayout title="Sekretess" subtitle="Hur vi hanterar dina uppgifter" omitTabInset>
+    <ScreenLayout
+      title="Sekretess"
+      subtitle="Hur vi hanterar dina uppgifter"
+      showBackButton
+      omitTabInset>
       <View style={[styles.card, CardShadow, { backgroundColor: theme.card }]}>
         <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.paragraph}>
           SeniorHub sparar dina profiluppgifter (namn, telefon, e-post och eventuell profilbild) i

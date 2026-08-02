@@ -11,6 +11,7 @@ import { ActivityRegistrationButton } from '@/components/activity-registration-b
 import { ActivityRegistrationStatus } from '@/components/activity-registration-status';
 import { ActivityDetailRow } from '@/components/activity-detail-row';
 import { ActivityImage } from '@/components/activity-image';
+import { BackButton } from '@/components/back-button';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -110,21 +111,7 @@ export default function ActivityDetailScreen() {
           },
         ]}>
         <View style={[styles.imageSection, { paddingTop: insets.top + Spacing.two }]}>
-          <Pressable
-            onPress={goBack}
-            accessibilityRole="button"
-            accessibilityLabel="Gå tillbaka"
-            style={[styles.backButton, { top: insets.top + Spacing.three }]}>
-            <SymbolView
-              tintColor={theme.primary}
-              name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-              size={22}
-              weight="semibold"
-            />
-            <ThemedText type="bodyLarge" themeColor="primary">
-              Tillbaka
-            </ThemedText>
-          </Pressable>
+          <BackButton style={[styles.backButton, { top: insets.top + Spacing.three }]} />
 
           <View style={styles.imageFrame}>
             <ActivityImage activity={activity} height={detailImageHeight} rounded />
@@ -260,13 +247,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: Spacing.four,
     zIndex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
   },
   imageFrame: {
     marginHorizontal: Spacing.four,

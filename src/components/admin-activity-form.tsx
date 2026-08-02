@@ -1,3 +1,4 @@
+import { useRouter, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
@@ -5,7 +6,6 @@ import { SymbolView } from 'expo-symbols';
 import { AddressSearchField } from '@/components/address-search-field';
 import { AdminActivityImagePicker } from '@/components/admin-activity-image-picker';
 import { AdminFormSection } from '@/components/admin-form-section';
-import { AdminParticipantList } from '@/components/admin-participant-list';
 import { CategoryDropdown } from '@/components/category-dropdown';
 import { DateTimeField } from '@/components/date-time-field';
 import { FormCheckbox } from '@/components/form-checkbox';
@@ -130,6 +130,7 @@ export function AdminActivityForm({
   initialValues = EMPTY_FORM,
   onSubmitSuccess,
 }: AdminActivityFormProps) {
+  const router = useRouter();
   const theme = useTheme();
   const { isCompact, isDesktop } = useResponsive();
   const isEditMode = mode === 'edit';
@@ -334,6 +335,7 @@ export function AdminActivityForm({
           ? 'Uppdatera uppgifterna och spara när du är klar'
           : 'Fyll i sektionerna nedan och spara aktiviteten'
       }
+      showBackButton
       omitTabInset
       footer={
         <>
@@ -730,7 +732,25 @@ export function AdminActivityForm({
           ) : null}
         </AdminFormSection>
 
-        {isEditMode && activityId ? <AdminParticipantList activityId={activityId} /> : null}
+        {isEditMode && activityId ? (
+          <AdminFormSection
+            title="Deltagare"
+            description="Se anmälda deltagare och väntelista för aktiviteten.">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Öppna deltagarsidan"
+              onPress={() => router.push(`/admin/participants/${activityId}` as Href)}
+              style={({ pressed }) => [
+                styles.participantsButton,
+                { borderColor: theme.primary, backgroundColor: theme.background },
+                pressed && styles.pressed,
+              ]}>
+              <ThemedText type="bodyLarge" themeColor="primary" style={styles.participantsButtonText}>
+                👥 Deltagare
+              </ThemedText>
+            </Pressable>
+          </AdminFormSection>
+        ) : null}
       </View>
     </ScreenLayout>
   );
@@ -829,5 +849,20 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  participantsButton: {
+    minHeight: 56,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+  },
+  participantsButtonText: {
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.88,
   },
 });

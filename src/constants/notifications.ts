@@ -3,6 +3,7 @@ export const NOTIFICATION_TYPES = [
   'registration_confirmed',
   'cancellation',
   'waitlist_promoted',
+  'activity_announcement',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -19,8 +20,12 @@ export type AppNotification = {
 };
 
 export type CreateNotificationInput = {
+  /** Optional stable id (e.g. announcement sync). Skips insert if already present. */
+  id?: string;
   icon: string;
   title: string;
   description: string;
   type: NotificationType;
+  /** Optional ISO timestamp; defaults to now. */
+  createdAt?: string;
 };

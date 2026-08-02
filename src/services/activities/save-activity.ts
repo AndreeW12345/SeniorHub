@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, increment, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, increment, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
@@ -30,7 +30,10 @@ export async function saveActivityToFirestore(
   }
 
   try {
-    const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.activities), parsed.data);
+    const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.activities), {
+      ...parsed.data,
+      createdAt: serverTimestamp(),
+    });
     return { ok: true, id: docRef.id };
   } catch (error) {
     return {

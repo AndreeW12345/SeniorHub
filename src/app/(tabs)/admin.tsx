@@ -95,6 +95,20 @@ function AdminScreenContent() {
         </ThemedText>
       </Pressable>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Statistik"
+        onPress={() => router.push('/admin/statistics' as Href)}
+        style={({ pressed }) => [
+          styles.statsButton,
+          { borderColor: theme.primary, backgroundColor: theme.background },
+          pressed && styles.addButtonPressed,
+        ]}>
+        <ThemedText type="bodyLarge" themeColor="primary" style={styles.statsButtonText}>
+          📊 Statistik
+        </ThemedText>
+      </Pressable>
+
       <View style={styles.listSection}>
         <ThemedText type="sectionTitle">Alla aktiviteter</ThemedText>
 
@@ -176,6 +190,18 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  statsButton: {
+    minHeight: 64,
+    borderRadius: Radius.xl,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.four,
+  },
+  statsButtonText: {
     fontWeight: '700',
   },
   listSection: {

@@ -9,4 +9,6 @@ export const FIRESTORE_COLLECTIONS = {
   users: 'users',
   /** Subcollection under each activity: activities/{id}/registrations */
   registrations: 'registrations',
+  /** Subcollection under each activity: activities/{id}/announcements */
+  announcements: 'announcements',
 } as const;

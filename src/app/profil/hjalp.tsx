@@ -12,7 +12,11 @@ export default function HelpSupportScreen() {
   const goBack = useSafeBack();
 
   return (
-    <ScreenLayout title="Hjälp & Support" subtitle="Vi finns här om du behöver hjälp" omitTabInset>
+    <ScreenLayout
+      title="Hjälp & Support"
+      subtitle="Vi finns här om du behöver hjälp"
+      showBackButton
+      omitTabInset>
       <View style={[styles.card, CardShadow, { backgroundColor: theme.card }]}>
         <ThemedText type="sectionTitle">Så använder du SeniorHub</ThemedText>
         <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.paragraph}>

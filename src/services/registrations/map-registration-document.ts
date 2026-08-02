@@ -44,6 +44,7 @@ export function mapRegistrationDocument(
 ): ActivityRegistration | null {
   const name = readString(data, 'name');
   const phone = readString(data, 'phone');
+  const email = readString(data, 'email');
   const registeredAt = readRegisteredAt(data);
 
   if (!name || !phone || !registeredAt) {
@@ -55,6 +56,7 @@ export function mapRegistrationDocument(
     activityId,
     name,
     phone,
+    ...(email ? { email } : {}),
     registeredAt,
     status: normalizeRegistrationStatus(data.status ?? DEFAULT_REGISTRATION_STATUS),
   };

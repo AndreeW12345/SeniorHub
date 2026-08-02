@@ -117,17 +117,28 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const addNotification = useCallback(
     (input: CreateNotificationInput) => {
+      const nextId = input.id?.trim() || createNotificationId();
+      const createdAt = input.createdAt?.trim() || new Date().toISOString();
+      const parsedCreatedAt = new Date(createdAt);
+      const safeCreatedAt = Number.isNaN(parsedCreatedAt.getTime())
+        ? new Date().toISOString()
+        : parsedCreatedAt.toISOString();
+
       const nextNotification: AppNotification = {
-        id: createNotificationId(),
+        id: nextId,
         icon: input.icon,
         title: input.title.trim(),
         description: input.description.trim(),
-        createdAt: new Date().toISOString(),
+        createdAt: safeCreatedAt,
         read: false,
         type: input.type,
       };
 
       setNotifications((current) => {
+        if (current.some((notification) => notification.id === nextId)) {
+          return current;
+        }
+
         const next = sortNotificationsNewestFirst([nextNotification, ...current]);
         void persistNotifications(next);
         return next;

@@ -15,6 +15,7 @@ import { ToastProvider } from '@/contexts/toast-context';
 import { UserProfileProvider } from '@/contexts/user-profile-context';
 import { PushNotificationsBootstrap } from '@/components/push-notifications-bootstrap';
 import { WaitlistPromotionNotifier } from '@/components/waitlist-promotion-notifier';
+import { ActivityAnnouncementsNotifier } from '@/components/activity-announcements-notifier';
 
 const SeniorHubTheme = {
   ...DefaultTheme,
@@ -44,6 +45,7 @@ export default function RootLayout() {
                             <StatusBar style="light" />
                             <PushNotificationsBootstrap />
                             <WaitlistPromotionNotifier />
+                            <ActivityAnnouncementsNotifier />
                             <Stack
                               screenOptions={{
                                 headerShown: false,
@@ -80,6 +82,20 @@ export default function RootLayout() {
                               />
                               <Stack.Screen
                                 name="admin/edit-activity/[id]"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="admin/participants/[id]"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="admin/statistics"
                                 options={{
                                   presentation: 'card',
                                   animation: 'slide_from_right',

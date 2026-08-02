@@ -2,6 +2,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { NotifyParticipantsModal } from '@/components/notify-participants-modal';
 import { ThemedText } from '@/components/themed-text';
 import { getActivityDisplayLocation, type Activity } from '@/constants/activities';
 import { getCategoryVisual } from '@/constants/category-visuals';
@@ -21,6 +22,7 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
   const theme = useTheme();
   const categoryVisual = getCategoryVisual(activity.category);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isNotifyModalVisible, setIsNotifyModalVisible] = useState(false);
 
   const performDelete = async () => {
     console.log('[SeniorHub] Bekräftad borttagning startar:', activity.id, activity.title);
@@ -106,6 +108,43 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
           </ThemedText>
         </Pressable>
       </View>
+
+      <View style={styles.secondaryActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Deltagare för ${activity.title}`}
+          onPress={() => router.push(`/admin/participants/${activity.id}` as Href)}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            { borderColor: theme.primary, backgroundColor: theme.background },
+            pressed && styles.pressed,
+          ]}>
+          <ThemedText type="bodyLarge" themeColor="primary" style={styles.actionButtonText}>
+            👥 Deltagare
+          </ThemedText>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Meddela deltagare för ${activity.title}`}
+          onPress={() => setIsNotifyModalVisible(true)}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            { borderColor: theme.primary, backgroundColor: theme.background },
+            pressed && styles.pressed,
+          ]}>
+          <ThemedText type="bodyLarge" themeColor="primary" style={styles.actionButtonText}>
+            Meddela deltagare
+          </ThemedText>
+        </Pressable>
+      </View>
+
+      <NotifyParticipantsModal
+        visible={isNotifyModalVisible}
+        activityId={activity.id}
+        activityTitle={activity.title}
+        onClose={() => setIsNotifyModalVisible(false)}
+      />
     </View>
   );
 }
@@ -145,6 +184,18 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   deleteButton: {},
+  secondaryActions: {
+    gap: Spacing.three,
+  },
+  secondaryButton: {
+    minHeight: 56,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+  },
   actionButtonText: {
     fontWeight: '700',
   },

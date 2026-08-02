@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActivityCard } from '@/components/activity-card';
 import { ActivityList, ActivityListItem } from '@/components/activity-list';
+import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getActivitiesByOrganizerSlug, resolveOrganizerName } from '@/constants/organizers';
@@ -101,21 +102,7 @@ export default function OrganizerScreen() {
           },
         ]}>
         <View style={[styles.headerSection, { paddingTop: insets.top + Spacing.two }]}>
-          <Pressable
-            onPress={goBack}
-            accessibilityRole="button"
-            accessibilityLabel="Gå tillbaka"
-            style={[styles.backButton, { top: insets.top + Spacing.three }]}>
-            <SymbolView
-              tintColor={theme.primary}
-              name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-              size={22}
-              weight="semibold"
-            />
-            <ThemedText type="bodyLarge" themeColor="primary">
-              Tillbaka
-            </ThemedText>
-          </Pressable>
+          <BackButton style={[styles.backButton, { top: insets.top + Spacing.three }]} />
 
           <View style={[styles.headerCard, CardShadow, { backgroundColor: theme.card }]}>
             <View style={[styles.avatarCircle, { backgroundColor: theme.primaryLight }]}>
@@ -225,13 +212,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: Spacing.four,
     zIndex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
   },
   headerCard: {
     marginHorizontal: Spacing.four,

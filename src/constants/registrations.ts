@@ -10,6 +10,8 @@ export type ActivityRegistration = {
   activityId: string;
   name: string;
   phone: string;
+  /** Optional – only present when stored on the registration document. */
+  email?: string;
   registeredAt: Date;
   status: RegistrationStatus;
 };

@@ -133,6 +133,7 @@ export default function EditProfileScreen() {
     <ScreenLayout
       title="Redigera profil"
       subtitle="Uppdatera dina uppgifter"
+      showBackButton
       omitTabInset
       footer={
         <View style={styles.footerActions}>

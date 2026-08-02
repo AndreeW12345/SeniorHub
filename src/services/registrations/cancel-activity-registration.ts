@@ -1,4 +1,4 @@
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
@@ -52,7 +52,7 @@ export async function cancelActivityRegistration(
         FIRESTORE_COLLECTIONS.registrations,
         trimmedRegistrationId,
       ),
-      { status: 'cancelled' },
+      { status: 'cancelled', cancelledAt: serverTimestamp() },
     );
 
     if (freeSeat) {

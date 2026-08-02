@@ -1,4 +1,4 @@
-import { doc, runTransaction } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
@@ -41,7 +41,10 @@ async function tryPromoteWaitlistRegistration(
       return false;
     }
 
-    transaction.update(registrationRef, { status: 'registered' });
+    transaction.update(registrationRef, {
+      status: 'registered',
+      promotedAt: serverTimestamp(),
+    });
     return true;
   });
 }
