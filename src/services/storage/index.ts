@@ -1,1 +1,1 @@
-export { compressActivityImage, uploadActivityImage, type UploadActivityImageResult } from '@/services/storage/upload-activity-image';
+export { uploadActivityImage } from '@/services/storage/upload-activity-image';

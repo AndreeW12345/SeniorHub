@@ -2,7 +2,7 @@ import type { SymbolViewProps } from 'expo-symbols';
 
 import { type ActivityCategory } from '@/constants/activities';
 
-export type CategoryVisual = {
+type CategoryVisual = {
   /** Solid badge background color. */
   background: string;
   /** Text/icon color that reads well on the background. */
@@ -13,7 +13,7 @@ export type CategoryVisual = {
 };
 
 /** Distinct, high-contrast colors and icons for each activity category. */
-export const CATEGORY_VISUALS: Record<ActivityCategory, CategoryVisual> = {
+const CATEGORY_VISUALS: Record<ActivityCategory, CategoryVisual> = {
   Promenad: {
     background: '#2E7D32',
     foreground: '#FFFFFF',

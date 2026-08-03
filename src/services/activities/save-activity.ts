@@ -9,8 +9,6 @@ import {
   type ActivityMutationResult,
 } from '@/services/activities/activity-form-data';
 
-export type { ActivityFormInput, ActivityMutationResult as SaveActivityResult };
-
 export type SaveActivityOptions = {
   /** Stamped on create so the activity belongs to the admin's organization. */
   organizationId?: string | null;

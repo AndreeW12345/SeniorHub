@@ -12,7 +12,3 @@ export const ACTIVITY_QUICK_FILTER_LABELS: Record<ActivityQuickFilter, string> =
   this_week: 'Denna vecka',
   registration_required: 'Kräver anmälan',
 };
-
-export function isActivityQuickFilter(value: string): value is ActivityQuickFilter {
-  return (ACTIVITY_QUICK_FILTERS as readonly string[]).includes(value);
-}

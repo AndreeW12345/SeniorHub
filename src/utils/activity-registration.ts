@@ -1,5 +1,5 @@
 import type { Activity } from '@/constants/activities';
-import { DEFAULT_REGISTRATION_METHOD, type RegistrationMethod } from '@/constants/membership';
+import { DEFAULT_REGISTRATION_METHOD } from '@/constants/membership';
 
 export type ActivityRegistrationDisplay =
   | { kind: 'hidden' }
@@ -51,23 +51,6 @@ export function getActivityMaxParticipants(activity: Activity): number | null {
   }
 
   return Math.floor(activity.maxParticipants);
-}
-
-export function isActivityAtCapacity(activity: Activity): boolean {
-  const maxParticipants = getActivityMaxParticipants(activity);
-  if (maxParticipants === null) {
-    return false;
-  }
-
-  return getActivityParticipantCount(activity) >= maxParticipants;
-}
-
-export function isActivityFull(activity: Activity): boolean {
-  if (!isActivityRegistrationRequired(activity) || !hasActivityParticipantLimit(activity)) {
-    return false;
-  }
-
-  return isActivityAtCapacity(activity);
 }
 
 export function shouldShowActivityRegistrationSection(activity: Activity): boolean {

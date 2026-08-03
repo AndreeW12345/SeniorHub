@@ -7,7 +7,7 @@ function normalizeSearchText(value: string | null | undefined): string {
 }
 
 /** Case-insensitive match on title, description and place (location/address). */
-export function activityMatchesSearchQuery(activity: Activity, query: string): boolean {
+function activityMatchesSearchQuery(activity: Activity, query: string): boolean {
   const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery) {
     return true;
@@ -37,7 +37,7 @@ function isSameLocalDay(a: Date, b: Date): boolean {
 }
 
 /** Swedish week range Monday–Sunday for the given reference day. */
-export function getLocalWeekRange(reference: Date = new Date()): { start: Date; end: Date } {
+function getLocalWeekRange(reference: Date = new Date()): { start: Date; end: Date } {
   const today = startOfLocalDay(reference);
   const day = today.getDay(); // 0 = Sunday
   const mondayOffset = day === 0 ? -6 : 1 - day;
@@ -53,7 +53,7 @@ export function getLocalWeekRange(reference: Date = new Date()): { start: Date; 
   return { start, end };
 }
 
-export function activityMatchesQuickFilter(
+function activityMatchesQuickFilter(
   activity: Activity,
   quickFilter: ActivityQuickFilter,
   referenceDate: Date = new Date(),
@@ -81,7 +81,7 @@ export function activityMatchesQuickFilter(
 }
 
 /** All selected quick filters must match (AND). Empty selection = no quick filter. */
-export function activityMatchesQuickFilters(
+function activityMatchesQuickFilters(
   activity: Activity,
   quickFilters: readonly ActivityQuickFilter[],
   referenceDate: Date = new Date(),
@@ -95,7 +95,7 @@ export function activityMatchesQuickFilters(
   );
 }
 
-export type BrowseActivitiesOptions = {
+type BrowseActivitiesOptions = {
   query?: string;
   category?: Category;
   /** Multi-select quick filters. Empty array means "Alla". */

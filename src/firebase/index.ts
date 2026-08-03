@@ -1,6 +1,4 @@
-export { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 export {
-  getFirebaseApp,
   getFirebaseStorage,
   getFirestoreDb,
   isFirebaseConfigured,

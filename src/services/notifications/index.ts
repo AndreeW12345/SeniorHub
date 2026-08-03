@@ -11,8 +11,3 @@ export {
   saveUserPushToken,
   syncUserNotificationPreferences,
 } from './save-user-push-token';
-export {
-  FUTURE_PUSH_ENDPOINT,
-  sendExpoPushMessages,
-  type ExpoPushMessage,
-} from './future-push-api';

@@ -57,5 +57,3 @@ export async function geocodeAddress(
     longitude: resolved.longitude,
   };
 }
-
-export { buildFullAddress };

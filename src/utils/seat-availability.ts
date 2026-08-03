@@ -20,7 +20,7 @@ export type SeatAvailability =
       lines: string[];
     };
 
-export type LimitedSeatLabelOptions = {
+type LimitedSeatLabelOptions = {
   /** Live waitlist size; when omitted, full activities only show "Väntelista tillgänglig". */
   waitlistCount?: number;
   /** When true, advertise waitlist on full SeniorHub activities even if count is 0. */
@@ -28,7 +28,7 @@ export type LimitedSeatLabelOptions = {
 };
 
 /** Builds the seat/waitlist status lines shown on activity cards and detail. */
-export function getLimitedSeatLines(
+function getLimitedSeatLines(
   booked: number,
   max: number,
   options?: LimitedSeatLabelOptions,

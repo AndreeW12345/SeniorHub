@@ -9,11 +9,9 @@ import {
 } from 'react';
 
 import {
-  filterActivities as filterActivitiesList,
   getActivitiesByIds as pickActivitiesByIds,
   getActivityById as pickActivityById,
   type Activity,
-  type Category,
 } from '@/constants/activities';
 import { SAMPLE_ACTIVITIES } from '@/constants/sample-activities';
 import { isFirebaseConfigured } from '@/firebase/config';
@@ -24,7 +22,6 @@ type ActivitiesContextValue = {
   isLoading: boolean;
   getActivityById: (id: string) => Activity | undefined;
   getActivitiesByIds: (ids: string[]) => Activity[];
-  filterActivities: (query: string, category: Category) => Activity[];
   refreshActivities: () => Promise<void>;
 };
 
@@ -118,21 +115,15 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
     [activities],
   );
 
-  const filterActivities = useCallback(
-    (query: string, category: Category) => filterActivitiesList(activities, query, category),
-    [activities],
-  );
-
   const value = useMemo(
     () => ({
       activities,
       isLoading,
       getActivityById,
       getActivitiesByIds,
-      filterActivities,
       refreshActivities,
     }),
-    [activities, isLoading, getActivityById, getActivitiesByIds, filterActivities, refreshActivities],
+    [activities, isLoading, getActivityById, getActivitiesByIds, refreshActivities],
   );
 
   return <ActivitiesContext.Provider value={value}>{children}</ActivitiesContext.Provider>;

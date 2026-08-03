@@ -6,8 +6,6 @@ export const MEMBERSHIP_ORGANIZATION_PRESETS = [
   'Röda Korset',
 ] as const;
 
-export type MembershipOrganizationPreset = (typeof MEMBERSHIP_ORGANIZATION_PRESETS)[number];
-
 export const MEMBERSHIP_ORGANIZATION_OTHER = 'Annat';
 
 export const REGISTRATION_METHODS = ['seniorhub', 'external', 'phone', 'email'] as const;

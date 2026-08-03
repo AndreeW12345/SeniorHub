@@ -144,28 +144,3 @@ export function getActivitiesByIds(activities: Activity[], ids: string[]): Activ
 export function getGoogleMapsUrl(location: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 }
-
-export function filterActivities(
-  activities: Activity[],
-  query: string,
-  category: Category,
-): Activity[] {
-  const normalizedQuery = query.trim().toLowerCase();
-
-  return activities.filter((activity) => {
-    const matchesCategory = category === 'Alla' || activity.category === category;
-    const matchesQuery =
-      normalizedQuery.length === 0 ||
-      activity.title.toLowerCase().includes(normalizedQuery) ||
-      activity.description.toLowerCase().includes(normalizedQuery) ||
-      activity.location.toLowerCase().includes(normalizedQuery) ||
-      (activity.fullAddress?.toLowerCase().includes(normalizedQuery) ?? false) ||
-      (activity.address?.toLowerCase().includes(normalizedQuery) ?? false) ||
-      (activity.street?.toLowerCase().includes(normalizedQuery) ?? false) ||
-      (activity.city?.toLowerCase().includes(normalizedQuery) ?? false) ||
-      activity.organizer.toLowerCase().includes(normalizedQuery) ||
-      activity.category.toLowerCase().includes(normalizedQuery);
-
-    return matchesCategory && matchesQuery;
-  });
-}
