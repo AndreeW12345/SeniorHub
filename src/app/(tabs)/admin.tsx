@@ -1,17 +1,20 @@
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { AdminActivityListItem } from '@/components/admin-activity-list-item';
 import { AdminGuard } from '@/components/admin-guard';
+import { FormRadioGroup } from '@/components/form-radio-group';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
+import type { AdminActivityScope } from '@/constants/admin-account';
 import { type Activity } from '@/constants/activities';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { fetchActivitiesFromFirestore } from '@/services/activities';
 import { useActivities } from '@/contexts/activities-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
+import { filterActivitiesForAdminScope } from '@/utils/activity-organization';
 
 export default function AdminScreen() {
   return (
@@ -24,7 +27,7 @@ export default function AdminScreen() {
 function AdminScreenContent() {
   const router = useRouter();
   const theme = useTheme();
-  const { user, signOut } = useAuth();
+  const { user, adminAccount, isSuperAdmin, signOut } = useAuth();
   const { refreshActivities } = useActivities();
   const { saved, updated } = useLocalSearchParams<{ saved?: string; updated?: string }>();
   const successMessage =
@@ -35,6 +38,7 @@ function AdminScreenContent() {
         : null;
   const [adminActivities, setAdminActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activityScope, setActivityScope] = useState<AdminActivityScope>('mine');
 
   const loadAdminActivities = useCallback(async () => {
     setIsLoading(true);
@@ -51,6 +55,11 @@ function AdminScreenContent() {
     useCallback(() => {
       void loadAdminActivities();
     }, [loadAdminActivities]),
+  );
+
+  const visibleActivities = useMemo(
+    () => filterActivitiesForAdminScope(adminActivities, adminAccount, activityScope),
+    [adminActivities, adminAccount, activityScope],
   );
 
   const handleActivityDeleted = useCallback(
@@ -71,6 +80,30 @@ function AdminScreenContent() {
     router.replace('/login' as Href);
   }, [router, signOut]);
 
+  const handleScopeChange = useCallback(
+    (nextScope: AdminActivityScope) => {
+      if (nextScope === 'all' && !isSuperAdmin) {
+        return;
+      }
+      setActivityScope(nextScope);
+    },
+    [isSuperAdmin],
+  );
+
+  const scopeOptions = useMemo(() => {
+    const options: { value: AdminActivityScope; label: string }[] = [
+      { value: 'mine', label: 'Mina aktiviteter' },
+    ];
+
+    if (isSuperAdmin) {
+      options.push({ value: 'all', label: 'Alla aktiviteter' });
+    }
+
+    return options;
+  }, [isSuperAdmin]);
+
+  const listTitle = activityScope === 'all' && isSuperAdmin ? 'Alla aktiviteter' : 'Mina aktiviteter';
+
   return (
     <ScreenLayout title="Administratör" subtitle="Hantera aktiviteter i Firestore">
       {successMessage ? (
@@ -80,6 +113,22 @@ function AdminScreenContent() {
           </ThemedText>
         </View>
       ) : null}
+
+      {!adminAccount ? (
+        <View style={[styles.warningBanner, CardShadow, { backgroundColor: '#FFF7E8' }]}>
+          <ThemedText type="bodyLarge" style={styles.warningText}>
+            Ditt adminkonto saknar organisationskoppling. Kontakta en superadmin för att koppla
+            organizationId i Firestore-samlingen admins.
+          </ThemedText>
+        </View>
+      ) : null}
+
+      <FormRadioGroup
+        label="Visa aktiviteter"
+        value={isSuperAdmin ? activityScope : 'mine'}
+        options={scopeOptions}
+        onChange={handleScopeChange}
+      />
 
       <Pressable
         accessibilityRole="button"
@@ -110,7 +159,7 @@ function AdminScreenContent() {
       </Pressable>
 
       <View style={styles.listSection}>
-        <ThemedText type="sectionTitle">Alla aktiviteter</ThemedText>
+        <ThemedText type="sectionTitle">{listTitle}</ThemedText>
 
         {isLoading ? (
           <View style={styles.loadingState}>
@@ -119,9 +168,9 @@ function AdminScreenContent() {
               Laddar aktiviteter...
             </ThemedText>
           </View>
-        ) : adminActivities.length > 0 ? (
+        ) : visibleActivities.length > 0 ? (
           <View style={styles.list}>
-            {adminActivities.map((activity) => (
+            {visibleActivities.map((activity) => (
               <AdminActivityListItem
                 key={activity.id}
                 activity={activity}
@@ -132,10 +181,12 @@ function AdminScreenContent() {
         ) : (
           <View style={[styles.emptyState, CardShadow, { backgroundColor: theme.card }]}>
             <ThemedText type="subtitle" style={styles.emptyTitle}>
-              Inga aktiviteter i Firestore
+              Inga aktiviteter att visa
             </ThemedText>
             <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
-              Lägg till en aktivitet med knappen ovan.
+              {adminAccount
+                ? 'Lägg till en aktivitet med knappen ovan.'
+                : 'Koppla en organisation till ditt adminkonto för att se aktiviteter.'}
             </ThemedText>
           </View>
         )}
@@ -145,6 +196,13 @@ function AdminScreenContent() {
         {user?.email ? (
           <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.accountEmail}>
             Inloggad som {user.email}
+          </ThemedText>
+        ) : null}
+
+        {adminAccount?.organizationId ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.accountEmail}>
+            Organisation: {adminAccount.organizationId}
+            {isSuperAdmin ? ' · Superadmin' : ''}
           </ThemedText>
         ) : null}
 
@@ -174,6 +232,17 @@ const styles = StyleSheet.create({
   },
   successText: {
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  warningBanner: {
+    borderRadius: Radius.xl,
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.four,
+  },
+  warningText: {
+    color: '#8A5A00',
+    fontWeight: '600',
+    lineHeight: 30,
     textAlign: 'center',
   },
   addButton: {

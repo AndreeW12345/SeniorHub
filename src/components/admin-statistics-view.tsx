@@ -9,6 +9,7 @@ import {
   type AdminStatistics,
 } from '@/constants/admin-statistics';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
+import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchAdminStatistics } from '@/services/stats';
@@ -17,6 +18,7 @@ import { fetchAdminStatistics } from '@/services/stats';
 export function AdminStatisticsView() {
   const theme = useTheme();
   const { isCompact } = useResponsive();
+  const { adminAccount } = useAuth();
   const [statistics, setStatistics] = useState<AdminStatistics>(EMPTY_ADMIN_STATISTICS);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -26,7 +28,13 @@ export function AdminStatisticsView() {
     setErrorMessage(null);
 
     try {
-      const next = await fetchAdminStatistics();
+      const organizationId = adminAccount?.organizationId?.trim();
+      if (!organizationId) {
+        setStatistics(EMPTY_ADMIN_STATISTICS);
+        return;
+      }
+
+      const next = await fetchAdminStatistics(new Date(), { organizationId });
       setStatistics(next);
     } catch (error) {
       console.warn('[SeniorHub] Kunde inte hämta statistik:', error);
@@ -35,7 +43,7 @@ export function AdminStatisticsView() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [adminAccount?.organizationId]);
 
   useFocusEffect(
     useCallback(() => {

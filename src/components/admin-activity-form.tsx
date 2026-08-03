@@ -26,6 +26,7 @@ import {
   type RegistrationMethod,
 } from '@/constants/membership';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
+import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -132,6 +133,8 @@ export function AdminActivityForm({
 }: AdminActivityFormProps) {
   const router = useRouter();
   const theme = useTheme();
+  const { adminAccount } = useAuth();
+  const organizationId = adminAccount?.organizationId?.trim();
   const { isCompact, isDesktop } = useResponsive();
   const isEditMode = mode === 'edit';
   const useTwoColumns = !isCompact;
@@ -265,6 +268,13 @@ export function AdminActivityForm({
       return;
     }
 
+    if (!isEditMode && !organizationId) {
+      setSubmitError(
+        'Ditt adminkonto saknar organisationskoppling. Aktiviteten kan inte sparas.',
+      );
+      return;
+    }
+
     setIsSaving(true);
 
     let finalImageUrl = imageUrl.trim();
@@ -312,7 +322,9 @@ export function AdminActivityForm({
 
     const result = isEditMode
       ? await updateActivityInFirestore(activityId ?? '', input)
-      : await saveActivityToFirestore(input);
+      : await saveActivityToFirestore(input, {
+          organizationId,
+        });
 
     setIsSaving(false);
 

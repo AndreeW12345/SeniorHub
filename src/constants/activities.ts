@@ -62,6 +62,8 @@ export type Activity = {
   latitude?: number | null;
   longitude?: number | null;
   address?: string | null;
+  /** Admin tenancy – which organization owns this activity. */
+  organizationId?: string | null;
   registrationRequired?: boolean | null;
   hasParticipantLimit?: boolean | null;
   maxParticipants?: number | null;

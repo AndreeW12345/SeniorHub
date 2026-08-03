@@ -8,8 +8,10 @@ import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { type Activity } from '@/constants/activities';
 import { Radius, Spacing } from '@/constants/theme';
+import { useAuth } from '@/contexts/auth-context';
 import { fetchActivityByIdFromFirestore } from '@/services/activities/fetch-activities';
 import { useTheme } from '@/hooks/use-theme';
+import { canAdminAccessActivity } from '@/utils/activity-organization';
 
 export default function AdminParticipantsScreen() {
   return (
@@ -22,6 +24,7 @@ export default function AdminParticipantsScreen() {
 function AdminParticipantsScreenContent() {
   const router = useRouter();
   const theme = useTheme();
+  const { adminAccount } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [activity, setActivity] = useState<Activity | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,6 +79,29 @@ function AdminParticipantsScreenContent() {
       <ScreenLayout title="Deltagare" subtitle="Aktiviteten hittades inte" showBackButton omitTabInset>
         <ThemedText type="bodyLarge" themeColor="textSecondary">
           Aktiviteten kunde inte hittas. Gå tillbaka till administratörsvyn och försök igen.
+        </ThemedText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Tillbaka till admin"
+          onPress={() => router.replace('/admin' as Href)}
+          style={({ pressed }) => [
+            styles.backButton,
+            { borderColor: theme.primary },
+            pressed && styles.pressed,
+          ]}>
+          <ThemedText type="bodyLarge" themeColor="primary" style={styles.backButtonText}>
+            Tillbaka
+          </ThemedText>
+        </Pressable>
+      </ScreenLayout>
+    );
+  }
+
+  if (!canAdminAccessActivity(adminAccount, activity)) {
+    return (
+      <ScreenLayout title="Deltagare" subtitle="Ingen behörighet" showBackButton omitTabInset>
+        <ThemedText type="bodyLarge" themeColor="textSecondary">
+          Du har inte behörighet att se deltagare för denna aktivitet.
         </ThemedText>
         <Pressable
           accessibilityRole="button"

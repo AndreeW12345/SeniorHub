@@ -79,6 +79,7 @@ export function mapActivityDocument(id: string, data: FirestoreActivityData): Ac
     latitude: readCoordinate(data, 'latitude'),
     longitude: readCoordinate(data, 'longitude'),
     address: readString(data, 'address'),
+    organizationId: readString(data, 'organizationId'),
     registrationRequired: readBoolean(data, 'registrationRequired'),
     hasParticipantLimit: readBoolean(data, 'hasParticipantLimit'),
     maxParticipants: readPositiveInteger(data, 'maxParticipants'),

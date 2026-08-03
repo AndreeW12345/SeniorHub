@@ -31,5 +31,17 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if true;
     }
+
+    // Admin accounts keyed by Firebase Auth uid (organizationId + role).
+    match /admins/{adminId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Tenant organizations (municipalities / associations).
+    match /organizations/{organizationId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
   }
 }

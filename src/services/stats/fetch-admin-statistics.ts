@@ -44,6 +44,7 @@ function isCancelledActivityDocument(data: Record<string, unknown>): boolean {
  */
 export async function fetchAdminStatistics(
   reference: Date = new Date(),
+  options?: { organizationId?: string | null },
 ): Promise<AdminStatistics> {
   if (!isFirebaseConfigured()) {
     return EMPTY_ADMIN_STATISTICS;
@@ -54,6 +55,8 @@ export async function fetchAdminStatistics(
     return EMPTY_ADMIN_STATISTICS;
   }
 
+  const organizationId = options?.organizationId?.trim() || null;
+
   const activitiesSnapshot = await getDocs(collection(db, FIRESTORE_COLLECTIONS.activities));
 
   const activitySources: ActivityStatsSource[] = activitiesSnapshot.docs
@@ -61,6 +64,10 @@ export async function fetchAdminStatistics(
       const data = document.data() as Record<string, unknown>;
       const activity = mapActivityDocument(document.id, data);
       if (!activity) {
+        return null;
+      }
+
+      if (organizationId && activity.organizationId?.trim() !== organizationId) {
         return null;
       }
 

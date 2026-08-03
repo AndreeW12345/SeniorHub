@@ -1,16 +1,18 @@
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { AdminActivityForm } from '@/components/admin-activity-form';
 import { AdminGuard } from '@/components/admin-guard';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { type Activity } from '@/constants/activities';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
+import { useAuth } from '@/contexts/auth-context';
 import { fetchActivityByIdFromFirestore } from '@/services/activities/fetch-activities';
 import { useTheme } from '@/hooks/use-theme';
+import { canAdminAccessActivity } from '@/utils/activity-organization';
 
 export default function EditActivityScreen() {
   return (
@@ -23,6 +25,7 @@ export default function EditActivityScreen() {
 function EditActivityScreenContent() {
   const router = useRouter();
   const theme = useTheme();
+  const { adminAccount } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { refreshActivities } = useActivities();
   const [activity, setActivity] = useState<Activity | null>(null);
@@ -83,6 +86,29 @@ function EditActivityScreenContent() {
     );
   }
 
+  if (!canAdminAccessActivity(adminAccount, activity)) {
+    return (
+      <ScreenLayout title="Redigera aktivitet" subtitle="Ingen behörighet" showBackButton>
+        <ThemedText type="bodyLarge" themeColor="textSecondary">
+          Du har inte behörighet att redigera denna aktivitet.
+        </ThemedText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Tillbaka till admin"
+          onPress={() => router.replace('/admin' as Href)}
+          style={({ pressed }) => [
+            styles.backButton,
+            { borderColor: theme.primary },
+            pressed && styles.pressed,
+          ]}>
+          <ThemedText type="bodyLarge" themeColor="primary" style={styles.backButtonText}>
+            Tillbaka
+          </ThemedText>
+        </Pressable>
+      </ScreenLayout>
+    );
+  }
+
   return (
     <AdminActivityForm
       mode="edit"
@@ -119,3 +145,22 @@ function EditActivityScreenContent() {
     />
   );
 }
+
+const styles = StyleSheet.create({
+  backButton: {
+    alignSelf: 'flex-start',
+    minHeight: 56,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    paddingHorizontal: Spacing.five,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.four,
+  },
+  backButtonText: {
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.88,
+  },
+});

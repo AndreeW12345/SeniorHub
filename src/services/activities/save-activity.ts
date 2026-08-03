@@ -11,9 +11,15 @@ import {
 
 export type { ActivityFormInput, ActivityMutationResult as SaveActivityResult };
 
+export type SaveActivityOptions = {
+  /** Stamped on create so the activity belongs to the admin's organization. */
+  organizationId?: string | null;
+};
+
 /** Saves a new activity document to Firestore. */
 export async function saveActivityToFirestore(
   input: ActivityFormInput,
+  options?: SaveActivityOptions,
 ): Promise<ActivityMutationResult> {
   if (!isFirebaseConfigured()) {
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
@@ -29,9 +35,12 @@ export async function saveActivityToFirestore(
     return parsed;
   }
 
+  const organizationId = options?.organizationId?.trim();
+
   try {
     const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.activities), {
       ...parsed.data,
+      ...(organizationId ? { organizationId } : {}),
       createdAt: serverTimestamp(),
     });
     return { ok: true, id: docRef.id };
