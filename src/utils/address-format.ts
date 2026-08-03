@@ -7,6 +7,32 @@ function normalizePart(part: string): string {
   return part.trim();
 }
 
+/** Formats a Swedish postal code as `NNN NN` when possible. */
+export function formatSwedishPostalCode(postalCode: string): string {
+  const digits = postalCode.replace(/\s+/g, '');
+  if (/^\d{5}$/.test(digits)) {
+    return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  }
+
+  return postalCode.trim();
+}
+
+/**
+ * Builds the canonical display address:
+ * `"Tyresö centrum 1, 135 40 Tyresö"`.
+ */
+export function buildFullAddress(street: string, postalCode: string, city: string): string {
+  const trimmedStreet = street.trim();
+  const trimmedCity = city.trim();
+  const formattedPostal = formatSwedishPostalCode(postalCode);
+
+  if (!trimmedStreet || !formattedPostal || !trimmedCity) {
+    return [trimmedStreet, formattedPostal, trimmedCity].filter(Boolean).join(', ');
+  }
+
+  return `${trimmedStreet}, ${formattedPostal} ${trimmedCity}`;
+}
+
 function isPostalCode(part: string): boolean {
   return /^\d{3}\s?\d{2}$/.test(normalizePart(part));
 }

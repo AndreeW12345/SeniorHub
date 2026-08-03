@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 
-import { AddressSearchField } from '@/components/address-search-field';
 import { AdminActivityImagePicker } from '@/components/admin-activity-image-picker';
 import { AdminFormSection } from '@/components/admin-form-section';
 import { CategoryDropdown } from '@/components/category-dropdown';
@@ -34,7 +33,9 @@ import {
   updateActivityInFirestore,
   type ActivityFormInput,
 } from '@/services/activities';
+import { geocodeAddress } from '@/services/geocoding';
 import { uploadActivityImage } from '@/services/storage';
+import { buildFullAddress } from '@/utils/address-format';
 import {
   parseCoordinateInput,
   validateActivityCoordinates,
@@ -55,6 +56,9 @@ type FormErrors = Partial<
     | 'location'
     | 'organizer'
     | 'category'
+    | 'street'
+    | 'postalCode'
+    | 'city'
     | 'address'
     | 'latitude'
     | 'longitude'
@@ -97,6 +101,10 @@ const EMPTY_FORM: ActivityFormInput = {
   latitude: '',
   longitude: '',
   address: '',
+  street: '',
+  postalCode: '',
+  city: '',
+  fullAddress: '',
   registrationRequired: false,
   hasParticipantLimit: false,
   maxParticipants: '',
@@ -152,7 +160,10 @@ export function AdminActivityForm({
   const [imageUrl, setImageUrl] = useState(initialValues.imageUrl ?? '');
   const [latitude, setLatitude] = useState(initialValues.latitude ?? '');
   const [longitude, setLongitude] = useState(initialValues.longitude ?? '');
-  const [address, setAddress] = useState(initialValues.address ?? '');
+  const [street, setStreet] = useState(initialValues.street ?? '');
+  const [postalCode, setPostalCode] = useState(initialValues.postalCode ?? '');
+  const [city, setCity] = useState(initialValues.city ?? '');
+  const [fullAddress, setFullAddress] = useState(initialValues.fullAddress ?? '');
   const [registrationRequired, setRegistrationRequired] = useState(
     initialValues.registrationRequired ?? false,
   );
@@ -214,13 +225,14 @@ export function AdminActivityForm({
     if (!organizer.trim()) {
       nextErrors.organizer = REQUIRED_FIELD_ERRORS.organizer;
     }
-
-    const parsedLatitude = parseCoordinateInput(latitude);
-    const parsedLongitude = parseCoordinateInput(longitude);
-    const coordinateError = validateActivityCoordinates(parsedLatitude, parsedLongitude);
-
-    if (coordinateError) {
-      nextErrors.address = coordinateError;
+    if (!street.trim()) {
+      nextErrors.street = 'Ange gatuadress.';
+    }
+    if (!postalCode.trim()) {
+      nextErrors.postalCode = 'Ange postnummer.';
+    }
+    if (!city.trim()) {
+      nextErrors.city = 'Ange ort.';
     }
 
     if (hasParticipantLimit && !maxParticipants.trim()) {
@@ -277,6 +289,53 @@ export function AdminActivityForm({
 
     setIsSaving(true);
 
+    let nextLatitude = latitude.trim();
+    let nextLongitude = longitude.trim();
+    let nextFullAddress = fullAddress.trim() || buildFullAddress(street, postalCode, city);
+
+    const initialStreet = (initialValues.street ?? '').trim();
+    const initialPostalCode = (initialValues.postalCode ?? '').trim();
+    const initialCity = (initialValues.city ?? '').trim();
+    const addressChanged =
+      street.trim() !== initialStreet ||
+      postalCode.trim() !== initialPostalCode ||
+      city.trim() !== initialCity;
+    const hasExistingCoordinates =
+      parseCoordinateInput(nextLatitude) !== null &&
+      parseCoordinateInput(nextLongitude) !== null &&
+      validateActivityCoordinates(
+        parseCoordinateInput(nextLatitude),
+        parseCoordinateInput(nextLongitude),
+      ) === null;
+
+    if (addressChanged || !hasExistingCoordinates) {
+      const geocodeResult = await geocodeAddress({
+        street,
+        postalCode,
+        city,
+      });
+
+      if (!geocodeResult.ok) {
+        setIsSaving(false);
+        setSubmitError(geocodeResult.errorMessage);
+        setErrors((current) => ({
+          ...current,
+          street: geocodeResult.errorMessage,
+        }));
+        return;
+      }
+
+      nextFullAddress = geocodeResult.fullAddress;
+      nextLatitude = String(geocodeResult.latitude);
+      nextLongitude = String(geocodeResult.longitude);
+      setFullAddress(nextFullAddress);
+      setLatitude(nextLatitude);
+      setLongitude(nextLongitude);
+    } else {
+      nextFullAddress = buildFullAddress(street, postalCode, city);
+      setFullAddress(nextFullAddress);
+    }
+
     let finalImageUrl = imageUrl.trim();
 
     if (localImageUri) {
@@ -302,9 +361,13 @@ export function AdminActivityForm({
       organizer,
       category,
       imageUrl: finalImageUrl,
-      latitude,
-      longitude,
-      address,
+      latitude: nextLatitude,
+      longitude: nextLongitude,
+      street: street.trim(),
+      postalCode: postalCode.trim(),
+      city: city.trim(),
+      fullAddress: nextFullAddress,
+      address: nextFullAddress,
       registrationRequired,
       hasParticipantLimit,
       maxParticipants: hasParticipantLimit ? maxParticipants : '',
@@ -488,7 +551,7 @@ export function AdminActivityForm({
 
         <AdminFormSection
           title="Tid och plats"
-          description="Välj datum och tid med kalender och klocka. Sluttid är valfri.">
+          description="Välj datum och tid. Fyll i adressen – koordinater hämtas automatiskt vid sparning.">
           <DateTimeField
             label="Datum *"
             mode="date"
@@ -556,31 +619,63 @@ export function AdminActivityForm({
               />
             </View>
           </View>
-          <AddressSearchField
-            key={`${activityId ?? 'new'}-${initialValues.address ?? ''}`}
-            value={address}
-            onChange={(nextAddress) => {
-              setAddress(nextAddress);
-              setErrors((current) => clearError(current, 'address'));
-              if (!nextAddress.trim()) {
-                setLatitude('');
-                setLongitude('');
-                return;
-              }
 
-              if (!location.trim()) {
-                setLocation(nextAddress);
-              }
+          <ThemedText type="bodyLarge" themeColor="textSecondary">
+            Fyll i adressen. Koordinater hämtas automatiskt när du sparar.
+          </ThemedText>
+
+          <FormField
+            label="Gatuadress *"
+            value={street}
+            onChangeText={(value) => {
+              setStreet(value);
+              setErrors((current) => clearError(current, 'street'));
             }}
-            latitude={latitude}
-            longitude={longitude}
-            onCoordinatesChange={(nextLatitude, nextLongitude) => {
-              setLatitude(nextLatitude);
-              setLongitude(nextLongitude);
-            }}
-            error={errors.address}
-            disabled={isBusy}
+            error={errors.street}
+            placeholder="Till exempel Tyresö centrum 1"
+            editable={!isBusy}
           />
+
+          <View style={rowStyle}>
+            <View style={fieldHalfStyle}>
+              <FormField
+                label="Postnummer *"
+                value={postalCode}
+                onChangeText={(value) => {
+                  setPostalCode(value);
+                  setErrors((current) => clearError(current, 'postalCode'));
+                }}
+                error={errors.postalCode}
+                placeholder="Till exempel 13540"
+                keyboardType="number-pad"
+                editable={!isBusy}
+              />
+            </View>
+            <View style={fieldHalfStyle}>
+              <FormField
+                label="Ort *"
+                value={city}
+                onChangeText={(value) => {
+                  setCity(value);
+                  setErrors((current) => clearError(current, 'city'));
+                }}
+                error={errors.city}
+                placeholder="Till exempel Tyresö"
+                editable={!isBusy}
+              />
+            </View>
+          </View>
+
+          {fullAddress ? (
+            <View style={[styles.selectedAddressCard, { backgroundColor: theme.primaryLight }]}>
+              <ThemedText type="smallBold" themeColor="primary">
+                Sparad adress
+              </ThemedText>
+              <ThemedText type="bodyLarge" themeColor="primary">
+                {fullAddress}
+              </ThemedText>
+            </View>
+          ) : null}
         </AdminFormSection>
 
         <AdminFormSection
@@ -873,6 +968,11 @@ const styles = StyleSheet.create({
   },
   participantsButtonText: {
     fontWeight: '700',
+  },
+  selectedAddressCard: {
+    borderRadius: Radius.lg,
+    padding: Spacing.four,
+    gap: Spacing.two,
   },
   pressed: {
     opacity: 0.88,

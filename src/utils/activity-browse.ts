@@ -17,7 +17,10 @@ export function activityMatchesSearchQuery(activity: Activity, query: string): b
     normalizeSearchText(activity.title).includes(normalizedQuery) ||
     normalizeSearchText(activity.description).includes(normalizedQuery) ||
     normalizeSearchText(activity.location).includes(normalizedQuery) ||
-    normalizeSearchText(activity.address).includes(normalizedQuery)
+    normalizeSearchText(activity.fullAddress).includes(normalizedQuery) ||
+    normalizeSearchText(activity.address).includes(normalizedQuery) ||
+    normalizeSearchText(activity.street).includes(normalizedQuery) ||
+    normalizeSearchText(activity.city).includes(normalizedQuery)
   );
 }
 

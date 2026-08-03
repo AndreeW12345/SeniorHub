@@ -20,6 +20,10 @@ export type ActivityFormInput = {
   latitude?: string;
   longitude?: string;
   address?: string;
+  street?: string;
+  postalCode?: string;
+  city?: string;
+  fullAddress?: string;
   registrationRequired?: boolean;
   hasParticipantLimit?: boolean;
   maxParticipants?: string;
@@ -93,12 +97,23 @@ export function buildActivityDocumentData(input: ActivityFormInput) {
     return { ok: false as const, errorMessage: coordinateError };
   }
 
-  if (input.latitude?.trim() && latitude === null) {
-    return { ok: false as const, errorMessage: 'Latituden har fel format.' };
+  if (latitude === null || longitude === null) {
+    return {
+      ok: false as const,
+      errorMessage: 'Aktiviteten måste ha giltiga koordinater innan den kan sparas.',
+    };
   }
 
-  if (input.longitude?.trim() && longitude === null) {
-    return { ok: false as const, errorMessage: 'Longituden har fel format.' };
+  const street = readRequired(input.street ?? '');
+  const postalCode = readRequired(input.postalCode ?? '');
+  const city = readRequired(input.city ?? '');
+  const fullAddress = readRequired(input.fullAddress ?? '');
+
+  if (!street || !postalCode || !city || !fullAddress) {
+    return {
+      ok: false as const,
+      errorMessage: 'Ange gatuadress, postnummer och ort.',
+    };
   }
 
   const registrationRequired = input.registrationRequired === true;
@@ -210,7 +225,12 @@ export function buildActivityDocumentData(input: ActivityFormInput) {
       imageUrl: input.imageUrl?.trim() || null,
       latitude,
       longitude,
-      address: input.address?.trim() || null,
+      street,
+      postalCode,
+      city,
+      fullAddress,
+      /** Keep legacy `address` in sync for older readers. */
+      address: fullAddress,
       registrationRequired,
       hasParticipantLimit,
       maxParticipants: hasParticipantLimit ? maxParticipants : null,

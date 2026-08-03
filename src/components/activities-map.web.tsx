@@ -1,10 +1,11 @@
 import { useRouter, type Href } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 
+import { MapActivityPreviewCard } from '@/components/map-activity-preview-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { getActivityDisplayLocation, type Activity } from '@/constants/activities';
+import { hasActivityCoordinates, type Activity } from '@/constants/activities';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -16,11 +17,10 @@ type ActivitiesMapProps = {
 export function ActivitiesMap({ activities }: ActivitiesMapProps) {
   const theme = useTheme();
   const router = useRouter();
+  const mapActivities = activities.filter(hasActivityCoordinates);
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <ThemedView type="card" style={[styles.infoCard, CardShadow]}>
         <SymbolView
           tintColor={theme.primary}
@@ -31,32 +31,19 @@ export function ActivitiesMap({ activities }: ActivitiesMapProps) {
           Karta i mobilappen
         </ThemedText>
         <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.infoText}>
-          Den interaktiva kartan visas i Expo Go och iOS/Android. Här kan du öppna aktiviteter som
-          har koordinater.
+          Den interaktiva kartan med markörer visas i Expo Go och iOS/Android. Här kan du öppna
+          aktiviteter som har koordinater.
         </ThemedText>
       </ThemedView>
 
-      {activities.length > 0 ? (
+      {mapActivities.length > 0 ? (
         <View style={styles.list}>
-          {activities.map((activity) => (
-            <Pressable
+          {mapActivities.map((activity) => (
+            <MapActivityPreviewCard
               key={activity.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Visa ${activity.title}`}
-              onPress={() => router.push(`/activity/${activity.id}` as Href)}
-              style={({ pressed }) => [
-                styles.listItem,
-                CardShadow,
-                { backgroundColor: theme.card },
-                pressed && styles.pressed,
-              ]}>
-              <ThemedText type="bodyLarge" style={styles.listTitle}>
-                {activity.title}
-              </ThemedText>
-              <ThemedText type="bodyLarge" themeColor="textSecondary">
-                {getActivityDisplayLocation(activity)}
-              </ThemedText>
-            </Pressable>
+              activity={activity}
+              onViewActivity={() => router.push(`/activity/${activity.id}` as Href)}
+            />
           ))}
         </View>
       ) : (
@@ -91,16 +78,5 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: Spacing.three,
-  },
-  listItem: {
-    borderRadius: Radius.xl,
-    padding: Spacing.five,
-    gap: Spacing.two,
-  },
-  listTitle: {
-    fontWeight: '700',
-  },
-  pressed: {
-    opacity: 0.92,
   },
 });

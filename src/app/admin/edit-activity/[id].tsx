@@ -124,7 +124,11 @@ function EditActivityScreenContent() {
         imageUrl: activity.imageUrl ?? '',
         latitude: activity.latitude != null ? String(activity.latitude) : '',
         longitude: activity.longitude != null ? String(activity.longitude) : '',
-        address: activity.address ?? '',
+        address: activity.fullAddress ?? activity.address ?? '',
+        street: activity.street ?? '',
+        postalCode: activity.postalCode ?? '',
+        city: activity.city ?? '',
+        fullAddress: activity.fullAddress ?? activity.address ?? '',
         registrationRequired: activity.registrationRequired === true,
         hasParticipantLimit: activity.hasParticipantLimit === true,
         maxParticipants:

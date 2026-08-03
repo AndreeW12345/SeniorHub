@@ -61,7 +61,13 @@ export type Activity = {
   imageUrl?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** @deprecated Prefer fullAddress for display; kept for legacy documents. */
   address?: string | null;
+  street?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  /** Canonical address for display and maps, e.g. "Tyresö centrum 1, 135 40 Tyresö". */
+  fullAddress?: string | null;
   /** Admin tenancy – which organization owns this activity. */
   organizationId?: string | null;
   registrationRequired?: boolean | null;
@@ -78,6 +84,11 @@ export type Activity = {
 };
 
 export function getActivityDisplayLocation(activity: Activity): string {
+  const fullAddress = activity.fullAddress?.trim();
+  if (fullAddress) {
+    return fullAddress;
+  }
+
   const address = activity.address?.trim();
   if (address) {
     return formatAddressDisplay(address);
@@ -88,6 +99,11 @@ export function getActivityDisplayLocation(activity: Activity): string {
 
 /** Full stored location string for map links and other non-display uses. */
 export function getActivityMapsLocation(activity: Activity): string {
+  const fullAddress = activity.fullAddress?.trim();
+  if (fullAddress) {
+    return fullAddress;
+  }
+
   const address = activity.address?.trim();
   if (address) {
     return address;
@@ -143,7 +159,10 @@ export function filterActivities(
       activity.title.toLowerCase().includes(normalizedQuery) ||
       activity.description.toLowerCase().includes(normalizedQuery) ||
       activity.location.toLowerCase().includes(normalizedQuery) ||
+      (activity.fullAddress?.toLowerCase().includes(normalizedQuery) ?? false) ||
       (activity.address?.toLowerCase().includes(normalizedQuery) ?? false) ||
+      (activity.street?.toLowerCase().includes(normalizedQuery) ?? false) ||
+      (activity.city?.toLowerCase().includes(normalizedQuery) ?? false) ||
       activity.organizer.toLowerCase().includes(normalizedQuery) ||
       activity.category.toLowerCase().includes(normalizedQuery);
 
