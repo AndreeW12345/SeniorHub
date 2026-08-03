@@ -113,6 +113,8 @@ function EditActivityScreenContent() {
     <AdminActivityForm
       mode="edit"
       activityId={activity.id}
+      seriesId={activity.seriesId}
+      initialRecurrence={activity.recurrence}
       initialValues={{
         title: activity.title,
         description: activity.description,

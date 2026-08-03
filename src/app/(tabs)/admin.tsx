@@ -63,13 +63,11 @@ function AdminScreenContent() {
   );
 
   const handleActivityDeleted = useCallback(
-    (activityId: string) => {
-      setAdminActivities((currentActivities) =>
-        currentActivities.filter((activity) => activity.id !== activityId),
-      );
+    (_activityId: string) => {
+      void loadAdminActivities();
       void refreshActivities();
     },
-    [refreshActivities],
+    [loadAdminActivities, refreshActivities],
   );
 
   const handleSignOut = useCallback(async () => {

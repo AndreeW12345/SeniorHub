@@ -1,5 +1,6 @@
 import { normalizeCategory, type Activity } from '@/constants/activities';
 import { normalizeRegistrationMethod } from '@/constants/membership';
+import { parseRecurrenceRule } from '@/utils/recurrence';
 
 type FirestoreActivityData = Record<string, unknown>;
 
@@ -95,5 +96,9 @@ export function mapActivityDocument(id: string, data: FirestoreActivityData): Ac
     registrationUrl: readString(data, 'registrationUrl'),
     registrationPhone: readString(data, 'registrationPhone'),
     registrationEmail: readString(data, 'registrationEmail'),
+    seriesId: readString(data, 'seriesId'),
+    occurrenceIndex: readNonNegativeInteger(data, 'occurrenceIndex'),
+    recurrence: parseRecurrenceRule(data.recurrence),
+    isRecurrenceException: readBoolean(data, 'isRecurrenceException'),
   };
 }

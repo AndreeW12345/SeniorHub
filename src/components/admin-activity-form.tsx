@@ -24,6 +24,14 @@ import {
   REGISTRATION_METHODS,
   type RegistrationMethod,
 } from '@/constants/membership';
+import {
+  RECURRENCE_FREQUENCIES,
+  RECURRENCE_FREQUENCY_LABELS,
+  SERIES_EDIT_SCOPE_LABELS,
+  type RecurrenceFrequency,
+  type RecurrenceRule,
+  type SeriesEditScope,
+} from '@/constants/recurrence';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -43,8 +51,10 @@ import {
 import {
   combineStoredTimeRange,
   isEndTimeAfterStart,
+  parseDateValue,
   splitStoredTimeRange,
 } from '@/utils/date-time-format';
+import { getWeekdayLabel, isSeriesActivity } from '@/utils/recurrence';
 
 type FormErrors = Partial<
   Record<
@@ -68,7 +78,9 @@ type FormErrors = Partial<
     | 'membershipUrl'
     | 'registrationUrl'
     | 'registrationPhone'
-    | 'registrationEmail',
+    | 'registrationEmail'
+    | 'recurrenceEndDate'
+    | 'recurrenceMaxOccurrences',
     string
   >
 >;
@@ -86,6 +98,9 @@ type AdminActivityFormProps = {
   mode: 'create' | 'edit';
   activityId?: string;
   initialValues?: ActivityFormInput;
+  /** Present when editing a materialized occurrence in a series. */
+  seriesId?: string | null;
+  initialRecurrence?: RecurrenceRule | null;
   onSubmitSuccess: () => Promise<void> | void;
 };
 
@@ -123,6 +138,18 @@ const REGISTRATION_METHOD_OPTIONS = REGISTRATION_METHODS.map((method) => ({
   label: REGISTRATION_METHOD_LABELS[method],
 }));
 
+const RECURRENCE_FREQUENCY_OPTIONS = RECURRENCE_FREQUENCIES.map((frequency) => ({
+  value: frequency,
+  label: RECURRENCE_FREQUENCY_LABELS[frequency],
+}));
+
+const SERIES_EDIT_SCOPE_OPTIONS = (Object.keys(SERIES_EDIT_SCOPE_LABELS) as SeriesEditScope[]).map(
+  (scope) => ({
+    value: scope,
+    label: SERIES_EDIT_SCOPE_LABELS[scope],
+  }),
+);
+
 function clearError(errors: FormErrors, key: keyof FormErrors): FormErrors {
   if (!errors[key]) {
     return errors;
@@ -137,6 +164,8 @@ export function AdminActivityForm({
   mode,
   activityId,
   initialValues = EMPTY_FORM,
+  seriesId = null,
+  initialRecurrence = null,
   onSubmitSuccess,
 }: AdminActivityFormProps) {
   const router = useRouter();
@@ -146,6 +175,7 @@ export function AdminActivityForm({
   const { isCompact, isDesktop } = useResponsive();
   const isEditMode = mode === 'edit';
   const useTwoColumns = !isCompact;
+  const belongsToSeries = isSeriesActivity({ seriesId });
 
   const initialTimes = splitStoredTimeRange(initialValues.time);
 
@@ -189,6 +219,14 @@ export function AdminActivityForm({
   const [registrationUrl, setRegistrationUrl] = useState(initialValues.registrationUrl ?? '');
   const [registrationPhone, setRegistrationPhone] = useState(initialValues.registrationPhone ?? '');
   const [registrationEmail, setRegistrationEmail] = useState(initialValues.registrationEmail ?? '');
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>(
+    initialRecurrence?.frequency ?? 'none',
+  );
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState(initialRecurrence?.endDate ?? '');
+  const [recurrenceMaxOccurrences, setRecurrenceMaxOccurrences] = useState(
+    initialRecurrence?.maxOccurrences != null ? String(initialRecurrence.maxOccurrences) : '',
+  );
+  const [seriesEditScope, setSeriesEditScope] = useState<SeriesEditScope>('occurrence');
   const [localImageUri, setLocalImageUri] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -196,6 +234,30 @@ export function AdminActivityForm({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const isBusy = isSaving || isUploadingImage;
+  const isRecurringSelected = !isEditMode && recurrenceFrequency !== 'none';
+  const recurrenceHint = useMemo(() => {
+    if (!date.trim() || !startTime.trim()) {
+      return 'Välj startdatum och starttid – upprepningen följer automatiskt samma veckodag och tid.';
+    }
+
+    const weekday = getWeekdayLabel(date);
+    const timeLabel = startTime.trim();
+    if (!weekday) {
+      return 'Upprepningen följer automatiskt startdatumets veckodag och starttid.';
+    }
+
+    if (recurrenceFrequency === 'weekly') {
+      return `Upprepas varje ${weekday.toLowerCase()} kl. ${timeLabel}.`;
+    }
+    if (recurrenceFrequency === 'biweekly') {
+      return `Upprepas varannan ${weekday.toLowerCase()} kl. ${timeLabel}.`;
+    }
+    if (recurrenceFrequency === 'monthly') {
+      return `Upprepas samma datum varje månad kl. ${timeLabel}.`;
+    }
+
+    return '';
+  }, [date, recurrenceFrequency, startTime]);
   const errorMessages = useMemo(
     () => Object.values(errors).filter((message): message is string => Boolean(message)),
     [errors],
@@ -265,6 +327,29 @@ export function AdminActivityForm({
 
       if (registrationMethod === 'email' && !registrationEmail.trim()) {
         nextErrors.registrationEmail = 'Ange e-postadress för anmälan.';
+      }
+    }
+
+    if (isRecurringSelected) {
+      if (recurrenceEndDate.trim()) {
+        const start = parseDateValue(date);
+        const end = parseDateValue(recurrenceEndDate);
+        if (!end) {
+          nextErrors.recurrenceEndDate = 'Ange ett giltigt slutdatum.';
+        } else if (start && end.getTime() < start.getTime()) {
+          nextErrors.recurrenceEndDate = 'Slutdatum måste vara samma dag eller senare.';
+        }
+      }
+
+      if (recurrenceMaxOccurrences.trim()) {
+        if (!/^\d+$/.test(recurrenceMaxOccurrences.trim())) {
+          nextErrors.recurrenceMaxOccurrences = 'Ange ett giltigt antal tillfällen.';
+        } else {
+          const parsedMax = Number(recurrenceMaxOccurrences.trim());
+          if (!Number.isFinite(parsedMax) || parsedMax < 1) {
+            nextErrors.recurrenceMaxOccurrences = 'Ange minst 1 tillfälle.';
+          }
+        }
       }
     }
 
@@ -384,9 +469,22 @@ export function AdminActivityForm({
     };
 
     const result = isEditMode
-      ? await updateActivityInFirestore(activityId ?? '', input)
+      ? await updateActivityInFirestore(activityId ?? '', input, {
+          scope: belongsToSeries ? seriesEditScope : 'occurrence',
+          seriesId: belongsToSeries ? seriesId : null,
+        })
       : await saveActivityToFirestore(input, {
           organizationId,
+          recurrence:
+            recurrenceFrequency === 'none'
+              ? null
+              : {
+                  frequency: recurrenceFrequency,
+                  endDate: recurrenceEndDate.trim() || null,
+                  maxOccurrences: recurrenceMaxOccurrences.trim()
+                    ? Number(recurrenceMaxOccurrences.trim())
+                    : null,
+                },
         });
 
     setIsSaving(false);
@@ -553,7 +651,7 @@ export function AdminActivityForm({
           title="Tid och plats"
           description="Välj datum och tid. Fyll i adressen – koordinater hämtas automatiskt vid sparning.">
           <DateTimeField
-            label="Datum *"
+            label={isRecurringSelected ? 'Startdatum *' : 'Datum *'}
             mode="date"
             value={date}
             onChange={(value) => {
@@ -677,6 +775,83 @@ export function AdminActivityForm({
             </View>
           ) : null}
         </AdminFormSection>
+
+        {!isEditMode ? (
+          <AdminFormSection
+            title="Återkommande"
+            description="Skapa en engångsaktivitet eller låt den återkomma automatiskt utifrån startdatum och starttid.">
+            <FormRadioGroup
+              label="Upprepning"
+              value={recurrenceFrequency}
+              options={RECURRENCE_FREQUENCY_OPTIONS}
+              onChange={(value) => {
+                setRecurrenceFrequency(value);
+                setErrors((current) =>
+                  clearError(clearError(current, 'recurrenceEndDate'), 'recurrenceMaxOccurrences'),
+                );
+              }}
+              disabled={isBusy}
+            />
+
+            {isRecurringSelected ? (
+              <>
+                <ThemedText type="bodyLarge" themeColor="textSecondary">
+                  {recurrenceHint}
+                </ThemedText>
+                <DateTimeField
+                  label="Slutdatum (valfritt)"
+                  mode="date"
+                  value={recurrenceEndDate}
+                  onChange={(value) => {
+                    setRecurrenceEndDate(value);
+                    setErrors((current) => clearError(current, 'recurrenceEndDate'));
+                  }}
+                  error={errors.recurrenceEndDate}
+                  placeholder="Välj slutdatum"
+                />
+                <FormField
+                  label="Max antal tillfällen (valfritt)"
+                  value={recurrenceMaxOccurrences}
+                  onChangeText={(value) => {
+                    setRecurrenceMaxOccurrences(value);
+                    setErrors((current) => clearError(current, 'recurrenceMaxOccurrences'));
+                  }}
+                  error={errors.recurrenceMaxOccurrences}
+                  placeholder="Till exempel 12"
+                  keyboardType="number-pad"
+                  editable={!isBusy}
+                />
+              </>
+            ) : null}
+          </AdminFormSection>
+        ) : null}
+
+        {isEditMode && belongsToSeries ? (
+          <AdminFormSection
+            title="Återkommande serie"
+            description="Välj om ändringarna ska gälla endast detta tillfälle eller hela serien.">
+            <FormRadioGroup
+              label="Omfattning"
+              value={seriesEditScope}
+              options={SERIES_EDIT_SCOPE_OPTIONS}
+              onChange={setSeriesEditScope}
+              disabled={isBusy}
+            />
+            {initialRecurrence ? (
+              <ThemedText type="bodyLarge" themeColor="textSecondary">
+                {RECURRENCE_FREQUENCY_LABELS[initialRecurrence.frequency]}
+                {initialRecurrence.endDate ? ` · till ${initialRecurrence.endDate}` : ''}
+                {initialRecurrence.maxOccurrences
+                  ? ` · max ${initialRecurrence.maxOccurrences} tillfällen`
+                  : ''}
+              </ThemedText>
+            ) : (
+              <ThemedText type="bodyLarge" themeColor="textSecondary">
+                Detta tillfälle ingår i en återkommande serie.
+              </ThemedText>
+            )}
+          </AdminFormSection>
+        ) : null}
 
         <AdminFormSection
           title="Bild"

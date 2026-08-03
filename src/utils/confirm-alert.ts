@@ -47,3 +47,51 @@ export function confirmDestructiveAction(
     { text: confirmLabel, style: 'destructive', onPress: onConfirm },
   ]);
 }
+
+type SeriesActionChoice = 'occurrence' | 'series';
+
+/**
+ * Asks whether to apply a destructive action to one occurrence or the whole series.
+ */
+export function confirmSeriesDestructiveAction(
+  title: string,
+  message: string,
+  onChoose: (choice: SeriesActionChoice) => void,
+) {
+  console.log(`[SeniorHub] Serie-bekräftelse visas: ${title}`);
+
+  if (Platform.OS === 'web') {
+    const removeSeries = window.confirm(
+      `${title}\n\n${message}\n\nTryck OK för att påverka HELA serien.\nTryck Avbryt för att välja endast detta tillfälle.`,
+    );
+
+    if (removeSeries) {
+      onChoose('series');
+      return;
+    }
+
+    const removeOccurrence = window.confirm(
+      `${title}\n\nVill du fortsätta med endast detta tillfälle?`,
+    );
+
+    if (removeOccurrence) {
+      onChoose('occurrence');
+    }
+
+    return;
+  }
+
+  Alert.alert(title, message, [
+    { text: 'Avbryt', style: 'cancel' },
+    {
+      text: 'Endast detta tillfälle',
+      style: 'destructive',
+      onPress: () => onChoose('occurrence'),
+    },
+    {
+      text: 'Hela serien',
+      style: 'destructive',
+      onPress: () => onChoose('series'),
+    },
+  ]);
+}

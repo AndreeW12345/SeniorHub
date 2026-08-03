@@ -1,5 +1,6 @@
 import { formatAddressDisplay } from '@/utils/address-format';
 import type { RegistrationMethod } from '@/constants/membership';
+import type { RecurrenceRule } from '@/constants/recurrence';
 
 export const CATEGORIES = [
   'Alla',
@@ -81,6 +82,17 @@ export type Activity = {
   registrationUrl?: string | null;
   registrationPhone?: string | null;
   registrationEmail?: string | null;
+  /**
+   * Shared id for all materialized occurrences in a recurring series.
+   * Absent/null for one-off (legacy) activities.
+   */
+  seriesId?: string | null;
+  /** Zero-based index within the series. */
+  occurrenceIndex?: number | null;
+  /** Recurrence rule copied onto each occurrence for display and future expansion. */
+  recurrence?: RecurrenceRule | null;
+  /** True when this occurrence was edited independently of the rest of the series. */
+  isRecurrenceException?: boolean | null;
 };
 
 export function getActivityDisplayLocation(activity: Activity): string {

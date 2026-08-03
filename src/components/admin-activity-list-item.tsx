@@ -6,11 +6,17 @@ import { NotifyParticipantsModal } from '@/components/notify-participants-modal'
 import { ThemedText } from '@/components/themed-text';
 import { getActivityDisplayLocation, type Activity } from '@/constants/activities';
 import { getCategoryVisual } from '@/constants/category-visuals';
+import { RECURRENCE_FREQUENCY_LABELS } from '@/constants/recurrence';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { deleteActivityFromFirestore } from '@/services/activities';
 import { useTheme } from '@/hooks/use-theme';
-import { confirmDestructiveAction, showErrorAlert } from '@/utils/confirm-alert';
+import {
+  confirmDestructiveAction,
+  confirmSeriesDestructiveAction,
+  showErrorAlert,
+} from '@/utils/confirm-alert';
 import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
+import { isSeriesActivity } from '@/utils/recurrence';
 
 type AdminActivityListItemProps = {
   activity: Activity;
@@ -23,12 +29,16 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
   const categoryVisual = getCategoryVisual(activity.category);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isNotifyModalVisible, setIsNotifyModalVisible] = useState(false);
+  const belongsToSeries = isSeriesActivity(activity);
 
-  const performDelete = async () => {
-    console.log('[SeniorHub] Bekräftad borttagning startar:', activity.id, activity.title);
+  const performDelete = async (scope: 'occurrence' | 'series' = 'occurrence') => {
+    console.log('[SeniorHub] Bekräftad borttagning startar:', activity.id, activity.title, scope);
     setIsDeleting(true);
 
-    const result = await deleteActivityFromFirestore(activity.id);
+    const result = await deleteActivityFromFirestore(activity.id, {
+      scope,
+      seriesId: belongsToSeries ? activity.seriesId : null,
+    });
 
     setIsDeleting(false);
 
@@ -38,28 +48,46 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
       return;
     }
 
-    console.log('[SeniorHub] Borttagning lyckades:', activity.id);
+    console.log('[SeniorHub] Borttagning lyckades:', activity.id, scope);
     onDeleted(activity.id);
   };
 
   const handleDeletePress = () => {
     console.log('[SeniorHub] Ta bort-knapp tryckt:', activity.id, activity.title);
 
+    if (belongsToSeries) {
+      confirmSeriesDestructiveAction(
+        'Ta bort återkommande aktivitet',
+        'Vill du ta bort endast detta tillfälle eller hela serien?',
+        (choice) => void performDelete(choice),
+      );
+      return;
+    }
+
     confirmDestructiveAction(
       'Ta bort aktivitet',
       'Är du säker på att du vill ta bort aktiviteten?',
       'Ta bort',
-      () => void performDelete(),
+      () => void performDelete('occurrence'),
     );
   };
 
   return (
     <View style={[styles.card, CardShadow, { backgroundColor: theme.card }]}>
       <View style={styles.content}>
-        <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.background }]}>
-          <ThemedText type="smallBold" style={{ color: categoryVisual.foreground }}>
-            {activity.category}
-          </ThemedText>
+        <View style={styles.badgeRow}>
+          <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.background }]}>
+            <ThemedText type="smallBold" style={{ color: categoryVisual.foreground }}>
+              {activity.category}
+            </ThemedText>
+          </View>
+          {belongsToSeries && activity.recurrence ? (
+            <View style={[styles.seriesBadge, { backgroundColor: theme.primaryLight }]}>
+              <ThemedText type="smallBold" themeColor="primary">
+                {RECURRENCE_FREQUENCY_LABELS[activity.recurrence.frequency]}
+              </ThemedText>
+            </View>
+          ) : null}
         </View>
 
         <ThemedText type="cardTitle" style={styles.title}>
@@ -158,7 +186,19 @@ const styles = StyleSheet.create({
   content: {
     gap: Spacing.two,
   },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    alignItems: 'center',
+  },
   categoryBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one + 2,
+  },
+  seriesBadge: {
     alignSelf: 'flex-start',
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three,
