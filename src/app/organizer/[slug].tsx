@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActivityCard } from '@/components/activity-card';
@@ -9,9 +9,18 @@ import { ActivityList, ActivityListItem } from '@/components/activity-list';
 import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { getActivitiesByOrganizerSlug, resolveOrganizerName } from '@/constants/organizers';
+import {
+  getActivitiesForOrganization,
+  type Organization,
+} from '@/constants/organizations';
+import {
+  getActivitiesByOrganizerSlug,
+  resolveOrganizerName,
+  type Organizer,
+} from '@/constants/organizers';
 import { CardShadow, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
+import { useOrganizations } from '@/contexts/organizations-context';
 import { useOrganizers } from '@/contexts/organizers-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useSafeBack } from '@/hooks/use-safe-back';
@@ -48,6 +57,43 @@ function ContactRow({ icon, label, value, onPress, accessibilityLabel }: Contact
   );
 }
 
+type ProfileView = {
+  name: string;
+  description?: string | null;
+  logoUrl?: string | null;
+  website?: string | null;
+  membershipUrl?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  city?: string | null;
+};
+
+function toProfileView(
+  organization: Organization | undefined,
+  organizer: Organizer | undefined,
+  fallbackName: string | null,
+): ProfileView | null {
+  if (organization) {
+    return organization;
+  }
+
+  if (organizer) {
+    return {
+      name: organizer.name,
+      description: organizer.description,
+      website: organizer.website,
+      email: organizer.email,
+      phone: organizer.phone,
+    };
+  }
+
+  if (fallbackName) {
+    return { name: fallbackName };
+  }
+
+  return null;
+}
+
 export default function OrganizerScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const goBack = useSafeBack();
@@ -55,28 +101,35 @@ export default function OrganizerScreen() {
   const insets = useSafeAreaInsets();
   const { horizontalPadding, contentWidth } = useResponsive();
   const { activities, isLoading: isLoadingActivities } = useActivities();
+  const { getOrganizationBySlug, isLoading: isLoadingOrganizations } = useOrganizations();
   const { getOrganizerBySlug, organizers, isLoading: isLoadingOrganizers } = useOrganizers();
 
   const organizerSlug = typeof slug === 'string' ? slug : '';
-  const profile = organizerSlug ? getOrganizerBySlug(organizerSlug) : undefined;
-  const organizerName =
-    profile?.name ??
-    (organizerSlug ? resolveOrganizerName(organizers, activities, organizerSlug) : null);
-  const organizerActivities = organizerSlug
-    ? getActivitiesByOrganizerSlug(activities, organizerSlug)
-    : [];
-  const isLoading = isLoadingActivities || isLoadingOrganizers;
+  const organization = organizerSlug ? getOrganizationBySlug(organizerSlug) : undefined;
+  const legacyOrganizer = organizerSlug ? getOrganizerBySlug(organizerSlug) : undefined;
+  const fallbackName = organizerSlug
+    ? resolveOrganizerName(organizers, activities, organizerSlug)
+    : null;
+  const profile = toProfileView(organization, legacyOrganizer, fallbackName);
+  const listedActivities = organization
+    ? getActivitiesForOrganization(activities, organization)
+    : organizerSlug
+      ? getActivitiesByOrganizerSlug(activities, organizerSlug)
+      : [];
+  const isLoading = isLoadingActivities || isLoadingOrganizations || isLoadingOrganizers;
 
-  if (!organizerSlug || (!isLoading && !organizerName)) {
+  if (!organizerSlug || (!isLoading && !profile)) {
     return (
       <ThemedView style={[styles.notFound, { paddingTop: insets.top + Spacing.four }]}>
-        <ThemedText type="subtitle">Arrangören hittades inte</ThemedText>
+        <ThemedText type="subtitle">Organisationen hittades inte</ThemedText>
         <Pressable onPress={goBack} style={styles.backLink}>
           <ThemedText type="linkPrimary">Gå tillbaka</ThemedText>
         </Pressable>
       </ThemedView>
     );
   }
+
+  const displayProfile = profile ?? { name: fallbackName ?? 'Organisation' };
 
   const openPhone = (phone: string) => {
     void Linking.openURL(getPhoneUrl(phone));
@@ -88,6 +141,10 @@ export default function OrganizerScreen() {
 
   const openWebsite = (website: string) => {
     void Linking.openURL(normalizeWebsiteUrl(website));
+  };
+
+  const openMembership = (membershipUrl: string) => {
+    void Linking.openURL(normalizeWebsiteUrl(membershipUrl));
   };
 
   return (
@@ -105,17 +162,30 @@ export default function OrganizerScreen() {
           <BackButton style={[styles.backButton, { top: insets.top + Spacing.three }]} />
 
           <View style={[styles.headerCard, CardShadow, { backgroundColor: theme.card }]}>
-            <View style={[styles.avatarCircle, { backgroundColor: theme.primaryLight }]}>
-              <SymbolView
-                tintColor={theme.primary}
-                name={{ ios: 'person.fill', android: 'person', web: 'person' }}
-                size={40}
-                weight="medium"
+            {displayProfile.logoUrl ? (
+              <Image
+                source={{ uri: displayProfile.logoUrl }}
+                style={styles.logoImage}
+                accessibilityLabel={`Logotyp för ${displayProfile.name}`}
               />
-            </View>
+            ) : (
+              <View style={[styles.avatarCircle, { backgroundColor: theme.primaryLight }]}>
+                <SymbolView
+                  tintColor={theme.primary}
+                  name={{ ios: 'building.2.fill', android: 'apartment', web: 'apartment' }}
+                  size={40}
+                  weight="medium"
+                />
+              </View>
+            )}
             <ThemedText type="title" style={styles.organizerName}>
-              {organizerName}
+              {displayProfile.name}
             </ThemedText>
+            {displayProfile.description ? (
+              <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.headerDescription}>
+                {displayProfile.description}
+              </ThemedText>
+            ) : null}
           </View>
         </View>
 
@@ -126,55 +196,74 @@ export default function OrganizerScreen() {
             </View>
           ) : (
             <>
-              {profile?.description ? (
-                <View style={[styles.descriptionCard, CardShadow, { backgroundColor: theme.card }]}>
-                  <ThemedText type="sectionTitle">Om arrangören</ThemedText>
-                  <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.description}>
-                    {profile.description}
-                  </ThemedText>
-                </View>
-              ) : null}
-
-              {profile?.phone || profile?.email || profile?.website ? (
+              {displayProfile.website ||
+              displayProfile.phone ||
+              displayProfile.email ||
+              displayProfile.city ? (
                 <View style={[styles.contactCard, CardShadow, { backgroundColor: theme.card }]}>
                   <ThemedText type="sectionTitle">Kontakt</ThemedText>
                   <View style={styles.contactRows}>
-                    {profile.phone ? (
+                    {displayProfile.city ? (
+                      <View style={styles.cityRow}>
+                        <ThemedText type="smallBold" themeColor="textSecondary">
+                          Ort
+                        </ThemedText>
+                        <ThemedText type="bodyLarge">{displayProfile.city}</ThemedText>
+                      </View>
+                    ) : null}
+                    {displayProfile.website ? (
+                      <ContactRow
+                        icon={{ ios: 'globe', android: 'language', web: 'language' }}
+                        label="Hemsida"
+                        value={displayProfile.website.replace(/^https?:\/\//i, '')}
+                        onPress={() => openWebsite(displayProfile.website!)}
+                        accessibilityLabel={`Öppna hemsida ${displayProfile.website}`}
+                      />
+                    ) : null}
+                    {displayProfile.phone ? (
                       <ContactRow
                         icon={{ ios: 'phone.fill', android: 'phone', web: 'phone' }}
                         label="Telefon"
-                        value={profile.phone}
-                        onPress={() => openPhone(profile.phone!)}
-                        accessibilityLabel={`Ring ${profile.phone}`}
+                        value={displayProfile.phone}
+                        onPress={() => openPhone(displayProfile.phone!)}
+                        accessibilityLabel={`Ring ${displayProfile.phone}`}
                       />
                     ) : null}
-                    {profile.email ? (
+                    {displayProfile.email ? (
                       <ContactRow
                         icon={{ ios: 'envelope.fill', android: 'email', web: 'email' }}
                         label="E-post"
-                        value={profile.email}
-                        onPress={() => openEmail(profile.email!)}
-                        accessibilityLabel={`Skicka e-post till ${profile.email}`}
-                      />
-                    ) : null}
-                    {profile.website ? (
-                      <ContactRow
-                        icon={{ ios: 'globe', android: 'language', web: 'language' }}
-                        label="Webbplats"
-                        value={profile.website.replace(/^https?:\/\//i, '')}
-                        onPress={() => openWebsite(profile.website!)}
-                        accessibilityLabel={`Öppna webbplats ${profile.website}`}
+                        value={displayProfile.email}
+                        onPress={() => openEmail(displayProfile.email!)}
+                        accessibilityLabel={`Skicka e-post till ${displayProfile.email}`}
                       />
                     ) : null}
                   </View>
                 </View>
               ) : null}
 
+              {displayProfile.membershipUrl ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Bli medlem i ${displayProfile.name}`}
+                  onPress={() => openMembership(displayProfile.membershipUrl!)}
+                  style={({ pressed }) => [
+                    styles.membershipButton,
+                    CardShadow,
+                    { backgroundColor: theme.primary },
+                    pressed && styles.membershipButtonPressed,
+                  ]}>
+                  <ThemedText type="bodyLarge" style={styles.membershipButtonText}>
+                    Bli medlem
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+
               <View style={styles.activitiesSection}>
-                <ThemedText type="sectionTitle">Aktiviteter</ThemedText>
-                {organizerActivities.length > 0 ? (
+                <ThemedText type="sectionTitle">Alla aktiviteter</ThemedText>
+                {listedActivities.length > 0 ? (
                   <ActivityList>
-                    {organizerActivities.map((activity) => (
+                    {listedActivities.map((activity) => (
                       <ActivityListItem key={activity.id}>
                         <ActivityCard activity={activity} />
                       </ActivityListItem>
@@ -183,7 +272,7 @@ export default function OrganizerScreen() {
                 ) : (
                   <View style={[styles.emptyState, CardShadow, { backgroundColor: theme.card }]}>
                     <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
-                      Inga aktiviteter från den här arrangören just nu.
+                      Inga aktiviteter från den här organisationen just nu.
                     </ThemedText>
                   </View>
                 )}
@@ -228,9 +317,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  logoImage: {
+    width: 96,
+    height: 96,
+    borderRadius: Radius.xl,
+  },
   organizerName: {
     textAlign: 'center',
     letterSpacing: -0.4,
+  },
+  headerDescription: {
+    textAlign: 'center',
+    lineHeight: 32,
   },
   body: {
     gap: Spacing.five,
@@ -242,14 +340,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.six,
   },
-  descriptionCard: {
-    borderRadius: Radius.xl,
-    padding: Spacing.five,
-    gap: Spacing.three,
-  },
-  description: {
-    lineHeight: 32,
-  },
   contactCard: {
     borderRadius: Radius.xl,
     padding: Spacing.five,
@@ -257,6 +347,9 @@ const styles = StyleSheet.create({
   },
   contactRows: {
     gap: Spacing.four,
+  },
+  cityRow: {
+    gap: Spacing.one,
   },
   contactRow: {
     flexDirection: 'row',
@@ -276,6 +369,20 @@ const styles = StyleSheet.create({
   contactText: {
     flex: 1,
     gap: 4,
+  },
+  membershipButton: {
+    minHeight: 68,
+    borderRadius: Radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+  },
+  membershipButtonPressed: {
+    opacity: 0.9,
+  },
+  membershipButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   activitiesSection: {
     gap: Spacing.four,

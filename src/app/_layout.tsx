@@ -10,6 +10,7 @@ import { MembershipsProvider } from '@/contexts/memberships-context';
 import { NotificationPreferencesProvider } from '@/contexts/notification-preferences-context';
 import { NotificationsProvider } from '@/contexts/notifications-context';
 import { OrganizersProvider } from '@/contexts/organizers-context';
+import { OrganizationsProvider } from '@/contexts/organizations-context';
 import { RegistrationsProvider } from '@/contexts/registrations-context';
 import { ToastProvider } from '@/contexts/toast-context';
 import { UserProfileProvider } from '@/contexts/user-profile-context';
@@ -34,6 +35,7 @@ export default function RootLayout() {
       <ActivitiesProvider>
         <ActivitiesBrowseProvider>
           <OrganizersProvider>
+            <OrganizationsProvider>
             <FavoritesProvider>
               <MembershipsProvider>
                 <RegistrationsProvider>
@@ -102,6 +104,13 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="admin/organization"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
                                 name="profil/edit"
                                 options={{
                                   presentation: 'card',
@@ -138,6 +147,7 @@ export default function RootLayout() {
                 </RegistrationsProvider>
               </MembershipsProvider>
             </FavoritesProvider>
+            </OrganizationsProvider>
           </OrganizersProvider>
         </ActivitiesBrowseProvider>
       </ActivitiesProvider>

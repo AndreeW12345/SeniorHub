@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import type { Activity } from '@/constants/activities';
 import { useMemberships } from '@/contexts/memberships-context';
+import { useOrganizations } from '@/contexts/organizations-context';
 import {
   getActivityMembershipOrganization,
   getActivityParticipationHelperText,
@@ -14,8 +15,14 @@ type ActivityParticipationHelperProps = {
 
 export function ActivityParticipationHelper({ activity }: ActivityParticipationHelperProps) {
   const { isMember } = useMemberships();
-  const organization = getActivityMembershipOrganization(activity) ?? '';
-  const helperText = getActivityParticipationHelperText(activity, isMember(organization));
+  const { getOrganizationById } = useOrganizations();
+  const hostOrganization = getOrganizationById(activity.organizationId);
+  const organization = getActivityMembershipOrganization(activity, hostOrganization) ?? '';
+  const helperText = getActivityParticipationHelperText(
+    activity,
+    isMember(organization),
+    hostOrganization,
+  );
 
   if (!helperText) {
     return null;

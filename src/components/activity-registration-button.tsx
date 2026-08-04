@@ -29,7 +29,6 @@ import { confirmDestructiveAction, showErrorAlert } from '@/utils/confirm-alert'
 import {
   getActivityRegistrationAction,
   isActivityFullWithBookedCount,
-  isActivityRegistrationRequired,
 } from '@/utils/activity-registration';
 import {
   createCancellationNotification,
@@ -76,7 +75,7 @@ export function ActivityRegistrationButton({
     await scheduleActivityReminders(activity, preferences);
   };
 
-  if (!isActivityRegistrationRequired(activity)) {
+  if (activity.registrationRequired !== true && activity.membershipRequired !== true) {
     return null;
   }
 

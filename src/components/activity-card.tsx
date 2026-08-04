@@ -8,11 +8,15 @@ import { ActivitySchedule } from '@/components/activity-schedule';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ThemedText } from '@/components/themed-text';
 import { Activity, getActivityDisplayLocation } from '@/constants/activities';
-import { getOrganizerPath } from '@/constants/organizers';
 import { getCategoryVisual } from '@/constants/category-visuals';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
+import { useOrganizations } from '@/contexts/organizations-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  getActivityOrganizerDisplayName,
+  getActivityOrganizerHref,
+} from '@/utils/activity-host';
 
 type ActivityCardProps = {
   activity: Activity;
@@ -65,15 +69,18 @@ export function ActivityCard({ activity }: ActivityCardProps) {
   const theme = useTheme();
   const router = useRouter();
   const { imageHeight } = useResponsive();
+  const { getOrganizationById } = useOrganizations();
   const categoryVisual = getCategoryVisual(activity.category);
   const displayLocation = getActivityDisplayLocation(activity);
+  const hostOrganization = getOrganizationById(activity.organizationId);
+  const organizerDisplayName = getActivityOrganizerDisplayName(activity, hostOrganization);
 
   const openActivity = () => {
     router.push(`/activity/${activity.id}` as Href);
   };
 
   const openOrganizer = () => {
-    router.push(getOrganizerPath(activity.organizer) as Href);
+    router.push(getActivityOrganizerHref(activity, hostOrganization) as Href);
   };
 
   return (
@@ -127,7 +134,7 @@ export function ActivityCard({ activity }: ActivityCardProps) {
 
         <ActivityInfoLine
           icon="👤"
-          value={activity.organizer}
+          value={`${organizerDisplayName} ›`}
           accessibilityPrefix="Arrangör"
           onPress={openOrganizer}
         />

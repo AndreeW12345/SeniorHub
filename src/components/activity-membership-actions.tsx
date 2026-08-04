@@ -5,11 +5,14 @@ import { ThemedText } from '@/components/themed-text';
 import type { Activity } from '@/constants/activities';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useMemberships } from '@/contexts/memberships-context';
+import { useOrganizations } from '@/contexts/organizations-context';
 import { useTheme } from '@/hooks/use-theme';
+import { normalizeWebsiteUrl } from '@/utils/organizer-links';
 import {
   getActivityMembershipOrganization,
   getActivityMembershipUrl,
   isActivityMembershipRequired,
+  isActivityRegistrationRequired,
 } from '@/utils/activity-registration';
 
 type ActivityMembershipActionsProps = {
@@ -19,65 +22,79 @@ type ActivityMembershipActionsProps = {
 export function ActivityMembershipActions({ activity }: ActivityMembershipActionsProps) {
   const theme = useTheme();
   const { isMember, markAsMember } = useMemberships();
+  const { getOrganizationById } = useOrganizations();
+  const hostOrganization = getOrganizationById(activity.organizationId);
 
   if (!isActivityMembershipRequired(activity)) {
     return null;
   }
 
-  const organization = getActivityMembershipOrganization(activity);
-  const membershipUrl = getActivityMembershipUrl(activity);
+  const organization = getActivityMembershipOrganization(activity, hostOrganization);
+  const membershipUrl = getActivityMembershipUrl(activity, hostOrganization);
 
   if (!organization) {
     return null;
   }
 
   const member = isMember(organization);
+  const registrationRequired = isActivityRegistrationRequired(activity);
 
   if (member) {
+    const subtitle = registrationRequired
+      ? 'Du kan nu anmäla dig till aktiviteten.'
+      : 'Du kan nu delta i aktiviteten.';
+
     return (
       <View
         style={[styles.memberBanner, CardShadow, { backgroundColor: theme.primaryLight }]}
-        accessibilityLabel={`Du är medlem i ${organization}. Du kan nu anmäla dig till aktiviteten.`}>
+        accessibilityLabel={`Du är medlem i ${organization}. ${subtitle}`}>
         <ThemedText type="bodyLarge" themeColor="primary" style={styles.memberTitle}>
           ✅ Du är medlem i {organization}
         </ThemedText>
         <ThemedText type="bodyLarge" themeColor="primary" style={styles.memberSubtitle}>
-          Du kan nu anmäla dig till aktiviteten.
+          {subtitle}
         </ThemedText>
       </View>
     );
   }
 
   const openMembershipUrl = () => {
-    if (membershipUrl) {
-      void Linking.openURL(membershipUrl);
+    if (!membershipUrl) {
+      return;
     }
+
+    void Linking.openURL(normalizeWebsiteUrl(membershipUrl));
   };
 
   return (
     <View style={styles.container}>
       <Pressable
+        onPress={() => markAsMember(organization)}
+        accessibilityRole="button"
+        accessibilityLabel={`Markera att du är medlem i ${organization}`}
+        style={({ pressed }) => [
+          styles.primaryButton,
+          { backgroundColor: theme.primary },
+          pressed && styles.pressed,
+        ]}>
+        <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
+          Jag är medlem
+        </ThemedText>
+      </Pressable>
+
+      <Pressable
         onPress={openMembershipUrl}
         accessibilityRole="button"
-        accessibilityLabel={`Bli medlem hos ${organization}`}
+        accessibilityLabel={`Bli medlem i ${organization}`}
         disabled={!membershipUrl}
         style={({ pressed }) => [
-          styles.membershipButton,
+          styles.secondaryButton,
           { backgroundColor: theme.card, borderColor: theme.primary },
           pressed && styles.pressed,
           !membershipUrl && styles.disabled,
         ]}>
-        <ThemedText type="bodyLarge" themeColor="primary" style={styles.buttonText}>
-          Bli medlem hos {organization}
-        </ThemedText>
-      </Pressable>
-      <Pressable
-        onPress={() => markAsMember(organization)}
-        accessibilityRole="button"
-        accessibilityLabel={`Markera att du är medlem i ${organization}`}
-        style={({ pressed }) => [pressed && styles.pressed]}>
-        <ThemedText type="linkPrimary" style={styles.alreadyMemberLink}>
-          Jag är redan medlem
+        <ThemedText type="bodyLarge" themeColor="primary" style={styles.secondaryButtonText}>
+          Bli medlem
         </ThemedText>
       </Pressable>
     </View>
@@ -89,7 +106,20 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     alignItems: 'center',
   },
-  membershipButton: {
+  primaryButton: {
+    minHeight: 64,
+    borderRadius: Radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+    alignSelf: 'stretch',
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  secondaryButton: {
     minHeight: 64,
     borderRadius: Radius.xl,
     borderWidth: 2,
@@ -97,6 +127,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.five,
     alignSelf: 'stretch',
+  },
+  secondaryButtonText: {
+    fontWeight: '700',
+    textAlign: 'center',
   },
   memberBanner: {
     borderRadius: Radius.xl,
@@ -113,14 +147,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 30,
-  },
-  buttonText: {
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  alreadyMemberLink: {
-    textAlign: 'center',
-    fontWeight: '700',
   },
   pressed: {
     opacity: 0.9,

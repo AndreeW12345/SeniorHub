@@ -156,6 +156,20 @@ function AdminScreenContent() {
         </ThemedText>
       </Pressable>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Organisationsprofil"
+        onPress={() => router.push('/admin/organization' as Href)}
+        style={({ pressed }) => [
+          styles.statsButton,
+          { borderColor: theme.primary, backgroundColor: theme.background },
+          pressed && styles.addButtonPressed,
+        ]}>
+        <ThemedText type="bodyLarge" themeColor="primary" style={styles.statsButtonText}>
+          Organisationsprofil
+        </ThemedText>
+      </Pressable>
+
       <View style={styles.listSection}>
         <ThemedText type="sectionTitle">{listTitle}</ThemedText>
 

@@ -10,11 +10,6 @@ import { DateTimeField } from '@/components/date-time-field';
 import { FormCheckbox } from '@/components/form-checkbox';
 import { FormField } from '@/components/form-field';
 import { FormRadioGroup } from '@/components/form-radio-group';
-import {
-  MembershipOrganizationPicker,
-  resolveMembershipOrganization,
-  splitMembershipOrganizationForForm,
-} from '@/components/membership-organization-picker';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { type ActivityCategory } from '@/constants/activities';
@@ -34,6 +29,7 @@ import {
 } from '@/constants/recurrence';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useOrganizations } from '@/contexts/organizations-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -171,7 +167,10 @@ export function AdminActivityForm({
   const router = useRouter();
   const theme = useTheme();
   const { adminAccount } = useAuth();
+  const { getOrganizationById } = useOrganizations();
   const organizationId = adminAccount?.organizationId?.trim();
+  const hostOrganization = getOrganizationById(organizationId);
+  const hostOrganizationName = hostOrganization?.name?.trim() || '';
   const { isCompact, isDesktop } = useResponsive();
   const isEditMode = mode === 'edit';
   const useTwoColumns = !isCompact;
@@ -185,7 +184,7 @@ export function AdminActivityForm({
   const [startTime, setStartTime] = useState(initialTimes.startTime);
   const [endTime, setEndTime] = useState(initialTimes.endTime);
   const [location, setLocation] = useState(initialValues.location);
-  const [organizer, setOrganizer] = useState(initialValues.organizer);
+  const [organizer] = useState(hostOrganizationName || initialValues.organizer);
   const [category, setCategory] = useState<ActivityCategory>(initialValues.category);
   const [imageUrl, setImageUrl] = useState(initialValues.imageUrl ?? '');
   const [latitude, setLatitude] = useState(initialValues.latitude ?? '');
@@ -202,17 +201,9 @@ export function AdminActivityForm({
   );
   const [maxParticipants, setMaxParticipants] = useState(initialValues.maxParticipants ?? '');
   const [participants] = useState(initialValues.participants ?? 0);
-  const initialMembership = splitMembershipOrganizationForForm(initialValues.membershipOrganization);
   const [membershipRequired, setMembershipRequired] = useState(
     initialValues.membershipRequired ?? false,
   );
-  const [membershipOrganization, setMembershipOrganization] = useState(
-    initialMembership.organization,
-  );
-  const [membershipCustomOrganization, setMembershipCustomOrganization] = useState(
-    initialMembership.customOrganization,
-  );
-  const [membershipUrl, setMembershipUrl] = useState(initialValues.membershipUrl ?? '');
   const [registrationMethod, setRegistrationMethod] = useState<RegistrationMethod>(
     initialValues.registrationMethod ?? DEFAULT_REGISTRATION_METHOD,
   );
@@ -284,8 +275,10 @@ export function AdminActivityForm({
     if (!location.trim()) {
       nextErrors.location = REQUIRED_FIELD_ERRORS.location;
     }
-    if (!organizer.trim()) {
-      nextErrors.organizer = REQUIRED_FIELD_ERRORS.organizer;
+    const resolvedOrganizer = hostOrganizationName || organizer.trim();
+    if (!resolvedOrganizer) {
+      nextErrors.organizer =
+        'Organisationen saknar namn. Uppdatera organisationsprofilen under Admin.';
     }
     if (!street.trim()) {
       nextErrors.street = 'Ange gatuadress.';
@@ -301,19 +294,9 @@ export function AdminActivityForm({
       nextErrors.maxParticipants = 'Ange max antal deltagare.';
     }
 
-    if (membershipRequired) {
-      const resolvedOrganization = resolveMembershipOrganization(
-        membershipOrganization,
-        membershipCustomOrganization,
-      );
-
-      if (!resolvedOrganization) {
-        nextErrors.membershipCustomOrganization = 'Ange organisation.';
-      }
-
-      if (!membershipUrl.trim()) {
-        nextErrors.membershipUrl = 'Ange länk för medlemskap.';
-      }
+    if (membershipRequired && hostOrganization && !hostOrganization.membershipUrl?.trim()) {
+      nextErrors.membershipUrl =
+        'Lägg till medlemslänk i organisationsprofilen innan medlemskap kan krävas.';
     }
 
     if (registrationRequired) {
@@ -443,7 +426,7 @@ export function AdminActivityForm({
       date,
       time: combineStoredTimeRange(startTime, endTime),
       location,
-      organizer,
+      organizer: hostOrganizationName || organizer.trim(),
       category,
       imageUrl: finalImageUrl,
       latitude: nextLatitude,
@@ -458,10 +441,8 @@ export function AdminActivityForm({
       maxParticipants: hasParticipantLimit ? maxParticipants : '',
       participants,
       membershipRequired,
-      membershipOrganization: membershipRequired
-        ? resolveMembershipOrganization(membershipOrganization, membershipCustomOrganization)
-        : '',
-      membershipUrl: membershipRequired ? membershipUrl : '',
+      membershipOrganization: '',
+      membershipUrl: '',
       registrationMethod: registrationRequired ? registrationMethod : DEFAULT_REGISTRATION_METHOD,
       registrationUrl: registrationRequired && registrationMethod === 'external' ? registrationUrl : '',
       registrationPhone: registrationRequired && registrationMethod === 'phone' ? registrationPhone : '',
@@ -704,17 +685,29 @@ export function AdminActivityForm({
               />
             </View>
             <View style={fieldHalfStyle}>
-              <FormField
-                label="Arrangör *"
-                value={organizer}
-                onChangeText={(value) => {
-                  setOrganizer(value);
-                  setErrors((current) => clearError(current, 'organizer'));
-                }}
-                error={errors.organizer}
-                placeholder="Till exempel Seniorföreningen"
-                editable={!isBusy}
-              />
+              <View style={styles.hostOrganizationField}>
+                <ThemedText type="smallBold" themeColor="textSecondary">
+                  Arrangör
+                </ThemedText>
+                <View
+                  style={[
+                    styles.hostOrganizationValue,
+                    CardShadow,
+                    { backgroundColor: theme.card, borderColor: theme.border },
+                  ]}>
+                  <ThemedText type="bodyLarge">
+                    {hostOrganizationName || organizer || 'Hämtas från er organisation'}
+                  </ThemedText>
+                </View>
+                <ThemedText type="bodyLarge" themeColor="textSecondary">
+                  Arrangörsnamnet hämtas automatiskt från organisationsprofilen.
+                </ThemedText>
+                {errors.organizer ? (
+                  <ThemedText type="bodyLarge" themeColor="favorite">
+                    {errors.organizer}
+                  </ThemedText>
+                ) : null}
+              </View>
             </View>
           </View>
 
@@ -868,18 +861,15 @@ export function AdminActivityForm({
 
         <AdminFormSection
           title="Medlemskap"
-          description="Kräv medlemskap om aktiviteten endast är öppen för medlemmar.">
+          description="Om medlemskap krävs används organisationens namn och medlemslänk automatiskt.">
           <FormCheckbox
             label="Medlemskap krävs"
             checked={membershipRequired}
             onChange={(checked) => {
               setMembershipRequired(checked);
               if (!checked) {
-                setMembershipUrl('');
                 setErrors((current) => ({
                   ...current,
-                  membershipOrganization: undefined,
-                  membershipCustomOrganization: undefined,
                   membershipUrl: undefined,
                 }));
               }
@@ -887,30 +877,23 @@ export function AdminActivityForm({
             disabled={isBusy}
           />
           {membershipRequired ? (
-            <>
-              <MembershipOrganizationPicker
-                organization={membershipOrganization}
-                customOrganization={membershipCustomOrganization}
-                onOrganizationChange={setMembershipOrganization}
-                onCustomOrganizationChange={setMembershipCustomOrganization}
-                organizationError={errors.membershipOrganization}
-                customOrganizationError={errors.membershipCustomOrganization}
-                disabled={isBusy}
-              />
-              <FormField
-                label="Medlemskapets länk"
-                value={membershipUrl}
-                onChangeText={(value) => {
-                  setMembershipUrl(value);
-                  setErrors((current) => clearError(current, 'membershipUrl'));
-                }}
-                error={errors.membershipUrl}
-                placeholder="https://example.se/bli-medlem"
-                keyboardType="url"
-                autoCapitalize="none"
-                editable={!isBusy}
-              />
-            </>
+            <View style={[styles.membershipInfoCard, { backgroundColor: theme.primaryLight }]}>
+              <ThemedText type="bodyLarge" themeColor="primary">
+                {hostOrganizationName
+                  ? 'Visas som: Endast för medlemmar i organisationen.'
+                  : 'Organisationsnamnet hämtas från er organisationsprofil.'}
+              </ThemedText>
+              <ThemedText type="bodyLarge" themeColor="textSecondary">
+                {hostOrganization?.membershipUrl
+                  ? 'Medlemsknappen öppnar organisationens medlemslänk.'
+                  : 'Lägg till medlemslänk under Organisationsprofil i adminpanelen.'}
+              </ThemedText>
+              {errors.membershipUrl ? (
+                <ThemedText type="bodyLarge" themeColor="favorite">
+                  {errors.membershipUrl}
+                </ThemedText>
+              ) : null}
+            </View>
           ) : null}
         </AdminFormSection>
 
@@ -1145,6 +1128,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   selectedAddressCard: {
+    borderRadius: Radius.lg,
+    padding: Spacing.four,
+    gap: Spacing.two,
+  },
+  hostOrganizationField: {
+    gap: Spacing.two,
+  },
+  hostOrganizationValue: {
+    minHeight: 56,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+  },
+  membershipInfoCard: {
     borderRadius: Radius.lg,
     padding: Spacing.four,
     gap: Spacing.two,

@@ -130,32 +130,21 @@ export function buildActivityDocumentData(input: ActivityFormInput) {
     };
   }
 
+  // Membership club name/URL live on the organization profile.
+  // Legacy per-activity values are kept only when explicitly provided.
   const membershipOrganization = membershipRequired
     ? readRequired(input.membershipOrganization ?? '')
     : null;
+  const membershipUrlRaw = membershipRequired ? readRequired(input.membershipUrl ?? '') : null;
 
-  if (membershipRequired && !membershipOrganization) {
-    return {
-      ok: false as const,
-      errorMessage: 'Ange organisation för medlemskap.',
-    };
-  }
-
-  const membershipUrl = membershipRequired ? readRequired(input.membershipUrl ?? '') : null;
-
-  if (membershipRequired && !membershipUrl) {
-    return {
-      ok: false as const,
-      errorMessage: 'Ange länk för medlemskap.',
-    };
-  }
-
-  if (membershipRequired && membershipUrl && !isValidHttpUrl(membershipUrl)) {
+  if (membershipRequired && membershipUrlRaw && !isValidHttpUrl(membershipUrlRaw)) {
     return {
       ok: false as const,
       errorMessage: 'Medlemskapets länk måste börja med http:// eller https://.',
     };
   }
+
+  const membershipUrl = membershipUrlRaw;
 
   const registrationMethod = registrationRequired
     ? (input.registrationMethod ?? DEFAULT_REGISTRATION_METHOD)

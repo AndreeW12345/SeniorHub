@@ -31,6 +31,8 @@ export async function ensureDefaultOrganization(): Promise<boolean> {
   await setDoc(orgRef, {
     id: DEFAULT_ORGANIZATION_ID,
     name: DEFAULT_ORGANIZATION_NAME,
+    slug: 'seniorhub',
+    description: 'SeniorHub – aktiviteter för seniorer.',
   });
 
   return true;

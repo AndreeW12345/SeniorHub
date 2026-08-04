@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { WaitlistInfoBanner } from '@/components/waitlist-info-banner';
 import type { Activity } from '@/constants/activities';
 import { Radius, Spacing } from '@/constants/theme';
+import { useOrganizations } from '@/contexts/organizations-context';
 import { useTheme } from '@/hooks/use-theme';
 import { getActivityRegistrationDisplay } from '@/utils/activity-registration';
 import { formatWaitlistPositionLabel } from '@/utils/waitlist';
@@ -17,6 +18,8 @@ type ActivityRegistrationStatusProps = {
   waitlistCount?: number;
   /** 1-based position for the current user on the waitlist. */
   waitlistPosition?: number | null;
+  /** Hide membership-required lines when the user has confirmed membership. */
+  confirmedMember?: boolean;
 };
 
 function isFullLine(line: string): boolean {
@@ -34,7 +37,7 @@ function isSeatsLine(line: string): boolean {
 }
 
 function isMembershipLine(line: string): boolean {
-  return line.startsWith('🔒');
+  return line.startsWith('🔒') || line.startsWith('✏️');
 }
 
 export function ActivityRegistrationStatus({
@@ -43,9 +46,17 @@ export function ActivityRegistrationStatus({
   bookedCount,
   waitlistCount,
   waitlistPosition,
+  confirmedMember = false,
 }: ActivityRegistrationStatusProps) {
   const theme = useTheme();
-  const status = getActivityRegistrationDisplay(activity, { bookedCount, waitlistCount });
+  const { getOrganizationById } = useOrganizations();
+  const hostOrganization = getOrganizationById(activity.organizationId);
+  const status = getActivityRegistrationDisplay(activity, {
+    bookedCount,
+    waitlistCount,
+    organization: hostOrganization,
+    confirmedMember,
+  });
   const positionLabel =
     typeof waitlistPosition === 'number' && waitlistPosition > 0
       ? formatWaitlistPositionLabel(waitlistPosition)

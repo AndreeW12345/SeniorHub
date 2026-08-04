@@ -1,5 +1,10 @@
 import type { Activity } from '@/constants/activities';
+import type { Organization } from '@/constants/organizations';
 import { DEFAULT_REGISTRATION_METHOD } from '@/constants/membership';
+import {
+  resolveActivityMembershipOrganizationName,
+  resolveActivityMembershipUrl,
+} from '@/utils/activity-host';
 
 export type ActivityRegistrationDisplay =
   | { kind: 'hidden' }
@@ -23,9 +28,18 @@ export function hasActivityParticipantLimit(activity: Activity): boolean {
   return activity.hasParticipantLimit === true;
 }
 
-export function getActivityMembershipOrganization(activity: Activity): string | null {
-  const organization = activity.membershipOrganization?.trim();
-  return organization && organization.length > 0 ? organization : null;
+export function getActivityMembershipOrganization(
+  activity: Activity,
+  organization?: Organization | null,
+): string | null {
+  return resolveActivityMembershipOrganizationName(activity, organization);
+}
+
+export function getActivityMembershipUrl(
+  activity: Activity,
+  organization?: Organization | null,
+): string | null {
+  return resolveActivityMembershipUrl(activity, organization);
 }
 
 export function getActivityParticipantCount(activity: Activity): number {
@@ -130,6 +144,10 @@ export type ActivityRegistrationDisplayOptions = {
   bookedCount?: number;
   /** Live waitlist size for SeniorHub activities. */
   waitlistCount?: number;
+  /** Tenant organization profile used for membership copy when available. */
+  organization?: Organization | null;
+  /** When true, hide membership-required lines (user already confirmed). */
+  confirmedMember?: boolean;
 };
 
 export function getActivityRegistrationDisplay(
@@ -140,7 +158,7 @@ export function getActivityRegistrationDisplay(
   const registrationRequired = isActivityRegistrationRequired(activity);
   const hasParticipantLimit = hasActivityParticipantLimit(activity);
   const maxParticipants = getActivityMaxParticipants(activity);
-  const organization = getActivityMembershipOrganization(activity);
+  const organizationName = getActivityMembershipOrganization(activity, options?.organization);
   const lines: string[] = [];
   let isFull = false;
 
@@ -148,8 +166,9 @@ export function getActivityRegistrationDisplay(
     return { kind: 'hidden' };
   }
 
-  if (membershipRequired && organization) {
-    lines.push(`🔒 Endast för ${organization}-medlemmar`);
+  if (membershipRequired && organizationName && !options?.confirmedMember) {
+    lines.push(`🔒 Endast för medlemmar i ${organizationName}`);
+    lines.push('✏️ Medlemskap krävs');
   }
 
   if (registrationRequired) {
@@ -205,8 +224,16 @@ export function isActivityFullWithBookedCount(
 }
 
 export function getActivityRegistrationAction(activity: Activity): RegistrationAction | null {
-  if (!isActivityRegistrationRequired(activity)) {
+  const registrationRequired = isActivityRegistrationRequired(activity);
+  const membershipRequired = isActivityMembershipRequired(activity);
+
+  if (!registrationRequired && !membershipRequired) {
     return null;
+  }
+
+  // Membership-only activities still use the SeniorHub registration form after membership is confirmed.
+  if (!registrationRequired && membershipRequired) {
+    return { method: 'seniorhub' };
   }
 
   const method = activity.registrationMethod ?? DEFAULT_REGISTRATION_METHOD;
@@ -229,27 +256,23 @@ export function getActivityRegistrationAction(activity: Activity): RegistrationA
   return { method: 'seniorhub' };
 }
 
-export function getActivityMembershipUrl(activity: Activity): string | null {
-  const url = activity.membershipUrl?.trim();
-  return url && url.length > 0 ? url : null;
-}
-
 export function getActivityParticipationHelperText(
   activity: Activity,
   isConfirmedMember: boolean,
+  organization?: Organization | null,
 ): string | null {
   if (!isActivityMembershipRequired(activity)) {
     return null;
   }
 
-  const organization = getActivityMembershipOrganization(activity);
-  if (!organization) {
+  const organizationName = getActivityMembershipOrganization(activity, organization);
+  if (!organizationName) {
     return null;
   }
 
   if (isConfirmedMember) {
-    return 'Du uppfyller medlemskravet. Nästa steg är att anmäla dig.';
+    return null;
   }
 
-  return `För att delta behöver du vara medlem i ${organization}. Därefter kan du anmäla dig till aktiviteten.`;
+  return 'För att delta behöver du först bli medlem.';
 }

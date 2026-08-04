@@ -6,7 +6,6 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActivityMembershipActions } from '@/components/activity-membership-actions';
-import { ActivityParticipationHelper } from '@/components/activity-participation-helper';
 import { ActivityRegistrationButton } from '@/components/activity-registration-button';
 import { ActivityRegistrationStatus } from '@/components/activity-registration-status';
 import { ActivityDetailRow } from '@/components/activity-detail-row';
@@ -19,6 +18,8 @@ import { getActivityDisplayLocation, getActivityMapsLocation, getGoogleMapsUrl }
 import { getOrganizerPath } from '@/constants/organizers';
 import { CardShadow, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
+import { useMemberships } from '@/contexts/memberships-context';
+import { useOrganizations } from '@/contexts/organizations-context';
 import { useRegistrations } from '@/contexts/registrations-context';
 import { useActivitySeatAvailability } from '@/hooks/use-activity-seat-availability';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -27,17 +28,49 @@ import { useTheme } from '@/hooks/use-theme';
 import { addActivityToCalendar } from '@/services/calendar';
 import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
 import { showErrorAlert, showSuccessAlert } from '@/utils/confirm-alert';
-import { getActivityRegistrationSectionTitle, shouldShowActivityRegistrationSection } from '@/utils/activity-registration';
+import {
+  getActivityMembershipOrganization,
+  getActivityRegistrationSectionTitle,
+  hasActivityParticipantLimit,
+  isActivityMembershipRequired,
+  isActivityRegistrationRequired,
+  shouldShowActivityRegistrationSection,
+} from '@/utils/activity-registration';
 
 export default function ActivityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const goBack = useSafeBack();
   const { getActivityById } = useActivities();
+  const { getOrganizationById } = useOrganizations();
+  const { isMember } = useMemberships();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { horizontalPadding, contentWidth, isDesktop } = useResponsive();
   const activity = typeof id === 'string' ? getActivityById(id) : undefined;
+  const hostOrganization = activity
+    ? getOrganizationById(activity.organizationId)
+    : undefined;
+  const membershipRequired = activity ? isActivityMembershipRequired(activity) : false;
+  const registrationRequired = activity ? isActivityRegistrationRequired(activity) : false;
+  const membershipOrganizationName = activity
+    ? getActivityMembershipOrganization(activity, hostOrganization)
+    : null;
+  const confirmedMember =
+    membershipOrganizationName != null && isMember(membershipOrganizationName);
+  const showRegistrationButton =
+    Boolean(activity) &&
+    (registrationRequired || membershipRequired) &&
+    (!membershipRequired || confirmedMember);
+  const showParticipationInfo = activity
+    ? shouldShowActivityRegistrationSection(activity) &&
+      !(
+        membershipRequired &&
+        confirmedMember &&
+        !registrationRequired &&
+        !hasActivityParticipantLimit(activity)
+      )
+    : false;
   const { bookedCount, waitlistCount, getWaitlistPositionFor, adjustBookedCount } =
     useActivitySeatAvailability(activity);
   const { isOnWaitlist, getRegistrationId } = useRegistrations();
@@ -163,7 +196,7 @@ export default function ActivityDetailScreen() {
                 value={activity.organizer}
                 onPress={openOrganizer}
               />
-              {shouldShowActivityRegistrationSection(activity) ? (
+              {showParticipationInfo ? (
                 <View style={[styles.registrationBlock, { backgroundColor: theme.primaryLight }]}>
                   <ThemedText type="smallBold" themeColor="textSecondary">
                     {getActivityRegistrationSectionTitle(activity)}
@@ -174,23 +207,25 @@ export default function ActivityDetailScreen() {
                     bookedCount={bookedCount}
                     waitlistCount={waitlistCount}
                     waitlistPosition={waitlistPosition}
+                    confirmedMember={confirmedMember}
                   />
-                  <ActivityParticipationHelper activity={activity} />
                 </View>
               ) : null}
             </View>
           </View>
 
-          <ActivityMembershipActions activity={activity} />
-          <ActivityRegistrationButton
-            activity={activity}
-            bookedCount={bookedCount}
-            onRegistrationComplete={(seatDelta) => {
-              if (typeof seatDelta === 'number') {
-                adjustBookedCount(seatDelta);
-              }
-            }}
-          />
+          {membershipRequired ? <ActivityMembershipActions activity={activity} /> : null}
+          {showRegistrationButton ? (
+            <ActivityRegistrationButton
+              activity={activity}
+              bookedCount={bookedCount}
+              onRegistrationComplete={(seatDelta) => {
+                if (typeof seatDelta === 'number') {
+                  adjustBookedCount(seatDelta);
+                }
+              }}
+            />
+          ) : null}
 
           <Pressable
             onPress={openMaps}
@@ -221,8 +256,13 @@ export default function ActivityDetailScreen() {
               { backgroundColor: theme.card, borderColor: theme.primary },
               (pressed || isAddingToCalendar) && styles.calendarButtonPressed,
             ]}>
+            <SymbolView
+              tintColor={theme.primary}
+              name={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }}
+              size={24}
+            />
             <ThemedText type="bodyLarge" themeColor="primary" style={styles.calendarButtonText}>
-              📅 Lägg till i min kalender
+              Lägg till i min kalender
             </ThemedText>
           </Pressable>
         </View>
@@ -316,8 +356,10 @@ const styles = StyleSheet.create({
     minHeight: 64,
     borderRadius: Radius.xl,
     borderWidth: 2,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.three,
     paddingHorizontal: Spacing.five,
     marginBottom: Spacing.two,
   },
@@ -327,7 +369,6 @@ const styles = StyleSheet.create({
   },
   calendarButtonText: {
     fontWeight: '700',
-    textAlign: 'center',
   },
   notFound: {
     flex: 1,
