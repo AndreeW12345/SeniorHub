@@ -1,5 +1,5 @@
 export { configureNotificationHandler } from './configure-notifications';
-export { getOrCreateDeviceId } from './get-or-create-device-id';
+export { getOrCreateDeviceId, readStoredDeviceId } from './get-or-create-device-id';
 export {
   cancelActivityReminders,
   scheduleActivityReminders,

@@ -5,12 +5,17 @@ import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb } from '@/firebase/config';
 
 /**
- * Clears personal profile fields on the device user document.
+ * Clears personal profile fields on `users/{uid}`.
  * Keeps push-token fields when present so notifications can keep working.
  */
 export async function clearUserProfileFields(
-  deviceId: string,
+  userId: string,
 ): Promise<{ ok: true } | { ok: false; errorMessage: string }> {
+  const trimmedId = userId.trim();
+  if (!trimmedId) {
+    return { ok: false, errorMessage: 'Ingen inloggad användare.' };
+  }
+
   const db = getFirestoreDb();
   if (!db) {
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
@@ -18,7 +23,7 @@ export async function clearUserProfileFields(
 
   try {
     await setDoc(
-      doc(db, FIRESTORE_COLLECTIONS.users, deviceId),
+      doc(db, FIRESTORE_COLLECTIONS.users, trimmedId),
       {
         name: deleteField(),
         phone: deleteField(),

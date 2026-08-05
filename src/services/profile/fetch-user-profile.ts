@@ -24,17 +24,22 @@ export function mapUserProfileDocument(data: Record<string, unknown> | undefined
   };
 }
 
-/** Loads the device user's profile from Firestore. */
+/** Loads the signed-in user's profile from Firestore `users/{uid}`. */
 export async function fetchUserProfile(
-  deviceId: string,
+  userId: string,
 ): Promise<{ ok: true; profile: UserProfile } | { ok: false; errorMessage: string }> {
+  const trimmedId = userId.trim();
+  if (!trimmedId) {
+    return { ok: false, errorMessage: 'Ingen inloggad användare.' };
+  }
+
   const db = getFirestoreDb();
   if (!db) {
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
 
   try {
-    const snapshot = await getDoc(doc(db, FIRESTORE_COLLECTIONS.users, deviceId));
+    const snapshot = await getDoc(doc(db, FIRESTORE_COLLECTIONS.users, trimmedId));
     return {
       ok: true,
       profile: mapUserProfileDocument(

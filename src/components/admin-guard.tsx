@@ -16,19 +16,18 @@ type AdminGuardProps = {
  * Protects admin-only screens.
  *
  * While auth is initializing, shows a loading state. When the user is not
- * signed in, redirects to the login screen. Anonymous users can still browse
- * the rest of the app.
+ * signed in as an administrator, redirects to admin login.
  */
 export function AdminGuard({ children }: AdminGuardProps) {
   const router = useRouter();
   const theme = useTheme();
-  const { isAuthenticated, isInitializing } = useAuth();
+  const { isAdmin, isInitializing } = useAuth();
 
   useEffect(() => {
-    if (!isInitializing && !isAuthenticated) {
-      router.replace('/login' as Href);
+    if (!isInitializing && !isAdmin) {
+      router.replace('/admin/login' as Href);
     }
-  }, [isAuthenticated, isInitializing, router]);
+  }, [isAdmin, isInitializing, router]);
 
   if (isInitializing) {
     return (
@@ -43,7 +42,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAdmin) {
     return null;
   }
 

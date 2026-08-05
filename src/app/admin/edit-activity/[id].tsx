@@ -143,6 +143,7 @@ function EditActivityScreenContent() {
         registrationUrl: activity.registrationUrl ?? '',
         registrationPhone: activity.registrationPhone ?? '',
         registrationEmail: activity.registrationEmail ?? '',
+        isCancelled: activity.isCancelled === true,
       }}
       onSubmitSuccess={async () => {
         await refreshActivities();

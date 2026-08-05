@@ -75,7 +75,7 @@ function AdminScreenContent() {
     if (!result.ok) {
       return;
     }
-    router.replace('/login' as Href);
+    router.replace('/admin/login' as Href);
   }, [router, signOut]);
 
   const handleScopeChange = useCallback(

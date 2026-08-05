@@ -5,11 +5,16 @@ import type { UserProfile, UserProfileUpdate } from '@/constants/user-profile';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb } from '@/firebase/config';
 
-/** Saves profile fields to Firestore `users/{deviceId}` (merge-safe). */
+/** Saves profile fields to Firestore `users/{uid}` (merge-safe). */
 export async function saveUserProfile(
-  deviceId: string,
+  userId: string,
   update: UserProfileUpdate,
 ): Promise<{ ok: true; profile: UserProfile } | { ok: false; errorMessage: string }> {
+  const trimmedId = userId.trim();
+  if (!trimmedId) {
+    return { ok: false, errorMessage: 'Ingen inloggad användare.' };
+  }
+
   const db = getFirestoreDb();
   if (!db) {
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
@@ -38,7 +43,7 @@ export async function saveUserProfile(
       payload.photoUrl = photoUrl;
     }
 
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.users, deviceId), payload, { merge: true });
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.users, trimmedId), payload, { merge: true });
 
     return {
       ok: true,

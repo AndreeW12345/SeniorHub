@@ -25,7 +25,7 @@ async function compressProfileImage(uri: string): Promise<{ base64?: string }> {
 /** Uploads a square profile photo to Firebase Storage. */
 export async function uploadProfileImage(
   localUri: string,
-  deviceId: string,
+  userId: string,
 ): Promise<UploadProfileImageResult> {
   if (!isFirebaseStorageConfigured()) {
     return {
@@ -39,13 +39,18 @@ export async function uploadProfileImage(
     return { ok: false, errorMessage: 'Firebase Storage kunde inte initieras.' };
   }
 
+  const trimmedId = userId.trim();
+  if (!trimmedId) {
+    return { ok: false, errorMessage: 'Ingen inloggad användare.' };
+  }
+
   try {
     const compressed = await compressProfileImage(localUri);
     if (!compressed.base64) {
       return { ok: false, errorMessage: 'Kunde inte läsa den valda bilden.' };
     }
 
-    const path = `profiles/${deviceId}/avatar.jpg`;
+    const path = `profiles/${trimmedId}/avatar.jpg`;
     const storageRef = ref(storage, path);
     await uploadString(storageRef, compressed.base64, 'base64', {
       contentType: 'image/jpeg',

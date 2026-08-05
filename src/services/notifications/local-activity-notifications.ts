@@ -67,17 +67,21 @@ export async function sendLocalBookingConfirmation(activityTitle: string): Promi
 }
 
 /** Local notification when the user is promoted from the waitlist. */
-export async function sendLocalWaitlistPromotedNotification(): Promise<void> {
+export async function sendLocalWaitlistPromotedNotification(
+  activityTitle?: string,
+): Promise<void> {
   if (!canUseLocalNotifications()) {
     return;
   }
+
+  const title = activityTitle?.trim() || 'aktiviteten';
 
   try {
     await ensureAndroidNotificationChannel();
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Plats tillgänglig',
-        body: 'Du har fått en plats på aktiviteten!',
+        title: 'Plats från väntelistan',
+        body: `Du har fått en plats på '${title}' från väntelistan.`,
         data: { type: 'waitlist_promoted' },
         sound: true,
       },

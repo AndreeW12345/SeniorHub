@@ -93,6 +93,8 @@ export type Activity = {
   recurrence?: RecurrenceRule | null;
   /** True when this occurrence was edited independently of the rest of the series. */
   isRecurrenceException?: boolean | null;
+  /** True when the activity has been cancelled / ställts in. */
+  isCancelled?: boolean | null;
 };
 
 export function getActivityDisplayLocation(activity: Activity): string {

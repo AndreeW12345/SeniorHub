@@ -17,6 +17,7 @@ import { UserProfileProvider } from '@/contexts/user-profile-context';
 import { PushNotificationsBootstrap } from '@/components/push-notifications-bootstrap';
 import { WaitlistPromotionNotifier } from '@/components/waitlist-promotion-notifier';
 import { ActivityAnnouncementsNotifier } from '@/components/activity-announcements-notifier';
+import { AuthEmailLinkHandler } from '@/components/auth-email-link-handler';
 
 const SeniorHubTheme = {
   ...DefaultTheme,
@@ -46,6 +47,7 @@ export default function RootLayout() {
                           <ThemeProvider value={SeniorHubTheme}>
                             <StatusBar style="light" />
                             <PushNotificationsBootstrap />
+                            <AuthEmailLinkHandler />
                             <WaitlistPromotionNotifier />
                             <ActivityAnnouncementsNotifier />
                             <Stack
@@ -55,6 +57,34 @@ export default function RootLayout() {
                               }}>
                               <Stack.Screen name="(tabs)" />
                               <Stack.Screen
+                                name="login"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="register"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="auth/complete"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="admin/login"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
                                 name="activity/[id]"
                                 options={{
                                   presentation: 'card',
@@ -63,13 +93,6 @@ export default function RootLayout() {
                               />
                               <Stack.Screen
                                 name="organizer/[slug]"
-                                options={{
-                                  presentation: 'card',
-                                  animation: 'slide_from_right',
-                                }}
-                              />
-                              <Stack.Screen
-                                name="login"
                                 options={{
                                   presentation: 'card',
                                   animation: 'slide_from_right',

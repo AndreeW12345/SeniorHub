@@ -10,10 +10,11 @@ import {
 } from 'react';
 
 import { EMPTY_USER_PROFILE, type UserProfile, type UserProfileUpdate } from '@/constants/user-profile';
-import { getOrCreateDeviceId } from '@/services/notifications';
+import { useAuth } from '@/contexts/auth-context';
 import {
   clearUserProfileFields,
   fetchUserProfile,
+  migrateDeviceProfileToUid,
   saveUserProfile,
 } from '@/services/profile';
 
@@ -21,7 +22,8 @@ const PROFILE_CACHE_KEY = '@seniorhub/user-profile';
 
 type UserProfileContextValue = {
   profile: UserProfile;
-  deviceId: string | null;
+  /** Firebase Auth UID used as Firestore `users/{uid}` document id, or null when signed out. */
+  userId: string | null;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
   updateProfile: (
@@ -61,17 +63,31 @@ async function cacheProfile(profile: UserProfile) {
   await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
 }
 
-/** Loads and persists the device user's profile from Firestore. */
+/** Loads and persists the signed-in user's profile from Firestore `users/{uid}`. */
 export function UserProfileProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const userId = user?.uid?.trim() || null;
   const [profile, setProfile] = useState<UserProfile>({ ...EMPTY_USER_PROFILE });
-  const [deviceId, setDeviceId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshProfile = useCallback(async () => {
-    const id = await getOrCreateDeviceId();
-    setDeviceId(id);
+    if (!userId) {
+      const empty = { ...EMPTY_USER_PROFILE };
+      setProfile(empty);
+      return;
+    }
 
-    const result = await fetchUserProfile(id);
+    const migration = await migrateDeviceProfileToUid(userId);
+    if (migration.ok) {
+      setProfile(migration.profile);
+      await cacheProfile(migration.profile);
+
+      if (migration.migrated) {
+        return;
+      }
+    }
+
+    const result = await fetchUserProfile(userId);
     if (result.ok) {
       setProfile(result.profile);
       await cacheProfile(result.profile);
@@ -82,13 +98,21 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     if (cached) {
       setProfile(cached);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function load() {
+      setIsLoading(true);
       try {
+        if (!userId) {
+          if (isMounted) {
+            setProfile({ ...EMPTY_USER_PROFILE });
+          }
+          return;
+        }
+
         const cached = parseCachedProfile(await AsyncStorage.getItem(PROFILE_CACHE_KEY));
         if (isMounted && cached) {
           setProfile(cached);
@@ -107,16 +131,15 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, [refreshProfile]);
+  }, [refreshProfile, userId]);
 
   const updateProfile = useCallback(
     async (update: UserProfileUpdate) => {
-      const id = deviceId ?? (await getOrCreateDeviceId());
-      if (!deviceId) {
-        setDeviceId(id);
+      if (!userId) {
+        return { ok: false as const, errorMessage: 'Logga in för att spara din profil.' };
       }
 
-      const result = await saveUserProfile(id, update);
+      const result = await saveUserProfile(userId, update);
       if (!result.ok) {
         return result;
       }
@@ -133,12 +156,15 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       await cacheProfile(nextProfile);
       return { ok: true as const };
     },
-    [deviceId, profile.photoUrl],
+    [userId, profile.photoUrl],
   );
 
   const deleteProfile = useCallback(async () => {
-    const id = deviceId ?? (await getOrCreateDeviceId());
-    const result = await clearUserProfileFields(id);
+    if (!userId) {
+      return { ok: false as const, errorMessage: 'Logga in för att ta bort din profil.' };
+    }
+
+    const result = await clearUserProfileFields(userId);
     if (!result.ok) {
       return result;
     }
@@ -147,7 +173,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     setProfile(empty);
     await cacheProfile(empty);
     return { ok: true as const };
-  }, [deviceId]);
+  }, [userId]);
 
   const clearLocalProfileCache = useCallback(async () => {
     const empty = { ...EMPTY_USER_PROFILE };
@@ -158,7 +184,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       profile,
-      deviceId,
+      userId,
       isLoading,
       refreshProfile,
       updateProfile,
@@ -167,7 +193,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     }),
     [
       profile,
-      deviceId,
+      userId,
       isLoading,
       refreshProfile,
       updateProfile,

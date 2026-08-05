@@ -37,6 +37,7 @@ import {
   updateActivityInFirestore,
   type ActivityFormInput,
 } from '@/services/activities';
+import { notifyActivityImportantUpdates } from '@/services/announcements';
 import { geocodeAddress } from '@/services/geocoding';
 import { uploadActivityImage } from '@/services/storage';
 import { buildFullAddress } from '@/utils/address-format';
@@ -127,6 +128,7 @@ const EMPTY_FORM: ActivityFormInput = {
   registrationUrl: '',
   registrationPhone: '',
   registrationEmail: '',
+  isCancelled: false,
 };
 
 const REGISTRATION_METHOD_OPTIONS = REGISTRATION_METHODS.map((method) => ({
@@ -210,6 +212,7 @@ export function AdminActivityForm({
   const [registrationUrl, setRegistrationUrl] = useState(initialValues.registrationUrl ?? '');
   const [registrationPhone, setRegistrationPhone] = useState(initialValues.registrationPhone ?? '');
   const [registrationEmail, setRegistrationEmail] = useState(initialValues.registrationEmail ?? '');
+  const [isCancelled, setIsCancelled] = useState(initialValues.isCancelled === true);
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>(
     initialRecurrence?.frequency ?? 'none',
   );
@@ -447,6 +450,7 @@ export function AdminActivityForm({
       registrationUrl: registrationRequired && registrationMethod === 'external' ? registrationUrl : '',
       registrationPhone: registrationRequired && registrationMethod === 'phone' ? registrationPhone : '',
       registrationEmail: registrationRequired && registrationMethod === 'email' ? registrationEmail : '',
+      isCancelled,
     };
 
     const result = isEditMode
@@ -473,6 +477,18 @@ export function AdminActivityForm({
     if (!result.ok) {
       setSubmitError(result.errorMessage);
       return;
+    }
+
+    if (isEditMode && activityId) {
+      void notifyActivityImportantUpdates({
+        activityId,
+        previous: initialValues,
+        next: input,
+        seriesScope:
+          belongsToSeries && seriesEditScope === 'series' && seriesId
+            ? { seriesId }
+            : null,
+      });
     }
 
     await onSubmitSuccess();
@@ -996,6 +1012,19 @@ export function AdminActivityForm({
             />
           ) : null}
         </AdminFormSection>
+
+        {isEditMode ? (
+          <AdminFormSection
+            title="Status"
+            description="Om aktiviteten ställs in får anmälda deltagare en notis (om de har aktivitetsuppdateringar på).">
+            <FormCheckbox
+              label="Markera som inställd"
+              checked={isCancelled}
+              onChange={setIsCancelled}
+              disabled={isBusy}
+            />
+          </AdminFormSection>
+        ) : null}
 
         {isEditMode && activityId ? (
           <AdminFormSection

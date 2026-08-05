@@ -2,17 +2,23 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { Unsubscribe } from 'firebase/firestore';
 
 import type { ActivityAnnouncement } from '@/constants/announcements';
+import { useNotificationPreferences } from '@/contexts/notification-preferences-context';
 import { useNotifications } from '@/contexts/notifications-context';
 import { useRegistrations } from '@/contexts/registrations-context';
 import { subscribeActivityAnnouncements } from '@/services/announcements';
-import { createActivityAnnouncementNotification } from '@/utils/notifications';
+import {
+  createActivityAnnouncementNotification,
+  createActivityUpdateNotification,
+} from '@/utils/notifications';
 
 /**
- * Syncs admin activity announcements into the local Notiser inbox for devices
- * that have a confirmed booking for the activity.
+ * Syncs activity announcements (manual + automatic updates) into the local
+ * Notiser inbox for devices that have a confirmed booking for the activity.
+ * Automatic activity updates respect the "Aktivitetsuppdateringar" preference.
  */
 export function ActivityAnnouncementsNotifier() {
   const { localBookings, isLoading: registrationsLoading } = useRegistrations();
+  const { preferences } = useNotificationPreferences();
   const {
     addNotification,
     notifications,
@@ -35,7 +41,8 @@ export function ActivityAnnouncementsNotifier() {
   useEffect(() => {
     for (const notification of notifications) {
       if (
-        notification.type === 'activity_announcement' &&
+        (notification.type === 'activity_announcement' ||
+          notification.type === 'activity_update') &&
         notification.id.startsWith('announcement-')
       ) {
         knownAnnouncementIdsRef.current.add(notification.id.slice('announcement-'.length));
@@ -63,13 +70,37 @@ export function ActivityAnnouncementsNotifier() {
         return;
       }
 
+      const isActivityUpdate = announcement.kind === 'activity_update';
+
+      if (isActivityUpdate && !preferences.activityUpdates) {
+        // Remember ids while the preference is off so turning it on later
+        // does not flood the inbox with updates the user already opted out of.
+        knownAnnouncementIdsRef.current.add(announcement.id);
+        return;
+      }
+
       knownAnnouncementIdsRef.current.add(announcement.id);
+
+      if (isActivityUpdate) {
+        addNotification(
+          createActivityUpdateNotification({
+            announcementId: announcement.id,
+            icon: announcement.icon || '📢',
+            title: announcement.title,
+            message: announcement.message,
+            createdAt: announcement.createdAt,
+          }),
+        );
+        return;
+      }
+
       addNotification(
         createActivityAnnouncementNotification({
           announcementId: announcement.id,
           title: announcement.title,
           message: announcement.message,
           createdAt: announcement.createdAt,
+          icon: announcement.icon,
         }),
       );
     };
@@ -93,6 +124,7 @@ export function ActivityAnnouncementsNotifier() {
     notificationsLoading,
     registeredActivityIdsKey,
     addNotification,
+    preferences.activityUpdates,
   ]);
 
   return null;

@@ -1,5 +1,6 @@
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
+import type { ActivityAnnouncementKind } from '@/constants/announcements';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
 
@@ -7,6 +8,9 @@ export type CreateActivityAnnouncementInput = {
   title: string;
   message: string;
   createdBy?: string;
+  /** Defaults to manual (admin "Meddela deltagare"). */
+  kind?: ActivityAnnouncementKind;
+  icon?: string;
 };
 
 export type CreateActivityAnnouncementResult =
@@ -54,12 +58,18 @@ export async function createActivityAnnouncement(
     const payload: Record<string, unknown> = {
       title,
       message,
+      kind: input.kind === 'activity_update' ? 'activity_update' : 'manual',
       createdAt: serverTimestamp(),
     };
 
     const createdBy = input.createdBy?.trim();
     if (createdBy) {
       payload.createdBy = createdBy;
+    }
+
+    const icon = input.icon?.trim();
+    if (icon) {
+      payload.icon = icon;
     }
 
     const docRef = await addDoc(announcementsRef, payload);

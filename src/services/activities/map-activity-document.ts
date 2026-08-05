@@ -100,5 +100,15 @@ export function mapActivityDocument(id: string, data: FirestoreActivityData): Ac
     occurrenceIndex: readNonNegativeInteger(data, 'occurrenceIndex'),
     recurrence: parseRecurrenceRule(data.recurrence),
     isRecurrenceException: readBoolean(data, 'isRecurrenceException'),
+    isCancelled: readIsCancelled(data),
   };
+}
+
+function readIsCancelled(data: FirestoreActivityData): boolean {
+  if (data.isCancelled === true || data.cancelled === true) {
+    return true;
+  }
+
+  const status = readString(data, 'status');
+  return status === 'cancelled' || status === 'inställd' || status === 'installd';
 }

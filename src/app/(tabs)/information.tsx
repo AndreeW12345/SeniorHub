@@ -38,15 +38,15 @@ function InfoStep({ icon, text }: { icon: SymbolViewProps['name']; text: string 
 export default function InformationScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { isAuthenticated, user, signOut } = useAuth();
+  const { isAdmin, user, signOut } = useAuth();
 
   const handleAdminPress = () => {
-    if (isAuthenticated) {
+    if (isAdmin) {
       router.push('/admin' as Href);
       return;
     }
 
-    router.push('/login' as Href);
+    router.push('/admin/login' as Href);
   };
 
   const handleSignOut = async () => {
@@ -54,7 +54,7 @@ export default function InformationScreen() {
     if (!result.ok) {
       return;
     }
-    router.replace('/login' as Href);
+    router.replace('/admin/login' as Href);
   };
 
   return (
@@ -95,7 +95,7 @@ export default function InformationScreen() {
       </InfoSection>
 
       <InfoSection title="För administratörer">
-        {isAuthenticated && user?.email ? (
+        {isAdmin && user?.email ? (
           <ThemedText type="bodyLarge" themeColor="textSecondary">
             Du är inloggad som {user.email}.
           </ThemedText>
@@ -107,7 +107,7 @@ export default function InformationScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={isAuthenticated ? 'Öppna administratörsvyn' : 'Logga in som administratör'}
+          accessibilityLabel={isAdmin ? 'Öppna administratörsvyn' : 'Logga in som administratör'}
           onPress={handleAdminPress}
           style={({ pressed }) => [
             styles.adminButton,
@@ -115,11 +115,11 @@ export default function InformationScreen() {
             pressed && styles.adminButtonPressed,
           ]}>
           <ThemedText type="bodyLarge" style={styles.adminButtonText}>
-            {isAuthenticated ? 'Öppna administratörsvyn' : 'Logga in som administratör'}
+            {isAdmin ? 'Öppna administratörsvyn' : 'Logga in som administratör'}
           </ThemedText>
         </Pressable>
 
-        {isAuthenticated ? (
+        {isAdmin ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Logga ut"

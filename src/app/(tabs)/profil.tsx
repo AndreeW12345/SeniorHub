@@ -10,6 +10,11 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserProfile } from '@/contexts/user-profile-context';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  clearEmailForSignIn,
+  clearPendingRegistration,
+  deleteCurrentAuthUser,
+} from '@/services/auth';
 import { confirmDestructiveAction, showErrorAlert, showSuccessAlert } from '@/utils/confirm-alert';
 
 function displayOrPlaceholder(value: string, placeholder: string) {
@@ -21,7 +26,7 @@ function displayOrPlaceholder(value: string, placeholder: string) {
 export default function ProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { isAuthenticated, signOut } = useAuth();
+  const { isSignedIn, signOut } = useAuth();
   const { profile, isLoading, deleteProfile, clearLocalProfileCache } = useUserProfile();
 
   const handleSignOut = () => {
@@ -37,9 +42,34 @@ export default function ProfileScreen() {
             return;
           }
 
-          // Clear local cache only after Firebase Auth sign-out succeeds.
+          await clearEmailForSignIn();
+          await clearPendingRegistration();
           await clearLocalProfileCache();
           showSuccessAlert('Utloggad', 'Du har loggats ut.');
+          router.replace('/login' as Href);
+        })();
+      },
+    );
+  };
+
+  const handleSwitchAccount = () => {
+    confirmDestructiveAction(
+      'Byt konto',
+      'Du loggas ut och kan sedan logga in med en annan e-postadress.',
+      'Byt konto',
+      () => {
+        void (async () => {
+          if (isSignedIn) {
+            const result = await signOut();
+            if (!result.ok) {
+              showErrorAlert('Kunde inte byta konto', result.errorMessage);
+              return;
+            }
+          }
+
+          await clearEmailForSignIn();
+          await clearPendingRegistration();
+          await clearLocalProfileCache();
           router.replace('/login' as Href);
         })();
       },
@@ -50,19 +80,28 @@ export default function ProfileScreen() {
     router.push('/login' as Href);
   };
 
+  const handleCreateAccount = () => {
+    router.push('/register' as Href);
+  };
+
   const handleDeleteAccount = () => {
     confirmDestructiveAction(
       'Ta bort konto',
-      'Detta tar bort dina sparade profiluppgifter (namn, telefon, e-post och bild). Åtgärden kan inte ångras.',
+      isSignedIn
+        ? 'Detta tar bort ditt konto och dina sparade profiluppgifter. Åtgärden kan inte ångras.'
+        : 'Detta tar bort dina sparade profiluppgifter (namn, telefon, e-post och bild). Åtgärden kan inte ångras.',
       'Ta bort konto',
       () => {
         void (async () => {
-          const wasAuthenticated = isAuthenticated;
+          const wasSignedIn = isSignedIn;
 
-          if (wasAuthenticated) {
-            const authResult = await signOut();
-            if (!authResult.ok) {
-              showErrorAlert('Kunde inte ta bort', authResult.errorMessage);
+          if (wasSignedIn) {
+            const authDelete = await deleteCurrentAuthUser();
+            if (!authDelete.ok) {
+              showErrorAlert(
+                'Kunde inte ta bort kontot',
+                'Logga in igen med din e-postlänk och försök ta bort kontot direkt efteråt.',
+              );
               return;
             }
             await clearLocalProfileCache();
@@ -74,8 +113,8 @@ export default function ProfileScreen() {
             return;
           }
 
-          showSuccessAlert('Konto borttaget', 'Dina profiluppgifter har tagits bort.');
-          router.replace(wasAuthenticated ? ('/login' as Href) : ('/' as Href));
+          showSuccessAlert('Konto borttaget', 'Dina uppgifter har tagits bort.');
+          router.replace(wasSignedIn ? ('/login' as Href) : ('/' as Href));
         })();
       },
     );
@@ -149,34 +188,78 @@ export default function ProfileScreen() {
           </ProfileSection>
 
           <ProfileSection title="Konto">
-            {isAuthenticated ? (
-              <Pressable
-                onPress={handleSignOut}
-                accessibilityRole="button"
-                accessibilityLabel="Logga ut"
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  { borderColor: theme.primary, backgroundColor: theme.card },
-                  pressed && styles.pressed,
-                ]}>
-                <ThemedText type="bodyLarge" themeColor="primary" style={styles.secondaryButtonText}>
-                  Logga ut
-                </ThemedText>
-              </Pressable>
+            {isSignedIn ? (
+              <>
+                <Pressable
+                  onPress={handleSignOut}
+                  accessibilityRole="button"
+                  accessibilityLabel="Logga ut"
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    { borderColor: theme.primary, backgroundColor: theme.card },
+                    pressed && styles.pressed,
+                  ]}>
+                  <ThemedText
+                    type="bodyLarge"
+                    themeColor="primary"
+                    style={styles.secondaryButtonText}>
+                    Logga ut
+                  </ThemedText>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleSwitchAccount}
+                  accessibilityRole="button"
+                  accessibilityLabel="Byt konto"
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    { borderColor: theme.primary, backgroundColor: theme.card },
+                    pressed && styles.pressed,
+                  ]}>
+                  <ThemedText
+                    type="bodyLarge"
+                    themeColor="primary"
+                    style={styles.secondaryButtonText}>
+                    Byt konto
+                  </ThemedText>
+                </Pressable>
+              </>
             ) : (
-              <Pressable
-                onPress={handleSignIn}
-                accessibilityRole="button"
-                accessibilityLabel="Logga in"
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  { borderColor: theme.primary, backgroundColor: theme.card },
-                  pressed && styles.pressed,
-                ]}>
-                <ThemedText type="bodyLarge" themeColor="primary" style={styles.secondaryButtonText}>
-                  Logga in
-                </ThemedText>
-              </Pressable>
+              <>
+                <Pressable
+                  onPress={handleSignIn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Logga in"
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    { borderColor: theme.primary, backgroundColor: theme.card },
+                    pressed && styles.pressed,
+                  ]}>
+                  <ThemedText
+                    type="bodyLarge"
+                    themeColor="primary"
+                    style={styles.secondaryButtonText}>
+                    Logga in
+                  </ThemedText>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleCreateAccount}
+                  accessibilityRole="button"
+                  accessibilityLabel="Skapa konto"
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    { borderColor: theme.primary, backgroundColor: theme.card },
+                    pressed && styles.pressed,
+                  ]}>
+                  <ThemedText
+                    type="bodyLarge"
+                    themeColor="primary"
+                    style={styles.secondaryButtonText}>
+                    Skapa konto
+                  </ThemedText>
+                </Pressable>
+              </>
             )}
 
             <Pressable

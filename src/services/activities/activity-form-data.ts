@@ -35,6 +35,8 @@ export type ActivityFormInput = {
   registrationUrl?: string;
   registrationPhone?: string;
   registrationEmail?: string;
+  /** When true, the activity is cancelled / ställts in. */
+  isCancelled?: boolean;
 };
 
 export type ActivityMutationResult =
@@ -231,6 +233,7 @@ export function buildActivityDocumentData(input: ActivityFormInput) {
       registrationUrl,
       registrationPhone,
       registrationEmail,
+      isCancelled: input.isCancelled === true,
     },
   };
 }

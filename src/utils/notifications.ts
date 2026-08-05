@@ -1,4 +1,8 @@
-import type { AppNotification, CreateNotificationInput } from '@/constants/notifications';
+import type {
+  AppNotification,
+  CreateNotificationInput,
+  NotificationType,
+} from '@/constants/notifications';
 
 export function createRegistrationConfirmedNotification(
   activityTitle: string,
@@ -21,12 +25,14 @@ export function createCancellationNotification(activityTitle: string): CreateNot
 }
 
 export function createWaitlistPromotedNotification(
-  _activityTitle: string,
+  activityTitle: string,
 ): CreateNotificationInput {
+  const title = activityTitle.trim() || 'aktiviteten';
+
   return {
-    icon: '🎉',
-    title: 'Plats tillgänglig',
-    description: 'Du har fått en plats på aktiviteten!',
+    icon: '✅',
+    title: 'Plats från väntelistan',
+    description: `Du har fått en plats på '${title}' från väntelistan.`,
     type: 'waitlist_promoted',
   };
 }
@@ -36,15 +42,34 @@ export function createActivityAnnouncementNotification(input: {
   title: string;
   message: string;
   createdAt: Date;
+  icon?: string;
+  type?: Extract<NotificationType, 'activity_announcement' | 'activity_update'>;
 }): CreateNotificationInput {
   return {
     id: `announcement-${input.announcementId}`,
-    icon: '📢',
+    icon: input.icon?.trim() || '📢',
     title: input.title.trim(),
     description: input.message.trim(),
-    type: 'activity_announcement',
+    type: input.type ?? 'activity_announcement',
     createdAt: input.createdAt.toISOString(),
   };
+}
+
+export function createActivityUpdateNotification(input: {
+  announcementId: string;
+  icon: string;
+  title: string;
+  message: string;
+  createdAt: Date;
+}): CreateNotificationInput {
+  return createActivityAnnouncementNotification({
+    announcementId: input.announcementId,
+    icon: input.icon,
+    title: input.title,
+    message: input.message,
+    createdAt: input.createdAt,
+    type: 'activity_update',
+  });
 }
 
 /** Newest notifications first. */

@@ -10,7 +10,6 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useUserProfile } from '@/contexts/user-profile-context';
 import { useSafeBack } from '@/hooks/use-safe-back';
 import { useTheme } from '@/hooks/use-theme';
-import { getOrCreateDeviceId } from '@/services/notifications';
 import { uploadProfileImage } from '@/services/profile';
 import { showErrorAlert, showSuccessAlert } from '@/utils/confirm-alert';
 
@@ -25,7 +24,7 @@ function isValidEmail(value: string): boolean {
 export default function EditProfileScreen() {
   const theme = useTheme();
   const goBack = useSafeBack();
-  const { profile, isLoading, updateProfile, deviceId } = useUserProfile();
+  const { profile, isLoading, updateProfile, userId } = useUserProfile();
 
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone);
@@ -99,8 +98,12 @@ export default function EditProfileScreen() {
       let nextPhotoUrl = photoUrl;
 
       if (localPhotoUri) {
-        const id = deviceId ?? (await getOrCreateDeviceId());
-        const uploadResult = await uploadProfileImage(localPhotoUri, id);
+        if (!userId) {
+          showErrorAlert('Kunde inte spara', 'Logga in för att spara din profilbild.');
+          return;
+        }
+
+        const uploadResult = await uploadProfileImage(localPhotoUri, userId);
         if (!uploadResult.ok) {
           showErrorAlert('Kunde inte ladda upp bild', uploadResult.errorMessage);
           return;

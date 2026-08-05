@@ -4,6 +4,7 @@ export const NOTIFICATION_TYPES = [
   'cancellation',
   'waitlist_promoted',
   'activity_announcement',
+  'activity_update',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

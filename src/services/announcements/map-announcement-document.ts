@@ -1,4 +1,7 @@
-import type { ActivityAnnouncement } from '@/constants/announcements';
+import type {
+  ActivityAnnouncement,
+  ActivityAnnouncementKind,
+} from '@/constants/announcements';
 
 function parseCreatedAt(value: unknown): Date | null {
   if (
@@ -32,6 +35,12 @@ export function mapAnnouncementDocument(
     typeof data.createdBy === 'string' && data.createdBy.trim().length > 0
       ? data.createdBy.trim()
       : undefined;
+  const kind: ActivityAnnouncementKind =
+    data.kind === 'activity_update' ? 'activity_update' : 'manual';
+  const icon =
+    typeof data.icon === 'string' && data.icon.trim().length > 0
+      ? data.icon.trim()
+      : undefined;
 
   if (!id.trim() || !activityId.trim() || !title || !message || !createdAt) {
     return null;
@@ -44,5 +53,7 @@ export function mapAnnouncementDocument(
     message,
     createdAt,
     createdBy,
+    kind,
+    icon,
   };
 }

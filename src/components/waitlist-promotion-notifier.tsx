@@ -46,9 +46,12 @@ export function WaitlistPromotionNotifier() {
     for (const activityId of previousWaitlistIds) {
       if (!waitlistIds.has(activityId) && registeredIds.has(activityId)) {
         const activity = getActivityById(activityId);
-        const activityTitle = activity?.title?.trim() || 'aktiviteten';
-        addNotification(createWaitlistPromotedNotification(activityTitle));
-        void sendLocalWaitlistPromotedNotification();
+
+        if (preferences.activityUpdates) {
+          const activityTitle = activity?.title?.trim() || 'aktiviteten';
+          addNotification(createWaitlistPromotedNotification(activityTitle));
+          void sendLocalWaitlistPromotedNotification(activityTitle);
+        }
 
         if (activity) {
           void scheduleActivityReminders(activity, preferences);

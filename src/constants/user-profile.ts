@@ -1,4 +1,4 @@
-/** End-user profile stored on Firestore `users/{deviceId}`. */
+/** End-user profile stored on Firestore `users/{uid}` (Firebase Auth UID). */
 export type UserProfile = {
   name: string;
   phone: string;

@@ -8,14 +8,21 @@ function createDeviceId(): string {
   return `device_${timePart}_${randomPart}`;
 }
 
+/** Reads a previously stored installation id without creating a new one. */
+export async function readStoredDeviceId(): Promise<string | null> {
+  const existing = await AsyncStorage.getItem(DEVICE_ID_STORAGE_KEY);
+  const trimmed = existing?.trim();
+  return trimmed ? trimmed : null;
+}
+
 /**
- * Stable installation id used as the Firestore "user" key for push tokens
- * (SeniorHub has no end-user Firebase Auth).
+ * Stable installation id used for push-token documents and legacy profile migration.
+ * User profiles now use Firebase Auth `uid` (`users/{uid}`).
  */
 export async function getOrCreateDeviceId(): Promise<string> {
-  const existing = await AsyncStorage.getItem(DEVICE_ID_STORAGE_KEY);
-  if (existing?.trim()) {
-    return existing.trim();
+  const existing = await readStoredDeviceId();
+  if (existing) {
+    return existing;
   }
 
   const nextId = createDeviceId();
