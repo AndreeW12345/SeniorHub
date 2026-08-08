@@ -1,9 +1,11 @@
 import { createActivityRegistration } from '@/services/registrations/fetch-registrations';
 import { incrementActivityParticipants } from '@/services/activities/save-activity';
+import { notifyOrganizerBookingInFirestore } from '@/services/notifications/notify-organizer-booking';
 
 export type SubmitActivityRegistrationInput = {
   name: string;
   phone: string;
+  userId?: string;
 };
 
 export type SubmitActivityRegistrationResult =
@@ -22,11 +24,18 @@ export async function submitActivityRegistration(
     name: input.name,
     phone: input.phone,
     status: 'registered',
+    userId: input.userId,
   });
 
   if (!createResult.ok) {
     return createResult;
   }
+
+  void notifyOrganizerBookingInFirestore({
+    activityId,
+    registrationId: createResult.id,
+    userName: input.name,
+  });
 
   const countResult = await incrementActivityParticipants(activityId);
 

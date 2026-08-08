@@ -1,12 +1,11 @@
-import type { NotificationPreferences } from '@/constants/notification-preferences';
+import type { RegisterPushNotificationsResult } from './register-push-notifications';
 
-export type RegisterPushNotificationsResult =
-  | { ok: true; expoPushToken: string | null; permissionGranted: boolean }
-  | { ok: false; errorMessage: string };
+export type { RegisterPushNotificationsResult };
 
-/** Web no-op: push registration is mobile-only. */
-export async function registerPushNotifications(_options?: {
-  preferences?: NotificationPreferences;
-}): Promise<RegisterPushNotificationsResult> {
-  return { ok: true, expoPushToken: null, permissionGranted: false };
+export async function registerPushNotifications(): Promise<RegisterPushNotificationsResult> {
+  return { ok: true, fcmToken: null, expoPushToken: null, permissionGranted: false };
+}
+
+export async function persistRefreshedPushToken(): Promise<void> {
+  // Web has no native push tokens.
 }

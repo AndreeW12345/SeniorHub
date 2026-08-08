@@ -59,7 +59,7 @@
         {
           "color": "#004E87",
           "defaultChannel": "activity-reminders",
-          "enableBackgroundRemoteNotifications": false
+          "enableBackgroundRemoteNotifications": true
         }
       ]
     ],

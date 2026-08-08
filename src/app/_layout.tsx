@@ -15,6 +15,7 @@ import { RegistrationsProvider } from '@/contexts/registrations-context';
 import { ToastProvider } from '@/contexts/toast-context';
 import { UserProfileProvider } from '@/contexts/user-profile-context';
 import { PushNotificationsBootstrap } from '@/components/push-notifications-bootstrap';
+import { RemoteNotificationsSync } from '@/components/remote-notifications-sync';
 import { WaitlistPromotionNotifier } from '@/components/waitlist-promotion-notifier';
 import { ActivityAnnouncementsNotifier } from '@/components/activity-announcements-notifier';
 import { AuthEmailLinkHandler } from '@/components/auth-email-link-handler';
@@ -47,6 +48,7 @@ export default function RootLayout() {
                           <ThemeProvider value={SeniorHubTheme}>
                             <StatusBar style="light" />
                             <PushNotificationsBootstrap />
+                            <RemoteNotificationsSync />
                             <AuthEmailLinkHandler />
                             <WaitlistPromotionNotifier />
                             <ActivityAnnouncementsNotifier />

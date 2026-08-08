@@ -19,6 +19,12 @@ service cloud.firestore {
         allow read: if true;
         allow create, update, delete: if true;
       }
+
+      // Server-side reminder deduplication for FCM push.
+      match /reminderDeliveries/{deliveryId} {
+        allow read: if true;
+        allow create, update, delete: if true;
+      }
     }
 
     match /organizers/{organizerId} {
@@ -26,10 +32,16 @@ service cloud.firestore {
       allow create, update, delete: if true;
     }
 
-    // Device user profiles + Expo push tokens (document id = stable local device id).
-    match /users/{deviceId} {
+    // Device user profiles + push tokens (document id = stable local device id or Auth uid).
+    match /users/{userId} {
       allow read: if true;
       allow create, update, delete: if true;
+
+      // Server-delivered inbox notifications synced into the local Notiser tab.
+      match /notifications/{notificationId} {
+        allow read: if true;
+        allow create, update, delete: if true;
+      }
     }
 
     // Admin accounts keyed by Firebase Auth uid (organizationId + role).

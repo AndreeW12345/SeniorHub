@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -15,9 +16,12 @@ import {
   type CreateNotificationInput,
   type NotificationType,
 } from '@/constants/notifications';
+import { useAuth } from '@/contexts/auth-context';
+import {
+  getNotificationsStorageKey,
+  LEGACY_NOTIFICATIONS_STORAGE_KEY,
+} from '@/services/notifications/notification-storage';
 import { sortNotificationsNewestFirst } from '@/utils/notifications';
-
-const NOTIFICATIONS_STORAGE_KEY = '@seniorhub/notifications';
 
 type NotificationsContextValue = {
   notifications: AppNotification[];
@@ -83,17 +87,37 @@ function createNotificationId(): string {
   return `notification-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** Local notifications store (AsyncStorage). Ready for a later Firestore sync. */
+/** Local notifications store scoped per Firebase Auth uid. */
 export function NotificationsProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const userId = user?.uid?.trim() ?? null;
+  const storageKey = getNotificationsStorageKey(userId);
+  const storageKeyRef = useRef<string | null>(storageKey);
+
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    storageKeyRef.current = storageKey;
+  }, [storageKey]);
+
+  useEffect(() => {
     let isMounted = true;
 
-    async function loadNotifications() {
+    async function loadNotificationsForUser() {
+      setIsLoading(true);
+
       try {
-        const stored = await AsyncStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+        await AsyncStorage.removeItem(LEGACY_NOTIFICATIONS_STORAGE_KEY);
+
+        if (!storageKey) {
+          if (isMounted) {
+            setNotifications([]);
+          }
+          return;
+        }
+
+        const stored = await AsyncStorage.getItem(storageKey);
         if (isMounted) {
           setNotifications(sortNotificationsNewestFirst(parseStoredNotifications(stored)));
         }
@@ -104,15 +128,20 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    void loadNotifications();
+    void loadNotificationsForUser();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [storageKey]);
 
   const persistNotifications = useCallback(async (next: AppNotification[]) => {
-    await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(next));
+    const activeStorageKey = storageKeyRef.current;
+    if (!activeStorageKey) {
+      return;
+    }
+
+    await AsyncStorage.setItem(activeStorageKey, JSON.stringify(next));
   }, []);
 
   const addNotification = useCallback(

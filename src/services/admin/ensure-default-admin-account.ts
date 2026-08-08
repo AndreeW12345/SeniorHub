@@ -10,6 +10,20 @@ import { mapAdminAccountDocument } from '@/services/admin/map-admin-account-docu
 export const DEFAULT_ORGANIZATION_ID = 'seniorhub';
 export const DEFAULT_ORGANIZATION_NAME = 'SeniorHub';
 
+/** Only these emails may receive or keep admin access during push testing. */
+export const ADMIN_EMAIL_ALLOWLIST = ['andree.wester@outlook.com'] as const;
+
+export function isAdminEmailAllowed(email: string | null | undefined): boolean {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return ADMIN_EMAIL_ALLOWLIST.some(
+    (allowedEmail) => allowedEmail.toLowerCase() === normalized,
+  );
+}
+
 /** Ensures the default SeniorHub organization document exists. */
 export async function ensureDefaultOrganization(): Promise<boolean> {
   if (!isFirebaseConfigured()) {
@@ -46,6 +60,10 @@ export async function ensureDefaultOrganization(): Promise<boolean> {
 export async function ensureDefaultAdminAccount(user: User): Promise<AdminAccount | null> {
   const uid = user.uid?.trim();
   if (!uid || !isFirebaseConfigured()) {
+    return null;
+  }
+
+  if (!isAdminEmailAllowed(user.email)) {
     return null;
   }
 

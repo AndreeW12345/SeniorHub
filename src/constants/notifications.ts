@@ -5,6 +5,9 @@ export const NOTIFICATION_TYPES = [
   'waitlist_promoted',
   'activity_announcement',
   'activity_update',
+  'organizer_booking',
+  'activity_reminder_day_before',
+  'activity_reminder_one_hour',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

@@ -24,7 +24,7 @@ export function useResponsive() {
     isCompact,
     isTablet,
     isDesktop,
-    columns: isDesktop ? 2 : 1,
+    columns: (isDesktop ? 2 : 1) as 1 | 2,
     contentWidth: Math.min(width, isDesktop ? 1120 : MaxContentWidth),
     horizontalPadding: isCompact ? 20 : isTablet ? 28 : 36,
     sectionGap: isCompact ? 24 : 32,

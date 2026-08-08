@@ -11,7 +11,7 @@ import { getOrCreateDeviceId } from './get-or-create-device-id';
 import { saveUserPushToken } from './save-user-push-token';
 
 export type RegisterPushNotificationsResult =
-  | { ok: true; expoPushToken: string | null; permissionGranted: boolean }
+  | { ok: true; fcmToken: string | null; expoPushToken: string | null; permissionGranted: boolean }
   | { ok: false; errorMessage: string };
 
 function getEasProjectId(): string | null {
@@ -22,15 +22,36 @@ function getEasProjectId(): string | null {
   );
 }
 
+async function fetchNativePushToken(): Promise<string | null> {
+  try {
+    const tokenResponse = await Notifications.getDevicePushTokenAsync();
+    return tokenResponse.data?.trim() || null;
+  } catch (error) {
+    console.warn('[SeniorHub] Kunde inte hämta FCM/APNs-token:', error);
+    return null;
+  }
+}
+
+async function fetchExpoPushToken(projectId: string): Promise<string | null> {
+  try {
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+    return tokenResponse.data?.trim() || null;
+  } catch (error) {
+    console.warn('[SeniorHub] Kunde inte hämta Expo push token:', error);
+    return null;
+  }
+}
+
 /**
  * Asks for notification permission (first launch / when needed),
- * fetches an Expo push token when possible, and stores it in Firestore.
+ * fetches FCM + Expo push tokens when possible, and stores them in Firestore.
  */
 export async function registerPushNotifications(options?: {
   preferences?: NotificationPreferences;
+  userId?: string | null;
 }): Promise<RegisterPushNotificationsResult> {
   if (Platform.OS === 'web') {
-    return { ok: true, expoPushToken: null, permissionGranted: false };
+    return { ok: true, fcmToken: null, expoPushToken: null, permissionGranted: false };
   }
 
   try {
@@ -46,35 +67,31 @@ export async function registerPushNotifications(options?: {
     }
 
     if (status !== 'granted') {
-      return { ok: true, expoPushToken: null, permissionGranted: false };
+      return { ok: true, fcmToken: null, expoPushToken: null, permissionGranted: false };
     }
 
-    const projectId = getEasProjectId();
-    if (!projectId) {
-      console.warn('[SeniorHub] EAS projectId saknas – kan inte hämta Expo push token.');
-      return { ok: true, expoPushToken: null, permissionGranted: true };
-    }
+    const fcmToken = await fetchNativePushToken();
 
     let expoPushToken: string | null = null;
-
-    try {
-      const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
-      expoPushToken = tokenResponse.data;
-    } catch (error) {
-      // Expected in Expo Go on some platforms / simulators without push credentials.
-      console.warn('[SeniorHub] Kunde inte hämta Expo push token:', error);
+    const projectId = getEasProjectId();
+    if (projectId) {
+      expoPushToken = await fetchExpoPushToken(projectId);
+    } else {
+      console.warn('[SeniorHub] EAS projectId saknas – hoppar över Expo push token.');
     }
 
-    if (expoPushToken) {
+    if (fcmToken || expoPushToken) {
       const deviceId = await getOrCreateDeviceId();
       await saveUserPushToken({
         deviceId,
+        userId: options?.userId,
+        fcmToken,
         expoPushToken,
         preferences: options?.preferences,
       });
     }
 
-    return { ok: true, expoPushToken, permissionGranted: true };
+    return { ok: true, fcmToken, expoPushToken, permissionGranted: true };
   } catch (error) {
     console.error('[SeniorHub] Misslyckades med push-registrering:', error);
     return {
@@ -82,4 +99,19 @@ export async function registerPushNotifications(options?: {
       errorMessage: 'Kunde inte aktivera notiser just nu.',
     };
   }
+}
+
+/** Persists a refreshed native push token to Firestore. */
+export async function persistRefreshedPushToken(params: {
+  fcmToken: string;
+  userId?: string | null;
+  preferences?: NotificationPreferences;
+}): Promise<void> {
+  const deviceId = await getOrCreateDeviceId();
+  await saveUserPushToken({
+    deviceId,
+    userId: params.userId,
+    fcmToken: params.fcmToken,
+    preferences: params.preferences,
+  });
 }

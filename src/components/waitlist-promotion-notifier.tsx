@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { useActivities } from '@/contexts/activities-context';
+import { useAuth } from '@/contexts/auth-context';
 import { useNotificationPreferences } from '@/contexts/notification-preferences-context';
 import { useNotifications } from '@/contexts/notifications-context';
 import { useRegistrations } from '@/contexts/registrations-context';
@@ -15,12 +16,23 @@ import { createWaitlistPromotedNotification } from '@/utils/notifications';
  * entry is promoted to registered (seat freed by someone else cancelling).
  */
 export function WaitlistPromotionNotifier() {
+  const { user } = useAuth();
   const { localBookings } = useRegistrations();
   const { getActivityById } = useActivities();
   const { addNotification } = useNotifications();
   const { preferences } = useNotificationPreferences();
   const previousWaitlistIdsRef = useRef<Set<string> | null>(null);
   const isReadyRef = useRef(false);
+  const activeUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const userId = user?.uid?.trim() ?? null;
+    if (activeUserIdRef.current !== userId) {
+      activeUserIdRef.current = userId;
+      previousWaitlistIdsRef.current = null;
+      isReadyRef.current = false;
+    }
+  }, [user?.uid]);
 
   useEffect(() => {
     const waitlistIds = new Set(

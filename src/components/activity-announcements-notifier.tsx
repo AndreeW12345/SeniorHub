@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { Unsubscribe } from 'firebase/firestore';
 
 import type { ActivityAnnouncement } from '@/constants/announcements';
+import { useAuth } from '@/contexts/auth-context';
 import { useNotificationPreferences } from '@/contexts/notification-preferences-context';
 import { useNotifications } from '@/contexts/notifications-context';
 import { useRegistrations } from '@/contexts/registrations-context';
 import { subscribeActivityAnnouncements } from '@/services/announcements';
 import {
   createActivityAnnouncementNotification,
-  createActivityUpdateNotification,
 } from '@/utils/notifications';
 
 /**
@@ -17,6 +17,7 @@ import {
  * Automatic activity updates respect the "Aktivitetsuppdateringar" preference.
  */
 export function ActivityAnnouncementsNotifier() {
+  const { user } = useAuth();
   const { localBookings, isLoading: registrationsLoading } = useRegistrations();
   const { preferences } = useNotificationPreferences();
   const {
@@ -25,6 +26,15 @@ export function ActivityAnnouncementsNotifier() {
     isLoading: notificationsLoading,
   } = useNotifications();
   const knownAnnouncementIdsRef = useRef<Set<string>>(new Set());
+  const activeUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const userId = user?.uid?.trim() ?? null;
+    if (activeUserIdRef.current !== userId) {
+      activeUserIdRef.current = userId;
+      knownAnnouncementIdsRef.current = new Set();
+    }
+  }, [user?.uid]);
 
   const registeredActivityIds = useMemo(
     () =>
@@ -82,15 +92,8 @@ export function ActivityAnnouncementsNotifier() {
       knownAnnouncementIdsRef.current.add(announcement.id);
 
       if (isActivityUpdate) {
-        addNotification(
-          createActivityUpdateNotification({
-            announcementId: announcement.id,
-            icon: announcement.icon || '📢',
-            title: announcement.title,
-            message: announcement.message,
-            createdAt: announcement.createdAt,
-          }),
-        );
+        // Server push + users/{uid}/notifications handle activity updates remotely.
+        knownAnnouncementIdsRef.current.add(announcement.id);
         return;
       }
 

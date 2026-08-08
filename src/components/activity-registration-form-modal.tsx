@@ -14,6 +14,7 @@ import { FormField } from '@/components/form-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/contexts/auth-context';
 import { submitActivityRegistration } from '@/services/registrations/submit-activity-registration';
 import { submitWaitlistRegistration } from '@/services/registrations/submit-waitlist-registration';
 
@@ -45,6 +46,7 @@ export function ActivityRegistrationFormModal({
 }: ActivityRegistrationFormModalProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
@@ -98,6 +100,7 @@ export function ActivityRegistrationFormModal({
       const input = {
         name: name.trim(),
         phone: phone.trim(),
+        userId: user?.uid,
       };
 
       const result = isWaitlist

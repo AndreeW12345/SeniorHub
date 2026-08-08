@@ -21,6 +21,8 @@ export type CreateRegistrationInput = {
   name: string;
   phone: string;
   status?: RegistrationStatus;
+  /** Firebase Auth uid when the booker is signed in – used for server push. */
+  userId?: string;
 };
 
 function getRegistrationsCollection(activityId: string) {
@@ -112,6 +114,7 @@ export async function createActivityRegistration(
       phone,
       registeredAt: serverTimestamp(),
       status: input.status ?? DEFAULT_REGISTRATION_STATUS,
+      ...(input.userId?.trim() ? { userId: input.userId.trim() } : {}),
     });
 
     return { ok: true, id: docRef.id };

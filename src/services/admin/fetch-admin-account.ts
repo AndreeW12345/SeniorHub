@@ -3,7 +3,13 @@ import { doc, getDoc } from 'firebase/firestore';
 import type { AdminAccount } from '@/constants/admin-account';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
+import { isAdminEmailAllowed } from '@/services/admin/ensure-default-admin-account';
 import { mapAdminAccountDocument } from '@/services/admin/map-admin-account-document';
+
+function readEmail(data: Record<string, unknown>): string | null {
+  const value = data.email;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
 
 /** Loads the signed-in admin's organization profile from `admins/{uid}`. */
 export async function fetchAdminAccount(uid: string): Promise<AdminAccount | null> {
@@ -24,7 +30,12 @@ export async function fetchAdminAccount(uid: string): Promise<AdminAccount | nul
       return null;
     }
 
-    return mapAdminAccountDocument(snapshot.id, snapshot.data() as Record<string, unknown>);
+    const data = snapshot.data() as Record<string, unknown>;
+    if (!isAdminEmailAllowed(readEmail(data))) {
+      return null;
+    }
+
+    return mapAdminAccountDocument(snapshot.id, data);
   } catch (error) {
     console.error('[SeniorHub] Kunde inte hämta adminprofil:', error);
     return null;
