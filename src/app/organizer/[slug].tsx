@@ -99,7 +99,7 @@ export default function OrganizerScreen() {
   const goBack = useSafeBack();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { horizontalPadding, contentWidth } = useResponsive();
+  const { horizontalPadding, contentWidth, isCompact } = useResponsive();
   const { activities, isLoading: isLoadingActivities } = useActivities();
   const { getOrganizationBySlug, isLoading: isLoadingOrganizations } = useOrganizations();
   const { getOrganizerBySlug, organizers, isLoading: isLoadingOrganizers } = useOrganizers();
@@ -262,7 +262,7 @@ export default function OrganizerScreen() {
               <View style={styles.activitiesSection}>
                 <ThemedText type="sectionTitle">Alla aktiviteter</ThemedText>
                 {listedActivities.length > 0 ? (
-                  <ActivityList>
+                  <ActivityList columns={isCompact ? 1 : 2} gap={Spacing.three}>
                     {listedActivities.map((activity) => (
                       <ActivityListItem key={activity.id}>
                         <ActivityCard activity={activity} />
