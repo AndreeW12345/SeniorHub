@@ -1,23 +1,73 @@
-import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 
+/** Must match app.json expo.ios.bundleIdentifier / expo.android.package */
+const APP_BUNDLE_ID = 'com.andreew12345.seniorhub';
+
+const AUTH_COMPLETE_PATH = '/auth/complete';
+
+function stripProtocol(domain: string): string {
+  return domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
+function isLocalhostUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  } catch {
+    return /\blocalhost\b|127\.0\.0\.1/.test(url);
+  }
+}
+
 /**
- * Continue URL embedded in Firebase email sign-in links.
- * Prefer EXPO_PUBLIC_AUTH_CONTINUE_URL in production (web origin or universal link).
+ * Deployed Firebase Hosting domain for Magic Link universal / app links.
+ * Used for ActionCodeSettings.url (continue URL) and app associated domains.
+ *
+ * Note: do NOT pass this value as ActionCodeSettings.linkDomain — Firebase only
+ * accepts linkDomain for custom Hosting domains, not default *.web.app domains.
+ */
+export function getFirebaseHostingLinkDomain(): string {
+  const hostingDomain = process.env.EXPO_PUBLIC_FIREBASE_HOSTING_DOMAIN?.trim();
+  if (hostingDomain) {
+    return stripProtocol(hostingDomain);
+  }
+
+  const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+  if (projectId) {
+    return `${projectId}.web.app`;
+  }
+
+  throw new Error(
+    'Firebase Hosting link domain is not configured. Set EXPO_PUBLIC_FIREBASE_HOSTING_DOMAIN or EXPO_PUBLIC_FIREBASE_PROJECT_ID.',
+  );
+}
+
+/**
+ * HTTPS continue URL embedded in Firebase ActionCodeSettings.url.
+ * Must use the deployed Firebase Hosting domain — never localhost or a custom app scheme.
  */
 export function getEmailLinkContinueUrl(): string {
-  const configured = process.env.EXPO_PUBLIC_AUTH_CONTINUE_URL?.trim();
-  if (configured) {
-    return configured;
+  const hostingDomain = getFirebaseHostingLinkDomain();
+  const hostingContinueUrl = `https://${hostingDomain}${AUTH_COMPLETE_PATH}`;
+
+  if (Platform.OS === 'web') {
+    const configured = process.env.EXPO_PUBLIC_AUTH_CONTINUE_URL?.trim();
+    if (configured && !isLocalhostUrl(configured)) {
+      return configured;
+    }
+
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      const origin = window.location.origin;
+      if (!isLocalhostUrl(origin)) {
+        return `${origin}${AUTH_COMPLETE_PATH}`;
+      }
+    }
+
+    return hostingContinueUrl;
   }
 
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}/auth/complete`;
-  }
-
-  return Linking.createURL('/auth/complete');
+  return hostingContinueUrl;
 }
 
 export function getAppBundleId(): string {
-  return 'com.andreew12345.seniorhub';
+  return APP_BUNDLE_ID;
 }

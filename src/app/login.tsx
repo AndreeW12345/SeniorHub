@@ -1,5 +1,5 @@
-import { useRouter, type Href } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { FormField } from '@/components/form-field';
@@ -8,6 +8,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
+import { readPendingActivityBooking } from '@/services/auth/pending-activity-booking';
+import { readSearchParam } from '@/utils/resolve-auth-email-link';
 
 /**
  * Regular user login via Firebase Magic Link.
@@ -17,12 +19,32 @@ export default function LoginScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { sendSignInLink, isSignedIn } = useAuth();
+  const { verified } = useLocalSearchParams<{ verified?: string }>();
 
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState<string | undefined>();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
+  const showVerifiedMessage = readSearchParam(verified) === '1';
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      return;
+    }
+
+    void (async () => {
+      const pendingBooking = await readPendingActivityBooking();
+      if (pendingBooking?.activityId) {
+        router.replace(
+          `/activity/${pendingBooking.activityId}?resumeBooking=1` as Href,
+        );
+        return;
+      }
+
+      router.replace('/profil' as Href);
+    })();
+  }, [isSignedIn, router]);
 
   const handleSendLink = async () => {
     const trimmedEmail = email.trim();
@@ -50,26 +72,14 @@ export default function LoginScreen() {
     }
   };
 
-  if (isSignedIn && !linkSent) {
+  if (isSignedIn) {
     return (
       <ScreenLayout title="Logga in" subtitle="Du är redan inloggad" showBackButton>
         <View style={styles.form}>
-          <ThemedText type="bodyLarge" themeColor="textSecondary">
-            Du är redan inloggad.
+          <ActivityIndicator size="large" color={theme.primary} />
+          <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.helperText}>
+            Loggar in …
           </ThemedText>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Till profilen"
-            onPress={() => router.replace('/profil' as Href)}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              { backgroundColor: theme.primary },
-              pressed && styles.pressed,
-            ]}>
-            <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
-              Till profilen
-            </ThemedText>
-          </Pressable>
         </View>
       </ScreenLayout>
     );
@@ -78,6 +88,14 @@ export default function LoginScreen() {
   return (
     <ScreenLayout title="Logga in" subtitle="Inget lösenord behövs" showBackButton>
       <View style={styles.form}>
+        {showVerifiedMessage ? (
+          <View style={[styles.successCard, { backgroundColor: theme.primaryLight }]}>
+            <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.successText}>
+              E-postadressen har verifierats. Du kan nu logga in.
+            </ThemedText>
+          </View>
+        ) : null}
+
         {linkSent ? (
           <View style={[styles.successCard, { backgroundColor: theme.primaryLight }]}>
             <ThemedText type="sectionTitle" themeColor="primary">

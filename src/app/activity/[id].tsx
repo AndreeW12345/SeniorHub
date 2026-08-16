@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +18,7 @@ import { getActivityDisplayLocation, getActivityMapsLocation, getGoogleMapsUrl }
 import { getOrganizerPath } from '@/constants/organizers';
 import { CardShadow, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
+import { useAuth } from '@/contexts/auth-context';
 import { useMemberships } from '@/contexts/memberships-context';
 import { useOrganizations } from '@/contexts/organizations-context';
 import { useRegistrations } from '@/contexts/registrations-context';
@@ -25,7 +26,12 @@ import { useActivitySeatAvailability } from '@/hooks/use-activity-seat-availabil
 import { useResponsive } from '@/hooks/use-responsive';
 import { useSafeBack } from '@/hooks/use-safe-back';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  clearPendingActivityBooking,
+  readPendingActivityBooking,
+} from '@/services/auth/pending-activity-booking';
 import { addActivityToCalendar } from '@/services/calendar';
+import { readSearchParam } from '@/utils/resolve-auth-email-link';
 import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
 import { showErrorAlert, showSuccessAlert } from '@/utils/confirm-alert';
 import {
@@ -38,16 +44,19 @@ import {
 } from '@/utils/activity-registration';
 
 export default function ActivityDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, resumeBooking } = useLocalSearchParams<{ id: string; resumeBooking?: string }>();
   const router = useRouter();
   const goBack = useSafeBack();
+  const { isSignedIn } = useAuth();
   const { getActivityById } = useActivities();
   const { getOrganizationById } = useOrganizations();
   const { isMember } = useMemberships();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { horizontalPadding, contentWidth, isDesktop } = useResponsive();
-  const activity = typeof id === 'string' ? getActivityById(id) : undefined;
+  const activityId = readSearchParam(id);
+  const shouldResumeBooking = readSearchParam(resumeBooking) === '1';
+  const activity = activityId ? getActivityById(activityId) : undefined;
   const hostOrganization = activity
     ? getOrganizationById(activity.organizationId)
     : undefined;
@@ -80,6 +89,30 @@ export default function ActivityDetailScreen() {
       : null;
   const detailImageHeight = isDesktop ? 380 : 300;
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
+  const [autoOpenBooking, setAutoOpenBooking] = useState(false);
+
+  useEffect(() => {
+    if (!isSignedIn || !activityId) {
+      return;
+    }
+
+    void (async () => {
+      const pending = await readPendingActivityBooking();
+
+      if (shouldResumeBooking) {
+        setAutoOpenBooking(true);
+        if (pending?.activityId === activityId) {
+          await clearPendingActivityBooking();
+        }
+        return;
+      }
+
+      if (pending?.activityId === activityId) {
+        setAutoOpenBooking(true);
+        await clearPendingActivityBooking();
+      }
+    })();
+  }, [activityId, isSignedIn, shouldResumeBooking]);
 
   if (!activity) {
     return (
@@ -219,6 +252,8 @@ export default function ActivityDetailScreen() {
             <ActivityRegistrationButton
               activity={activity}
               bookedCount={bookedCount}
+              autoOpenBooking={autoOpenBooking}
+              onAutoOpenBookingHandled={() => setAutoOpenBooking(false)}
               onRegistrationComplete={(seatDelta) => {
                 if (typeof seatDelta === 'number') {
                   adjustBookedCount(seatDelta);

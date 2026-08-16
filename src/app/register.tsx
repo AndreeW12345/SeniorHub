@@ -1,5 +1,5 @@
 import { useRouter, type Href } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { FormField } from '@/components/form-field';
@@ -8,12 +8,13 @@ import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
+import { readPendingActivityBooking } from '@/services/auth/pending-activity-booking';
 
 /** Passwordless account creation for regular users. */
 export default function RegisterScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { registerWithMagicLink } = useAuth();
+  const { registerWithMagicLink, isSignedIn } = useAuth();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -26,6 +27,24 @@ export default function RegisterScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      return;
+    }
+
+    void (async () => {
+      const pendingBooking = await readPendingActivityBooking();
+      if (pendingBooking?.activityId) {
+        router.replace(
+          `/activity/${pendingBooking.activityId}?resumeBooking=1` as Href,
+        );
+        return;
+      }
+
+      router.replace('/profil' as Href);
+    })();
+  }, [isSignedIn, router]);
 
   const handleRegister = async () => {
     const trimmedFirst = firstName.trim();
@@ -68,7 +87,14 @@ export default function RegisterScreen() {
   return (
     <ScreenLayout title="Skapa konto" subtitle="Inget lösenord behövs" showBackButton>
       <View style={styles.form}>
-        {linkSent ? (
+        {isSignedIn ? (
+          <>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.intro}>
+              Loggar in …
+            </ThemedText>
+          </>
+        ) : linkSent ? (
           <View style={[styles.successCard, { backgroundColor: theme.primaryLight }]}>
             <ThemedText type="sectionTitle" themeColor="primary">
               Kolla din e-post

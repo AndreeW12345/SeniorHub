@@ -34,6 +34,16 @@ yarn-error.*
 .env
 .env*.local
 
+# Firebase Admin service account keys (never commit)
+secrets/
+firebase-service-account.json
+*-service-account*.json
+
+# generated Firebase Hosting config (built from .env before deploy)
+hosting-public/firebase-config.js
+.firebaserc
+.firebase/
+
 # typescript
 *.tsbuildinfo
 

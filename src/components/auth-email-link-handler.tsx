@@ -1,21 +1,51 @@
 import * as Linking from 'expo-linking';
 import { useRouter, type Href } from 'expo-router';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
-import { isAuthEmailLink } from '@/services/auth';
+import { resolveAuthEmailLink } from '@/utils/resolve-auth-email-link';
+
+function hasDirectFirebaseAuthParams(
+  queryParams: Linking.QueryParams | null | undefined,
+): boolean {
+  return (
+    typeof queryParams?.oobCode === 'string' &&
+    typeof queryParams?.apiKey === 'string'
+  );
+}
+
+function isAuthCompletePath(path: string): boolean {
+  return path.includes('auth/complete');
+}
 
 function isAlreadyOnCompleteRoute(url: string): boolean {
   try {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      return window.location.pathname.includes('/auth/complete');
+      const pathname = window.location.pathname;
+      if (pathname.includes('__/auth/')) {
+        return false;
+      }
+      return isAuthCompletePath(pathname);
     }
 
     const parsed = Linking.parse(url);
     const path = parsed.path ?? '';
-    return path.includes('auth/complete');
+
+    if (path.includes('__/auth/')) {
+      return false;
+    }
+
+    if (isAuthCompletePath(path) && hasDirectFirebaseAuthParams(parsed.queryParams)) {
+      return true;
+    }
+
+    return isAuthCompletePath(path) && typeof parsed.queryParams?.link === 'string';
   } catch {
-    return url.includes('/auth/complete');
+    if (url.includes('__/auth/')) {
+      return false;
+    }
+
+    return url.includes('auth/complete');
   }
 }
 
@@ -28,25 +58,33 @@ export function AuthEmailLinkHandler() {
 
   useEffect(() => {
     const handleUrl = (url: string | null) => {
-      if (!url || !isAuthEmailLink(url)) {
+      const authLink = resolveAuthEmailLink(url);
+      if (!authLink) {
         return;
       }
 
-      if (isAlreadyOnCompleteRoute(url)) {
+      if (url && isAlreadyOnCompleteRoute(url)) {
         return;
       }
 
-      router.push(`/auth/complete?link=${encodeURIComponent(url)}` as Href);
+      router.replace(`/auth/complete?link=${encodeURIComponent(authLink)}` as Href);
     };
 
     void Linking.getInitialURL().then(handleUrl);
 
-    const subscription = Linking.addEventListener('url', (event) => {
+    const urlSubscription = Linking.addEventListener('url', (event) => {
       handleUrl(event.url);
     });
 
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        void Linking.getInitialURL().then(handleUrl);
+      }
+    });
+
     return () => {
-      subscription.remove();
+      urlSubscription.remove();
+      appStateSubscription.remove();
     };
   }, [router]);
 

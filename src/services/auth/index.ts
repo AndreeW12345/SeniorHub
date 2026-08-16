@@ -16,6 +16,11 @@ export {
   type AuthResult,
 } from '@/services/auth/providers';
 export {
+  clearPendingActivityBooking,
+  readPendingActivityBooking,
+  storePendingActivityBooking,
+} from '@/services/auth/pending-activity-booking';
+export {
   getCurrentAuthUser,
   signOutCurrentUser,
   subscribeToAuthState,

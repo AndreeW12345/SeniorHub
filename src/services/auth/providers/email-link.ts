@@ -25,6 +25,12 @@ export const emailLinkProvider: AuthProviderModule = {
 function buildActionCodeSettings(): ActionCodeSettings {
   const bundleId = getAppBundleId();
 
+  // Firebase Hosting universal / app link flow (see Firebase Email Link Auth docs).
+  // url must be HTTPS on an authorized Firebase Hosting domain; handleCodeInApp must be true.
+  //
+  // Do NOT set linkDomain for default Hosting domains (*.web.app / *.firebaseapp.com).
+  // Firebase rejects those with auth/invalid-hosting-link-domain and auto-selects the
+  // project Hosting domain when linkDomain is omitted.
   return {
     url: getEmailLinkContinueUrl(),
     handleCodeInApp: true,

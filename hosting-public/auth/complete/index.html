@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Loggar in – SeniorHub</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        line-height: 1.5;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #f5f8fb;
+        color: #1a2b3c;
+      }
+
+      main {
+        width: min(92vw, 28rem);
+        padding: 2rem;
+        border-radius: 1rem;
+        background: #ffffff;
+        box-shadow: 0 10px 30px rgba(0, 78, 135, 0.08);
+      }
+
+      h1 {
+        margin-top: 0;
+        font-size: 1.5rem;
+        color: #004e87;
+      }
+
+      .status {
+        margin-top: 1rem;
+      }
+
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.75rem 0.875rem;
+        border: 1px solid #c7d7e5;
+        border-radius: 0.75rem;
+        font-size: 1rem;
+      }
+
+      button,
+      .app-link {
+        margin-top: 1rem;
+        width: 100%;
+        box-sizing: border-box;
+        border: 0;
+        border-radius: 0.75rem;
+        padding: 0.875rem 1rem;
+        background: #004e87;
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .error {
+        color: #b42318;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Loggar in</h1>
+      <p id="intro">Kontrollerar inloggningslänken …</p>
+
+      <form id="email-form" class="hidden" aria-labelledby="email-label">
+        <label id="email-label" for="email">E-postadress</label>
+        <input id="email" name="email" type="email" autocomplete="email" required />
+        <button type="submit">Fortsätt</button>
+      </form>
+
+      <a id="open-app-link" class="app-link hidden" href="#">Öppna i SeniorHub-appen</a>
+      <p id="status" class="status" aria-live="polite"></p>
+    </main>
+
+    <script src="/firebase-config.js"></script>
+    <script type="module">
+      import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+      import {
+        getAuth,
+        isSignInWithEmailLink,
+        signInWithEmailLink,
+      } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
+
+      const APP_SCHEME = 'seniorhub';
+      const EMAIL_STORAGE_KEY = 'emailForSignIn';
+      const intro = document.getElementById('intro');
+      const status = document.getElementById('status');
+      const emailForm = document.getElementById('email-form');
+      const emailInput = document.getElementById('email');
+      const openAppLink = document.getElementById('open-app-link');
+
+      function isMobileDevice() {
+        return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      }
+
+      function buildAppDeepLink() {
+        const path = window.location.pathname.replace(/^\//, '');
+        return `${APP_SCHEME}://${path}${window.location.search}`;
+      }
+
+      function setStatus(message, isError = false) {
+        status.textContent = message;
+        status.classList.toggle('error', isError);
+      }
+
+      function showEmailPrompt(message) {
+        intro.textContent = message;
+        emailForm.classList.remove('hidden');
+        emailInput.focus();
+      }
+
+      function redirectToApp() {
+        const appLink = buildAppDeepLink();
+        openAppLink.href = appLink;
+        openAppLink.classList.remove('hidden');
+        window.location.replace(appLink);
+      }
+
+      async function completeSignInOnWeb(email) {
+        const normalizedEmail = email.trim().toLowerCase();
+        if (!normalizedEmail) {
+          setStatus('Ange en e-postadress.', true);
+          return;
+        }
+
+        setStatus('Loggar in …');
+
+        try {
+          const app = initializeApp(window.FIREBASE_CONFIG);
+          const auth = getAuth(app);
+          const href = window.location.href;
+
+          if (!isSignInWithEmailLink(auth, href)) {
+            setStatus('Inloggningslänken är ogiltig eller har gått ut.', true);
+            return;
+          }
+
+          await signInWithEmailLink(auth, normalizedEmail, href);
+          window.localStorage.removeItem(EMAIL_STORAGE_KEY);
+          intro.textContent = 'Inloggningen lyckades';
+          emailForm.classList.add('hidden');
+          openAppLink.classList.add('hidden');
+          setStatus('Du är inloggad i webbläsaren.');
+        } catch (error) {
+          console.error('[SeniorHub Hosting] Email link sign-in failed:', error);
+          setStatus('Inloggningen misslyckades. Öppna länken i SeniorHub-appen eller begär en ny länk.', true);
+        }
+      }
+
+      try {
+        if (!window.FIREBASE_CONFIG) {
+          throw new Error('Missing Firebase config');
+        }
+
+        const app = initializeApp(window.FIREBASE_CONFIG);
+        const auth = getAuth(app);
+        const href = window.location.href;
+
+        if (!isSignInWithEmailLink(auth, href)) {
+          intro.textContent = 'Ogiltig inloggningslänk';
+          setStatus('Be om en ny inloggningslänk i SeniorHub-appen.', true);
+        } else if (isMobileDevice()) {
+          intro.textContent = 'Öppnar SeniorHub …';
+          setStatus('Slutför inloggningen i appen. Länken kan bara användas en gång.');
+          openAppLink.href = buildAppDeepLink();
+          openAppLink.classList.remove('hidden');
+          redirectToApp();
+        } else {
+          const storedEmail = window.localStorage.getItem(EMAIL_STORAGE_KEY);
+          if (storedEmail) {
+            intro.textContent = 'Slutför inloggningen';
+            await completeSignInOnWeb(storedEmail);
+          } else {
+            showEmailPrompt('Ange samma e-postadress som du fick länken till.');
+          }
+        }
+      } catch (error) {
+        console.error('[SeniorHub Hosting] Auth bootstrap failed:', error);
+        intro.textContent = 'Kunde inte starta inloggningen';
+        setStatus('Kontrollera att Firebase Hosting är korrekt konfigurerat.', true);
+      }
+
+      openAppLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        redirectToApp();
+      });
+
+      emailForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        void completeSignInOnWeb(emailInput.value);
+      });
+    </script>
+  </body>
+</html>

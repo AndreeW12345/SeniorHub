@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { FormField } from '@/components/form-field';
@@ -11,43 +11,20 @@ import { useTheme } from '@/hooks/use-theme';
 import {
   clearPendingRegistration,
   completeMagicLinkSignIn,
-  isAuthEmailLink,
   readEmailForSignIn,
   readPendingRegistration,
 } from '@/services/auth';
+import { readPendingActivityBooking } from '@/services/auth/pending-activity-booking';
 import { fetchUserProfile, migrateDeviceProfileToUid, saveUserProfile } from '@/services/profile';
+import { readSearchParam, resolveAuthEmailLink } from '@/utils/resolve-auth-email-link';
 
-function resolveIncomingLink(
-  linkParam: string | undefined,
-  initialUrl: string | null,
-): string | null {
-  const candidates: string[] = [];
-
-  if (typeof linkParam === 'string' && linkParam.trim()) {
-    const raw = linkParam.trim();
-    candidates.push(raw);
-    try {
-      candidates.push(decodeURIComponent(raw));
-    } catch {
-      // Keep raw candidate only.
-    }
+async function resolvePostSignInRoute(): Promise<Href> {
+  const pendingBooking = await readPendingActivityBooking();
+  if (pendingBooking?.activityId) {
+    return `/activity/${pendingBooking.activityId}?resumeBooking=1` as Href;
   }
 
-  if (typeof window !== 'undefined' && typeof window.location?.href === 'string') {
-    candidates.push(window.location.href);
-  }
-
-  if (initialUrl) {
-    candidates.push(initialUrl);
-  }
-
-  for (const candidate of candidates) {
-    if (candidate && isAuthEmailLink(candidate)) {
-      return candidate;
-    }
-  }
-
-  return null;
+  return '/profil' as Href;
 }
 
 /**
@@ -56,7 +33,13 @@ function resolveIncomingLink(
 export default function AuthCompleteScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const params = useLocalSearchParams<{ link?: string }>();
+  const params = useLocalSearchParams<{
+    link?: string | string[];
+    apiKey?: string | string[];
+    oobCode?: string | string[];
+    mode?: string | string[];
+    lang?: string | string[];
+  }>();
   const [status, setStatus] = useState<'working' | 'need-email' | 'success' | 'error'>('working');
   const [message, setMessage] = useState('Loggar in...');
   const [email, setEmail] = useState('');
@@ -64,43 +47,46 @@ export default function AuthCompleteScreen() {
   const [linkUrl, setLinkUrl] = useState<string | null>(null);
   const startedRef = useRef(false);
 
-  const finishSignIn = async (nextEmail: string, url: string) => {
-    setStatus('working');
-    setMessage('Loggar in...');
+  const finishSignIn = useCallback(
+    async (nextEmail: string, url: string) => {
+      setStatus('working');
+      setMessage('Loggar in...');
 
-    const result = await completeMagicLinkSignIn(nextEmail, url);
-    if (!result.ok) {
-      setStatus('error');
-      setMessage(result.errorMessage);
-      return;
-    }
+      const result = await completeMagicLinkSignIn(nextEmail, url);
+      if (!result.ok) {
+        setStatus('error');
+        setMessage(result.errorMessage);
+        return;
+      }
 
-    const pending = await readPendingRegistration();
-    const uid = result.user.uid;
-    await migrateDeviceProfileToUid(uid);
+      const pending = await readPendingRegistration();
+      const uid = result.user.uid;
+      await migrateDeviceProfileToUid(uid);
 
-    const existing = await fetchUserProfile(uid);
-    const existingProfile = existing.ok ? existing.profile : null;
-    const profileEmail = result.user.email?.trim() || nextEmail;
-    const fullName = pending
-      ? `${pending.firstName} ${pending.lastName}`.trim()
-      : existingProfile?.name?.trim() || '';
+      const existing = await fetchUserProfile(uid);
+      const existingProfile = existing.ok ? existing.profile : null;
+      const profileEmail = result.user.email?.trim() || nextEmail;
+      const fullName = pending
+        ? `${pending.firstName} ${pending.lastName}`.trim()
+        : existingProfile?.name?.trim() || '';
 
-    await saveUserProfile(uid, {
-      name: fullName,
-      phone: existingProfile?.phone ?? '',
-      email: profileEmail,
-      photoUrl: existingProfile?.photoUrl,
-    });
+      await saveUserProfile(uid, {
+        name: fullName,
+        phone: existingProfile?.phone ?? '',
+        email: profileEmail,
+        photoUrl: existingProfile?.photoUrl,
+      });
 
-    if (pending) {
-      await clearPendingRegistration();
-    }
+      if (pending) {
+        await clearPendingRegistration();
+      }
 
-    setStatus('success');
-    setMessage('Du är nu inloggad.');
-    router.replace('/profil' as Href);
-  };
+      setStatus('success');
+      setMessage('Du är nu inloggad.');
+      router.replace(await resolvePostSignInRoute());
+    },
+    [router],
+  );
 
   useEffect(() => {
     if (startedRef.current) {
@@ -110,9 +96,10 @@ export default function AuthCompleteScreen() {
 
     void (async () => {
       const initialUrl = await Linking.getInitialURL();
-      const href = resolveIncomingLink(
-        typeof params.link === 'string' ? params.link : undefined,
+      const href = resolveAuthEmailLink(
+        readSearchParam(params.link),
         initialUrl,
+        params,
       );
 
       if (!href) {
@@ -132,7 +119,7 @@ export default function AuthCompleteScreen() {
       setStatus('need-email');
       setMessage('Ange samma e-postadress som du fick länken till.');
     })();
-  }, [params]);
+  }, [finishSignIn, params]);
 
   const handleConfirmEmail = () => {
     const trimmed = email.trim();

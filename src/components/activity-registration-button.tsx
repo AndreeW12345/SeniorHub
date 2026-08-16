@@ -1,21 +1,25 @@
 import * as Linking from 'expo-linking';
-import { useState } from 'react';
+import { useRouter, type Href } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import {
   ActivityRegistrationFormModal,
   type ActivityRegistrationFormMode,
 } from '@/components/activity-registration-form-modal';
+import { ActivityLoginGateModal } from '@/components/activity-login-gate-modal';
 import { ThemedText } from '@/components/themed-text';
 import type { Activity } from '@/constants/activities';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useActivities } from '@/contexts/activities-context';
+import { useAuth } from '@/contexts/auth-context';
 import { useNotificationPreferences } from '@/contexts/notification-preferences-context';
 import { useNotifications } from '@/contexts/notifications-context';
 import { useRegistrations } from '@/contexts/registrations-context';
 import { useToast } from '@/contexts/toast-context';
 import { useTheme } from '@/hooks/use-theme';
 import { incrementActivityParticipants } from '@/services/activities';
+import { storePendingActivityBooking } from '@/services/auth/pending-activity-booking';
 import {
   cancelActivityReminders,
   scheduleActivityReminders,
@@ -40,20 +44,28 @@ type ActivityRegistrationButtonProps = {
   activity: Activity;
   /** Live booked count from registrations; used for full/capacity checks. */
   bookedCount?: number;
+  /** Opens the booking flow automatically after the user signs in. */
+  autoOpenBooking?: boolean;
   /**
    * Called after registration or cancellation so parents can refresh seat counts.
    * `seatDelta` is +1 on book and -1 on cancel for instant UI updates.
    */
   onRegistrationComplete?: (seatDelta?: number) => void | Promise<void>;
+  /** Called after the booking flow auto-opens following sign-in. */
+  onAutoOpenBookingHandled?: () => void;
 };
 
 /** Primary registration button – book, waitlist, cancel, or open external contact methods. */
 export function ActivityRegistrationButton({
   activity,
   bookedCount,
+  autoOpenBooking = false,
   onRegistrationComplete,
+  onAutoOpenBookingHandled,
 }: ActivityRegistrationButtonProps) {
   const theme = useTheme();
+  const router = useRouter();
+  const { isSignedIn } = useAuth();
   const { showToast } = useToast();
   const { addNotification } = useNotifications();
   const { preferences } = useNotificationPreferences();
@@ -68,18 +80,13 @@ export function ActivityRegistrationButton({
   } = useRegistrations();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const [isLoginGateVisible, setIsLoginGateVisible] = useState(false);
+  const autoOpenHandledRef = useRef(false);
 
-  const notifyBookingConfirmed = async () => {
-    addNotification(createRegistrationConfirmedNotification(activity.title));
-    await sendLocalBookingConfirmation(activity.title);
-    await scheduleActivityReminders(activity, preferences);
-  };
+  const registrationEnabled =
+    activity.registrationRequired === true || activity.membershipRequired === true;
 
-  if (activity.registrationRequired !== true && activity.membershipRequired !== true) {
-    return null;
-  }
-
-  const action = getActivityRegistrationAction(activity);
+  const action = registrationEnabled ? getActivityRegistrationAction(activity) : null;
   const full = isActivityFullWithBookedCount(activity, bookedCount);
   const registered = isRegistered(activity.id);
   const onWaitlist = isOnWaitlist(activity.id);
@@ -89,6 +96,64 @@ export function ActivityRegistrationButton({
     full && usesSeniorHubForm ? 'waitlist' : 'registered';
   /** SeniorHub waitlist is allowed when full; external methods stay blocked when full. */
   const canOpenRegistration = usesSeniorHubForm ? !registered && !onWaitlist : !full && !registered;
+
+  useEffect(() => {
+    autoOpenHandledRef.current = false;
+  }, [activity.id]);
+
+  useEffect(() => {
+    if (!registrationEnabled || !autoOpenBooking || autoOpenHandledRef.current || !isSignedIn) {
+      return;
+    }
+
+    autoOpenHandledRef.current = true;
+
+    if (!canOpenRegistration) {
+      onAutoOpenBookingHandled?.();
+      return;
+    }
+
+    if (usesSeniorHubForm) {
+      // Defer so resume-after-login does not set state synchronously inside the effect body.
+      const frame = requestAnimationFrame(() => {
+        setIsFormVisible(true);
+        onAutoOpenBookingHandled?.();
+      });
+      return () => cancelAnimationFrame(frame);
+    }
+
+    onAutoOpenBookingHandled?.();
+  }, [
+    autoOpenBooking,
+    canOpenRegistration,
+    isSignedIn,
+    onAutoOpenBookingHandled,
+    registrationEnabled,
+    usesSeniorHubForm,
+  ]);
+
+  const notifyBookingConfirmed = async () => {
+    addNotification(createRegistrationConfirmedNotification(activity.title));
+    await sendLocalBookingConfirmation(activity.title);
+    await scheduleActivityReminders(activity, preferences);
+  };
+
+  if (!registrationEnabled) {
+    return null;
+  }
+
+  const openBookingFlow = () => {
+    if (!action || !canOpenRegistration || isSubmitting) {
+      return;
+    }
+
+    if (usesSeniorHubForm) {
+      setIsFormVisible(true);
+      return;
+    }
+
+    void handleExternalRegistration();
+  };
 
   const handleExternalRegistration = async () => {
     if (!action || action.method === 'seniorhub' || full || registered || isSubmitting) {
@@ -137,12 +202,26 @@ export function ActivityRegistrationButton({
       return;
     }
 
-    if (usesSeniorHubForm) {
-      setIsFormVisible(true);
+    if (!isSignedIn) {
+      setIsLoginGateVisible(true);
       return;
     }
 
-    void handleExternalRegistration();
+    openBookingFlow();
+  };
+
+  const handleLoginGateLogin = () => {
+    setIsLoginGateVisible(false);
+    void storePendingActivityBooking(activity.id, formMode).then(() => {
+      router.push('/login' as Href);
+    });
+  };
+
+  const handleLoginGateRegister = () => {
+    setIsLoginGateVisible(false);
+    void storePendingActivityBooking(activity.id, formMode).then(() => {
+      router.push('/register' as Href);
+    });
   };
 
   const handleFormSuccess = async (
@@ -349,6 +428,13 @@ export function ActivityRegistrationButton({
           {buttonLabel}
         </ThemedText>
       </Pressable>
+
+      <ActivityLoginGateModal
+        visible={isLoginGateVisible}
+        onClose={() => setIsLoginGateVisible(false)}
+        onLoginPress={handleLoginGateLogin}
+        onRegisterPress={handleLoginGateRegister}
+      />
 
       {usesSeniorHubForm ? (
         <ActivityRegistrationFormModal

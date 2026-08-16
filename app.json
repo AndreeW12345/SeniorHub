@@ -10,11 +10,29 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.andreew12345.seniorhub",
+
+      "associatedDomains": [
+     "applinks:seniorhub-se.web.app"
+     ],
+     
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.andreew12345.seniorhub",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "seniorhub"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -61,7 +79,10 @@
           "defaultChannel": "activity-reminders",
           "enableBackgroundRemoteNotifications": true
         }
-      ]
+      ],
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
