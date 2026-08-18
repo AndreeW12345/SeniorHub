@@ -111,6 +111,18 @@ export function getActivityDisplayLocation(activity: Activity): string {
   return formatAddressDisplay(activity.location);
 }
 
+/** Short place name for activity cards (not the full street address). */
+export function getActivityPlaceName(activity: Activity): string {
+  const placeName = activity.location?.trim();
+  if (placeName) {
+    return placeName;
+  }
+
+  const displayLocation = getActivityDisplayLocation(activity);
+  const firstSegment = displayLocation.split(',')[0]?.trim();
+  return firstSegment || displayLocation;
+}
+
 /** Full stored location string for map links and other non-display uses. */
 export function getActivityMapsLocation(activity: Activity): string {
   const fullAddress = activity.fullAddress?.trim();

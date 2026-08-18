@@ -150,6 +150,33 @@ export type ActivityRegistrationDisplayOptions = {
   confirmedMember?: boolean;
 };
 
+/** One-line availability label for activity list cards. */
+export function getActivityCardAvailabilityLabel(
+  activity: Activity,
+  options?: Pick<ActivityRegistrationDisplayOptions, 'bookedCount'>,
+): string | null {
+  if (!hasActivityParticipantLimit(activity)) {
+    return null;
+  }
+
+  const maxParticipants = getActivityMaxParticipants(activity);
+  if (maxParticipants === null) {
+    return null;
+  }
+
+  const participantCount =
+    typeof options?.bookedCount === 'number' && Number.isFinite(options.bookedCount)
+      ? Math.max(0, Math.floor(options.bookedCount))
+      : getActivityParticipantCount(activity);
+  const remainingSeats = Math.max(0, maxParticipants - participantCount);
+
+  if (remainingSeats === 0) {
+    return 'Fullbokad';
+  }
+
+  return `${remainingSeats} av ${maxParticipants} platser kvar`;
+}
+
 export function getActivityRegistrationDisplay(
   activity: Activity,
   options?: ActivityRegistrationDisplayOptions,

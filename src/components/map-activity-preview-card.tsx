@@ -1,30 +1,19 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ActivityCardAvailability } from '@/components/activity-card-availability';
+import { ActivityCardMetaRow } from '@/components/activity-card-meta-row';
+import { ActivitySchedule } from '@/components/activity-schedule';
 import { ThemedText } from '@/components/themed-text';
-import { getActivityDisplayLocation, type Activity } from '@/constants/activities';
-import { getCategoryVisual } from '@/constants/category-visuals';
+import { getActivityPlaceName, type Activity } from '@/constants/activities';
+import { getCategoryEmoji, getCategoryVisual } from '@/constants/category-visuals';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatAddressDisplay } from '@/utils/address-format';
-import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
 
 type MapActivityPreviewCardProps = {
   activity: Activity;
   onViewActivity: () => void;
   onDismiss?: () => void;
 };
-
-function getShortMapAddress(activity: Activity): string {
-  const street = activity.street?.trim();
-  const city = activity.city?.trim();
-  if (street && city) {
-    return `${street}, ${city}`;
-  }
-  if (street) {
-    return street;
-  }
-  return formatAddressDisplay(getActivityDisplayLocation(activity));
-}
 
 /** Preview card shown when a map marker (or web list item) is selected. */
 export function MapActivityPreviewCard({
@@ -34,15 +23,19 @@ export function MapActivityPreviewCard({
 }: MapActivityPreviewCardProps) {
   const theme = useTheme();
   const categoryVisual = getCategoryVisual(activity.category);
-  const address = getShortMapAddress(activity);
+  const categoryEmoji = getCategoryEmoji(activity.category);
+  const placeName = getActivityPlaceName(activity);
 
   return (
     <View
-      style={[styles.card, CardShadow, { backgroundColor: theme.card, borderColor: theme.border }]}
-      accessibilityLabel={`${activity.title}. ${activity.category}. ${formatDateDisplay(activity.date)}. ${formatTimeDisplay(activity.time)}. ${activity.organizer}. ${address}.`}>
+      style={[styles.card, CardShadow, { backgroundColor: theme.card }]}
+      accessibilityLabel={`${activity.title}. ${activity.category}. ${placeName}.`}>
       <View style={styles.headerRow}>
-        <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.background }]}>
-          <ThemedText type="smallBold" style={{ color: categoryVisual.foreground }}>
+        <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.tint }]}>
+          <ThemedText style={styles.categoryEmoji}>{categoryEmoji}</ThemedText>
+          <ThemedText
+            type="smallBold"
+            style={[styles.categoryLabel, { color: categoryVisual.background }]}>
             {activity.category}
           </ThemedText>
         </View>
@@ -64,19 +57,10 @@ export function MapActivityPreviewCard({
         {activity.title}
       </ThemedText>
 
-      <View style={styles.meta}>
-        <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {formatDateDisplay(activity.date)}
-        </ThemedText>
-        <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {formatTimeDisplay(activity.time)}
-        </ThemedText>
-        <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {activity.organizer}
-        </ThemedText>
-        <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {address}
-        </ThemedText>
+      <View style={styles.metaGroup}>
+        <ActivitySchedule date={activity.date} time={activity.time} />
+        <ActivityCardMetaRow icon="📍" value={placeName} accessibilityPrefix="Plats" />
+        <ActivityCardAvailability activity={activity} />
       </View>
 
       <Pressable
@@ -99,10 +83,10 @@ export function MapActivityPreviewCard({
 const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.xl,
-    borderWidth: 1,
     paddingHorizontal: Spacing.five,
-    paddingVertical: Spacing.five,
-    gap: Spacing.three,
+    paddingTop: Spacing.five,
+    paddingBottom: Spacing.five + 4,
+    gap: Spacing.four + 4,
   },
   headerRow: {
     flexDirection: 'row',
@@ -111,26 +95,43 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   categoryBadge: {
-    alignSelf: 'flex-start',
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
     borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one + 2,
+    paddingHorizontal: Spacing.three + 2,
+    paddingVertical: Spacing.two,
+  },
+  categoryEmoji: {
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  categoryLabel: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   dismissButton: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
   },
   dismissText: {
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 20,
+    lineHeight: 28,
   },
   title: {
-    letterSpacing: -0.3,
+    fontSize: 32,
+    lineHeight: 40,
+    letterSpacing: -0.5,
   },
-  meta: {
-    gap: Spacing.one,
+  metaGroup: {
+    gap: Spacing.three + 4,
   },
   viewButton: {
-    minHeight: 56,
+    minHeight: 60,
     borderRadius: Radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
@@ -140,6 +141,8 @@ const styles = StyleSheet.create({
   viewButtonText: {
     color: '#FFFFFF',
     fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 28,
   },
   pressed: {
     opacity: 0.9,

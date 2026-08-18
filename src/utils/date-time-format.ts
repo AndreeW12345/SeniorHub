@@ -104,6 +104,11 @@ export function formatTimeDisplay(value: string): string {
   return trimmed;
 }
 
+/** Compact time label for activity cards (e.g. "13:00–14:00" without "Kl."). */
+export function formatTimeDisplayForCard(value: string): string {
+  return formatTimeDisplay(value).replace(/^Kl\.\s*/i, '');
+}
+
 /** Splits a stored time or range into start/end values for admin form pickers. */
 export function splitStoredTimeRange(value: string): { startTime: string; endTime: string } {
   const trimmed = value.trim();

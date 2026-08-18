@@ -2,10 +2,12 @@ import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ActivityCardMetaRow } from '@/components/activity-card-meta-row';
+import { ActivitySchedule } from '@/components/activity-schedule';
 import { NotifyParticipantsModal } from '@/components/notify-participants-modal';
 import { ThemedText } from '@/components/themed-text';
-import { getActivityDisplayLocation, type Activity } from '@/constants/activities';
-import { getCategoryVisual } from '@/constants/category-visuals';
+import { getActivityPlaceName, type Activity } from '@/constants/activities';
+import { getCategoryEmoji, getCategoryVisual } from '@/constants/category-visuals';
 import { RECURRENCE_FREQUENCY_LABELS } from '@/constants/recurrence';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { deleteActivityFromFirestore } from '@/services/activities';
@@ -15,7 +17,6 @@ import {
   confirmSeriesDestructiveAction,
   showErrorAlert,
 } from '@/utils/confirm-alert';
-import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
 import { isSeriesActivity } from '@/utils/recurrence';
 
 type AdminActivityListItemProps = {
@@ -27,6 +28,8 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
   const router = useRouter();
   const theme = useTheme();
   const categoryVisual = getCategoryVisual(activity.category);
+  const categoryEmoji = getCategoryEmoji(activity.category);
+  const placeName = getActivityPlaceName(activity);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isNotifyModalVisible, setIsNotifyModalVisible] = useState(false);
   const belongsToSeries = isSeriesActivity(activity);
@@ -76,8 +79,11 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
     <View style={[styles.card, CardShadow, { backgroundColor: theme.card }]}>
       <View style={styles.content}>
         <View style={styles.badgeRow}>
-          <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.background }]}>
-            <ThemedText type="smallBold" style={{ color: categoryVisual.foreground }}>
+          <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.tint }]}>
+            <ThemedText style={styles.categoryEmoji}>{categoryEmoji}</ThemedText>
+            <ThemedText
+              type="smallBold"
+              style={[styles.categoryLabel, { color: categoryVisual.background }]}>
               {activity.category}
             </ThemedText>
           </View>
@@ -94,13 +100,10 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
           {activity.title}
         </ThemedText>
 
-        <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {formatDateDisplay(activity.date)} · {formatTimeDisplay(activity.time)}
-        </ThemedText>
-
-        <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {getActivityDisplayLocation(activity)}
-        </ThemedText>
+        <View style={styles.metaGroup}>
+          <ActivitySchedule date={activity.date} time={activity.time} />
+          <ActivityCardMetaRow icon="📍" value={placeName} accessibilityPrefix="Plats" />
+        </View>
       </View>
 
       <View style={styles.actions}>
@@ -184,7 +187,7 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
   },
   content: {
-    gap: Spacing.two,
+    gap: Spacing.four,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -194,9 +197,22 @@ const styles = StyleSheet.create({
   },
   categoryBadge: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
     borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one + 2,
+    paddingHorizontal: Spacing.three + 2,
+    paddingVertical: Spacing.two,
+  },
+  categoryEmoji: {
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  categoryLabel: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   seriesBadge: {
     alignSelf: 'flex-start',
@@ -205,7 +221,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one + 2,
   },
   title: {
-    letterSpacing: -0.3,
+    fontSize: 32,
+    lineHeight: 40,
+    letterSpacing: -0.5,
+  },
+  metaGroup: {
+    gap: Spacing.three + 4,
   },
   actions: {
     flexDirection: 'row',

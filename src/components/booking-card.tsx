@@ -2,10 +2,13 @@ import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { ActivityCardMetaRow } from '@/components/activity-card-meta-row';
+import { ActivitySchedule } from '@/components/activity-schedule';
 import { ThemedText } from '@/components/themed-text';
 import { WaitlistInfoBanner } from '@/components/waitlist-info-banner';
 import type { Activity } from '@/constants/activities';
-import { getActivityDisplayLocation } from '@/constants/activities';
+import { getActivityPlaceName } from '@/constants/activities';
+import { getCategoryEmoji, getCategoryVisual } from '@/constants/category-visuals';
 import { useActivities } from '@/contexts/activities-context';
 import { useNotifications } from '@/contexts/notifications-context';
 import {
@@ -21,7 +24,6 @@ import {
   leaveWaitlistRegistration,
 } from '@/services/registrations';
 import { confirmDestructiveAction, showErrorAlert } from '@/utils/confirm-alert';
-import { formatDateDisplay, formatTimeDisplay } from '@/utils/date-time-format';
 import { getBookingStatusLabel } from '@/utils/my-bookings';
 import { createCancellationNotification } from '@/utils/notifications';
 import { formatWaitlistPositionLabel } from '@/utils/waitlist';
@@ -50,7 +52,9 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
 
   const statusLabel = getBookingStatusLabel(status, waitlistPosition);
   const isWaitlist = status === 'waitlist';
-  const displayLocation = getActivityDisplayLocation(activity);
+  const placeName = getActivityPlaceName(activity);
+  const categoryVisual = getCategoryVisual(activity.category);
+  const categoryEmoji = getCategoryEmoji(activity.category);
 
   const openActivity = () => {
     router.push(`/activity/${activity.id}` as Href);
@@ -102,12 +106,18 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
 
   return (
     <View
-      style={[styles.card, CardShadow, { backgroundColor: theme.card, borderColor: theme.border }]}
+      style={[styles.card, CardShadow, { backgroundColor: theme.card }]}
       accessibilityLabel={`${activity.title}, ${statusLabel}`}>
-      <View style={styles.headerRow}>
-        <ThemedText type="sectionTitle" style={styles.title}>
-          {activity.title}
-        </ThemedText>
+      <View style={styles.topRow}>
+        <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.tint }]}>
+          <ThemedText style={styles.categoryEmoji}>{categoryEmoji}</ThemedText>
+          <ThemedText
+            type="smallBold"
+            style={[styles.categoryLabel, { color: categoryVisual.background }]}>
+            {activity.category}
+          </ThemedText>
+        </View>
+
         <View
           style={[
             styles.statusBadge,
@@ -123,20 +133,19 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
         </View>
       </View>
 
-      <View style={styles.details}>
-        <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {formatDateDisplay(activity.date)}
-        </ThemedText>
-        <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {formatTimeDisplay(activity.time)}
-        </ThemedText>
-        <ThemedText type="bodyLarge" themeColor="textSecondary">
-          {displayLocation}
-        </ThemedText>
+      <ThemedText type="cardTitle" style={styles.title}>
+        {activity.title}
+      </ThemedText>
+
+      <View style={styles.metaGroup}>
+        <ActivitySchedule date={activity.date} time={activity.time} />
+        <ActivityCardMetaRow icon="📍" value={placeName} accessibilityPrefix="Plats" />
         {isWaitlist && typeof waitlistPosition === 'number' ? (
-          <ThemedText type="bodyLarge" themeColor="primary" style={styles.positionText}>
-            {formatWaitlistPositionLabel(waitlistPosition)}
-          </ThemedText>
+          <ActivityCardMetaRow
+            icon="⏳"
+            value={formatWaitlistPositionLabel(waitlistPosition)}
+            accessibilityPrefix="Väntelisteplats"
+          />
         ) : null}
         {isWaitlist ? <WaitlistInfoBanner /> : null}
       </View>
@@ -189,46 +198,70 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
 const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.xl,
-    borderWidth: 1,
-    padding: Spacing.five,
-    gap: Spacing.four,
+    paddingHorizontal: Spacing.five,
+    paddingTop: Spacing.five,
+    paddingBottom: Spacing.five + 4,
+    gap: Spacing.four + 4,
   },
-  headerRow: {
+  topRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: Spacing.three,
   },
-  title: {
-    flex: 1,
-    letterSpacing: -0.2,
+  categoryBadge: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three + 2,
+    paddingVertical: Spacing.two,
+  },
+  categoryEmoji: {
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  categoryLabel: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   statusBadge: {
     borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one + 2,
+    paddingHorizontal: Spacing.three + 2,
+    paddingVertical: Spacing.two,
   },
   statusText: {
     fontWeight: '700',
+    fontSize: 17,
+    lineHeight: 24,
   },
-  details: {
-    gap: Spacing.two,
+  title: {
+    fontSize: 32,
+    lineHeight: 40,
+    letterSpacing: -0.5,
   },
-  positionText: {
-    fontWeight: '700',
+  metaGroup: {
+    gap: Spacing.three + 4,
   },
   button: {
-    minHeight: 56,
+    minHeight: 60,
     borderRadius: Radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.five,
+    marginTop: Spacing.one,
   },
   buttonText: {
     color: '#FFFFFF',
     fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 28,
   },
   cancelButton: {
-    minHeight: 56,
+    minHeight: 60,
     borderRadius: Radius.xl,
     borderWidth: 2,
     alignItems: 'center',
@@ -237,6 +270,8 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 28,
   },
   busyRow: {
     flexDirection: 'row',

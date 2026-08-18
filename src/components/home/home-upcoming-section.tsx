@@ -44,7 +44,7 @@ export function HomeUpcomingSection({
       </View>
 
       {useGridLayout ? (
-        <ActivityList columns={gridColumns} gap={Spacing.three}>
+        <ActivityList columns={gridColumns} gap={Spacing.five}>
           {activities.map((activity) => (
             <ActivityListItem key={`upcoming-${activity.id}`}>
               <ActivityCard activity={activity} />
@@ -84,6 +84,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   list: {
-    gap: Spacing.three,
+    gap: Spacing.five,
   },
 });

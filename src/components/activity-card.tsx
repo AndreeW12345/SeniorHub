@@ -1,114 +1,43 @@
 import { useRouter, type Href } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ActivityCardAvailability } from '@/components/activity-card-availability';
+import { ActivityCardMetaRow } from '@/components/activity-card-meta-row';
 import { ActivityImage } from '@/components/activity-image';
-import { ActivityRegistrationStatus } from '@/components/activity-registration-status';
 import { ActivitySchedule } from '@/components/activity-schedule';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ThemedText } from '@/components/themed-text';
-import { Activity, getActivityDisplayLocation } from '@/constants/activities';
-import { getCategoryVisual } from '@/constants/category-visuals';
+import { Activity, getActivityPlaceName } from '@/constants/activities';
+import { getCategoryEmoji, getCategoryVisual } from '@/constants/category-visuals';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
-import { useOrganizations } from '@/contexts/organizations-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
-import {
-  getActivityOrganizerDisplayName,
-  getActivityOrganizerHref,
-} from '@/utils/activity-host';
 
 type ActivityCardProps = {
   activity: Activity;
 };
 
-function ActivityInfoLine({
-  icon,
-  value,
-  accessibilityPrefix,
-  onPress,
-}: {
-  icon: string;
-  value: string;
-  accessibilityPrefix: string;
-  onPress?: () => void;
-}) {
-  const content = (
-    <>
-      <ThemedText type="bodyLarge" style={styles.infoIcon}>
-        {icon}
-      </ThemedText>
-      <ThemedText
-        type={onPress ? 'linkPrimary' : 'bodyLarge'}
-        style={[styles.infoText, onPress && styles.infoLink]}>
-        {value}
-      </ThemedText>
-    </>
-  );
-
-  if (onPress) {
-    return (
-      <Pressable
-        onPress={onPress}
-        accessibilityRole="link"
-        accessibilityLabel={`${accessibilityPrefix}: ${value}`}
-        style={({ pressed }) => [styles.infoLine, pressed && styles.infoLinePressed]}>
-        {content}
-      </Pressable>
-    );
-  }
-
-  return (
-    <View style={styles.infoLine} accessibilityLabel={`${accessibilityPrefix}: ${value}`}>
-      {content}
-    </View>
-  );
-}
-
 export function ActivityCard({ activity }: ActivityCardProps) {
   const theme = useTheme();
   const router = useRouter();
   const { imageHeight } = useResponsive();
-  const { getOrganizationById } = useOrganizations();
   const categoryVisual = getCategoryVisual(activity.category);
-  const displayLocation = getActivityDisplayLocation(activity);
-  const hostOrganization = getOrganizationById(activity.organizationId);
-  const organizerDisplayName = getActivityOrganizerDisplayName(activity, hostOrganization);
+  const categoryEmoji = getCategoryEmoji(activity.category);
+  const placeName = getActivityPlaceName(activity);
 
   const openActivity = () => {
     router.push(`/activity/${activity.id}` as Href);
   };
 
-  const openOrganizer = () => {
-    router.push(getActivityOrganizerHref(activity, hostOrganization) as Href);
-  };
-
   return (
     <View style={[styles.card, CardShadow, { backgroundColor: theme.card }]}>
       <View style={styles.imageWrapper}>
-        {/* Image area is clickable, but favorite button is a sibling to avoid nested buttons on web. */}
         <Pressable
           onPress={openActivity}
           accessibilityRole="button"
           accessibilityLabel={`Visa aktivitet: ${activity.title}`}
-          style={({ pressed }) => [pressed && styles.cardPressed]}>
+          style={({ pressed }) => [pressed && styles.pressed]}>
           <ActivityImage activity={activity} height={imageHeight} />
-          <View style={styles.imageBadges}>
-            <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.background }]}>
-              <SymbolView
-                tintColor={categoryVisual.foreground}
-                name={categoryVisual.icon}
-                size={18}
-                weight="semibold"
-              />
-              <ThemedText
-                type="smallBold"
-                style={[styles.categoryText, { color: categoryVisual.foreground }]}>
-                {activity.category}
-              </ThemedText>
-            </View>
-            <View style={styles.favoriteSpacer} />
-          </View>
         </Pressable>
 
         <View style={styles.favoriteAnchor} pointerEvents="box-none">
@@ -117,101 +46,115 @@ export function ActivityCard({ activity }: ActivityCardProps) {
       </View>
 
       <View style={styles.content}>
+        <View style={[styles.categoryBadge, { backgroundColor: categoryVisual.tint }]}>
+          <ThemedText style={styles.categoryEmoji}>{categoryEmoji}</ThemedText>
+          <ThemedText
+            type="smallBold"
+            style={[styles.categoryLabel, { color: categoryVisual.background }]}>
+            {activity.category}
+          </ThemedText>
+        </View>
+
         <Pressable
           onPress={openActivity}
           accessibilityRole="button"
           accessibilityLabel={`Visa aktivitet: ${activity.title}`}
-          style={({ pressed }) => [pressed && styles.cardPressed]}>
-          <ThemedText type="cardTitle" style={styles.cardTitle}>
+          style={({ pressed }) => [styles.detailsPressable, pressed && styles.pressed]}>
+          <ThemedText type="cardTitle" style={styles.title}>
             {activity.title}
           </ThemedText>
 
-          <ActivitySchedule date={activity.date} time={activity.time} />
-
-          <ActivityInfoLine icon="📍" value={displayLocation} accessibilityPrefix="Plats" />
-          <ActivityRegistrationStatus activity={activity} variant="card" />
+          <View style={styles.metaGroup}>
+            <ActivitySchedule date={activity.date} time={activity.time} />
+            <ActivityCardMetaRow icon="📍" value={placeName} accessibilityPrefix="Plats" />
+            <ActivityCardAvailability activity={activity} />
+          </View>
         </Pressable>
 
-        <ActivityInfoLine
-          icon="👤"
-          value={`${organizerDisplayName} ›`}
-          accessibilityPrefix="Arrangör"
-          onPress={openOrganizer}
-        />
+        <Pressable
+          onPress={openActivity}
+          accessibilityRole="button"
+          accessibilityLabel={`Visa aktivitet och boka: ${activity.title}`}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            { backgroundColor: theme.primary },
+            pressed && styles.pressed,
+          ]}>
+          <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
+            Visa aktivitet
+          </ThemedText>
+        </Pressable>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  cardPressed: {
-    opacity: 0.96,
-  },
   card: {
     borderRadius: Radius.xl,
     overflow: 'hidden',
+  },
+  pressed: {
+    opacity: 0.92,
   },
   imageWrapper: {
     position: 'relative',
     width: '100%',
   },
-  imageBadges: {
-    position: 'absolute',
-    left: Spacing.four,
-    right: Spacing.four,
-    bottom: Spacing.four,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one + 2,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three + 2,
-    paddingVertical: Spacing.two,
-  },
-  categoryText: {
-    color: '#FFFFFF',
-  },
-  favoriteSpacer: {
-    width: 48,
-    height: 48,
-  },
   favoriteAnchor: {
     position: 'absolute',
+    top: Spacing.four,
     right: Spacing.four,
-    bottom: Spacing.four,
     zIndex: 2,
   },
   content: {
     paddingHorizontal: Spacing.five,
     paddingTop: Spacing.five,
     paddingBottom: Spacing.five + 4,
-    gap: Spacing.four,
+    gap: Spacing.four + 4,
   },
-  cardTitle: {
-    letterSpacing: -0.3,
-  },
-  infoLine: {
+  categoryBadge: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
+    gap: Spacing.two,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three + 2,
+    paddingVertical: Spacing.two,
   },
-  infoLinePressed: {
-    opacity: 0.85,
+  categoryEmoji: {
+    fontSize: 20,
+    lineHeight: 24,
   },
-  infoIcon: {
-    fontSize: 24,
-    lineHeight: 32,
-  },
-  infoText: {
-    flex: 1,
-    fontWeight: '600',
-    letterSpacing: 0.1,
-  },
-  infoLink: {
+  categoryLabel: {
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  detailsPressable: {
+    gap: Spacing.four,
+  },
+  title: {
+    fontSize: 32,
+    lineHeight: 40,
+    letterSpacing: -0.5,
+  },
+  metaGroup: {
+    gap: Spacing.three + 4,
+  },
+  primaryButton: {
+    minHeight: 60,
+    borderRadius: Radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+    marginTop: Spacing.one,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 28,
   },
 });

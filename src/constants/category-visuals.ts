@@ -62,3 +62,18 @@ const CATEGORY_VISUALS: Record<ActivityCategory, CategoryVisual> = {
 export function getCategoryVisual(category: ActivityCategory): CategoryVisual {
   return CATEGORY_VISUALS[category];
 }
+
+const CATEGORY_EMOJIS: Record<ActivityCategory, string> = {
+  Promenad: '🚶',
+  Fika: '☕',
+  Spel: '🎳',
+  Musik: '🎵',
+  Träning: '💪',
+  Kultur: '🎭',
+  Frivilligt: '🤝',
+};
+
+/** Emoji shown alongside the category label on activity cards. */
+export function getCategoryEmoji(category: ActivityCategory): string {
+  return CATEGORY_EMOJIS[category];
+}
