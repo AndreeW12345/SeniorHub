@@ -287,7 +287,7 @@ export default function AktiviteterScreen() {
           {!isInitializing ? renderActivitiesContent() : null}
 
           {!isInitializing ? (
-            <HomeOrganizerCta onPress={() => router.push('/admin/login' as Href)} />
+            <HomeOrganizerCta onPress={() => router.push('/bli-arrangor' as Href)} />
           ) : null}
         </View>
       </ScrollView>
