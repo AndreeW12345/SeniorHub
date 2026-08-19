@@ -73,6 +73,13 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="bli-arrangor"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
                                 name="auth/complete"
                                 options={{
                                   presentation: 'card',
