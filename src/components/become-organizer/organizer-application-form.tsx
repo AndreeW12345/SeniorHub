@@ -6,6 +6,7 @@ import { FormField } from '@/components/form-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { submitOrganizerApplication } from '@/services/organizer-applications';
 
 type OrganizerApplicationFormProps = {
   onSubmit: () => void;
@@ -36,9 +37,10 @@ export function OrganizerApplicationForm({ onSubmit }: OrganizerApplicationFormP
   const [activitiesDescription, setActivitiesDescription] = useState('');
   const [consent, setConsent] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const trimmedOrganization = organization.trim();
     const trimmedContactPerson = contactPerson.trim();
     const trimmedEmail = email.trim();
@@ -63,6 +65,7 @@ export function OrganizerApplicationForm({ onSubmit }: OrganizerApplicationFormP
     };
 
     setErrors(nextErrors);
+    setSubmitError(null);
 
     if (Object.values(nextErrors).some(Boolean)) {
       return;
@@ -70,11 +73,26 @@ export function OrganizerApplicationForm({ onSubmit }: OrganizerApplicationFormP
 
     setIsSubmitting(true);
 
-    // Informativ ansökan — ingen backend eller arrangörskonto skapas här.
-    requestAnimationFrame(() => {
-      setIsSubmitting(false);
+    try {
+      const result = await submitOrganizerApplication({
+        contactPerson: trimmedContactPerson,
+        email: trimmedEmail,
+        phone: trimmedPhone,
+        organization: trimmedOrganization,
+        municipality: trimmedMunicipality,
+        website,
+        activitiesDescription: trimmedDescription,
+      });
+
+      if (!result.ok) {
+        setSubmitError(result.errorMessage);
+        return;
+      }
+
       onSubmit();
-    });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -162,6 +180,12 @@ export function OrganizerApplicationForm({ onSubmit }: OrganizerApplicationFormP
         </View>
       </View>
 
+      {submitError ? (
+        <ThemedText type="bodyLarge" themeColor="favorite" style={styles.submitError}>
+          {submitError}
+        </ThemedText>
+      ) : null}
+
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Skicka ansökan"
@@ -201,6 +225,9 @@ const styles = StyleSheet.create({
   },
   checkboxBlock: {
     gap: Spacing.two,
+  },
+  submitError: {
+    fontWeight: '600',
   },
   submitButton: {
     minHeight: 64,

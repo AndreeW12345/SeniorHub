@@ -55,5 +55,19 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if true;
     }
+
+    // Organizer applications — clients may submit only; staff review in Firebase Console.
+    match /organizerApplications/{applicationId} {
+      allow create: if request.resource.data.keys().hasAll([
+          'name', 'email', 'phone', 'organization', 'description', 'createdAt', 'status'
+        ])
+        && request.resource.data.status == 'Ny'
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.phone is string
+        && request.resource.data.organization is string
+        && request.resource.data.description is string;
+      allow read, update, delete: if false;
+    }
   }
 }

@@ -22,4 +22,6 @@ export const FIRESTORE_COLLECTIONS = {
   userNotifications: 'notifications',
   /** Tracks server-delivered reminders: activities/{id}/reminderDeliveries */
   reminderDeliveries: 'reminderDeliveries',
+  /** Organizer signup applications reviewed manually by SeniorHub staff. */
+  organizerApplications: 'organizerApplications',
 } as const;

@@ -68,6 +68,7 @@ export const COLLECTIONS = {
   registrations: 'registrations',
   userNotifications: 'notifications',
   reminderDeliveries: 'reminderDeliveries',
+  organizerApplications: 'organizerApplications',
 } as const;
 
 export type ReminderKind = 'day_before' | 'one_hour_before';
