@@ -1,73 +1,7 @@
-rules_version = '2';
+# Deprecated – use `src/firebase/firestore.rules` instead.
 
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Public read access. Writes are needed for the admin form in SeniorHub.
-    // Secure this with Firebase Authentication before production.
-    match /activities/{activityId} {
-      allow read: if true;
-      allow create, update, delete: if true;
+This file is kept for reference only. Firebase deploy reads rules from:
 
-      // Participant registrations for the booking system.
-      match /registrations/{registrationId} {
-        allow read: if true;
-        allow create, update, delete: if true;
-      }
+`src/firebase/firestore.rules`
 
-      // Admin messages to booked participants.
-      match /announcements/{announcementId} {
-        allow read: if true;
-        allow create, update, delete: if true;
-      }
-
-      // Server-side reminder deduplication for FCM push.
-      match /reminderDeliveries/{deliveryId} {
-        allow read: if true;
-        allow create, update, delete: if true;
-      }
-    }
-
-    match /organizers/{organizerId} {
-      allow read: if true;
-      allow create, update, delete: if true;
-    }
-
-    // Device user profiles + push tokens (document id = stable local device id or Auth uid).
-    match /users/{userId} {
-      allow read: if true;
-      allow create, update, delete: if true;
-
-      // Server-delivered inbox notifications synced into the local Notiser tab.
-      match /notifications/{notificationId} {
-        allow read: if true;
-        allow create, update, delete: if true;
-      }
-    }
-
-    // Admin accounts keyed by Firebase Auth uid (organizationId + role).
-    match /admins/{adminId} {
-      allow read: if true;
-      allow create, update, delete: if true;
-    }
-
-    // Tenant organizations (municipalities / associations).
-    match /organizations/{organizationId} {
-      allow read: if true;
-      allow create, update, delete: if true;
-    }
-
-    // Organizer applications — clients may submit only; staff review in Firebase Console.
-    match /organizerApplications/{applicationId} {
-      allow create: if request.resource.data.keys().hasAll([
-          'name', 'email', 'phone', 'organization', 'description', 'createdAt', 'status'
-        ])
-        && request.resource.data.status == 'Ny'
-        && request.resource.data.name is string
-        && request.resource.data.email is string
-        && request.resource.data.phone is string
-        && request.resource.data.organization is string
-        && request.resource.data.description is string;
-      allow read, update, delete: if false;
-    }
-  }
-}
+See that file for the active Security Rules implementation.

@@ -2,27 +2,25 @@ import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
-import { decrementActivityParticipants } from '@/services/activities/save-activity';
 import type { RegistrationMutationResult } from '@/services/registrations/fetch-registrations';
-import { promoteNextWaitlistRegistration } from '@/services/registrations/promote-next-waitlist-registration';
 
 export type CancelActivityRegistrationResult = RegistrationMutationResult;
 
 /**
  * Cancels a registration by setting status to "cancelled".
- * When a seat is freed and the waitlist is not empty, the oldest waitlist entry
- * (FIFO) is promoted to "registered" so net capacity stays the same.
+ * Participant count and waitlist promotion are handled server-side when status changes.
+ * Set freeSeat to false when leaving the waitlist (no seat was taken).
  */
 export async function cancelActivityRegistration(
   activityId: string,
   registrationId: string,
   options?: {
     /**
-     * When true (default), frees a booked seat or promotes from the waitlist.
-     * Set to false when leaving the waitlist (no seat was taken).
+     * When true (default), marks a booked seat as freed (registered → cancelled).
+     * Set to false when leaving the waitlist (waitlist → cancelled).
      */
     freeSeat?: boolean;
-    /** Optional hook after a seat change (promotion or free seat). */
+    /** Optional hook after cancellation (e.g. refresh UI). */
     onSeatAvailable?: (activityId: string) => void | Promise<void>;
   },
 ): Promise<CancelActivityRegistrationResult> {
@@ -56,30 +54,6 @@ export async function cancelActivityRegistration(
     );
 
     if (freeSeat) {
-      const promotion = await promoteNextWaitlistRegistration(trimmedActivityId);
-
-      if (!promotion.ok) {
-        console.warn(
-          '[SeniorHub] Uppflyttning från väntelistan misslyckades, frigör platsen:',
-          promotion.errorMessage,
-        );
-        const countResult = await decrementActivityParticipants(trimmedActivityId);
-        if (!countResult.ok) {
-          console.warn(
-            '[SeniorHub] Avanmälan sparades men deltagarräknaren kunde inte uppdateras:',
-            countResult.errorMessage,
-          );
-        }
-      } else if (!promotion.promoted) {
-        const countResult = await decrementActivityParticipants(trimmedActivityId);
-        if (!countResult.ok) {
-          console.warn(
-            '[SeniorHub] Avanmälan sparades men deltagarräknaren kunde inte uppdateras:',
-            countResult.errorMessage,
-          );
-        }
-      }
-
       await options?.onSeatAvailable?.(trimmedActivityId);
     }
 

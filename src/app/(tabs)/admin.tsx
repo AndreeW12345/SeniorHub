@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { AdminActivityListItem } from '@/components/admin-activity-list-item';
+import { AdminActivitySeriesRow } from '@/components/admin-activity-series-row';
 import { AdminGuard } from '@/components/admin-guard';
 import { FormRadioGroup } from '@/components/form-radio-group';
 import { ScreenLayout } from '@/components/screen-layout';
@@ -15,6 +16,7 @@ import { useActivities } from '@/contexts/activities-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { filterActivitiesForAdminScope } from '@/utils/activity-organization';
+import { groupActivitiesForAdminList } from '@/utils/admin-activity-list';
 
 export default function AdminScreen() {
   return (
@@ -62,13 +64,15 @@ function AdminScreenContent() {
     [adminActivities, adminAccount, activityScope],
   );
 
-  const handleActivityDeleted = useCallback(
-    (_activityId: string) => {
-      void loadAdminActivities();
-      void refreshActivities();
-    },
-    [loadAdminActivities, refreshActivities],
+  const adminListEntries = useMemo(
+    () => groupActivitiesForAdminList(visibleActivities),
+    [visibleActivities],
   );
+
+  const handleListChanged = useCallback(() => {
+    void loadAdminActivities();
+    void refreshActivities();
+  }, [loadAdminActivities, refreshActivities]);
 
   const handleSignOut = useCallback(async () => {
     const result = await signOut();
@@ -180,15 +184,23 @@ function AdminScreenContent() {
               Laddar aktiviteter...
             </ThemedText>
           </View>
-        ) : visibleActivities.length > 0 ? (
+        ) : adminListEntries.length > 0 ? (
           <View style={styles.list}>
-            {visibleActivities.map((activity) => (
-              <AdminActivityListItem
-                key={activity.id}
-                activity={activity}
-                onDeleted={handleActivityDeleted}
-              />
-            ))}
+            {adminListEntries.map((entry) =>
+              entry.kind === 'series' ? (
+                <AdminActivitySeriesRow
+                  key={`series-${entry.seriesId}`}
+                  group={entry}
+                  onSeriesChanged={handleListChanged}
+                />
+              ) : (
+                <AdminActivityListItem
+                  key={entry.activity.id}
+                  activity={entry.activity}
+                  onDeleted={() => handleListChanged()}
+                />
+              ),
+            )}
           </View>
         ) : (
           <View style={[styles.emptyState, CardShadow, { backgroundColor: theme.card }]}>

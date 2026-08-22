@@ -59,8 +59,11 @@ export const SERIES_EDIT_SCOPE_LABELS: Record<SeriesEditScope, string> = {
   series: 'Hela serien',
 };
 
+/** Default number of materialized occurrences when neither end date nor max is set. */
+export const DEFAULT_RECURRENCE_OCCURRENCES = 12;
+
 /** Safety cap so a misconfigured rule cannot create unbounded documents. */
-export const MAX_RECURRENCE_OCCURRENCES = 104;
+export const MAX_RECURRENCE_OCCURRENCES = 52;
 
 export function isActiveRecurrenceFrequency(
   value: string | null | undefined,

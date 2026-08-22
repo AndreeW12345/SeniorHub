@@ -1,4 +1,4 @@
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { Platform } from 'react-native';
 
 import type { UserProfile, UserProfileUpdate } from '@/constants/user-profile';
@@ -31,6 +31,9 @@ export async function saveUserProfile(
         : null;
 
   try {
+    const userRef = doc(db, FIRESTORE_COLLECTIONS.users, trimmedId);
+    const existing = await getDoc(userRef);
+
     const payload: Record<string, unknown> = {
       name,
       phone,
@@ -43,7 +46,13 @@ export async function saveUserProfile(
       payload.photoUrl = photoUrl;
     }
 
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.users, trimmedId), payload, { merge: true });
+    if (!existing.exists()) {
+      payload.role = 'user';
+      payload.photoUrl = photoUrl === undefined ? null : photoUrl;
+      payload.createdAt = serverTimestamp();
+    }
+
+    await setDoc(userRef, payload, { merge: true });
 
     return {
       ok: true,

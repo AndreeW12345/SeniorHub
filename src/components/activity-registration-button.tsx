@@ -65,7 +65,7 @@ export function ActivityRegistrationButton({
 }: ActivityRegistrationButtonProps) {
   const theme = useTheme();
   const router = useRouter();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const { showToast } = useToast();
   const { addNotification } = useNotifications();
   const { preferences } = useNotificationPreferences();
@@ -73,10 +73,10 @@ export function ActivityRegistrationButton({
   const {
     isRegistered,
     isOnWaitlist,
-    getRegistrationId,
     markAsRegistered,
     markAsWaitlisted,
     removeRegistration,
+    watchActivityRegistration,
   } = useRegistrations();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormVisible, setIsFormVisible] = useState(false);
@@ -91,11 +91,18 @@ export function ActivityRegistrationButton({
   const registered = isRegistered(activity.id);
   const onWaitlist = isOnWaitlist(activity.id);
   const usesSeniorHubForm = action?.method === 'seniorhub';
-  const registrationId = getRegistrationId(activity.id);
   const formMode: ActivityRegistrationFormMode =
     full && usesSeniorHubForm ? 'waitlist' : 'registered';
   /** SeniorHub waitlist is allowed when full; external methods stay blocked when full. */
   const canOpenRegistration = usesSeniorHubForm ? !registered && !onWaitlist : !full && !registered;
+
+  useEffect(() => {
+    if (!isSignedIn || !usesSeniorHubForm) {
+      return;
+    }
+
+    watchActivityRegistration(activity.id);
+  }, [activity.id, isSignedIn, usesSeniorHubForm, watchActivityRegistration]);
 
   useEffect(() => {
     autoOpenHandledRef.current = false;
@@ -259,8 +266,9 @@ export function ActivityRegistrationButton({
     setIsSubmitting(true);
 
     try {
-      if (registrationId) {
-        const result = await cancelActivityRegistration(activity.id, registrationId);
+      const uid = user?.uid?.trim();
+      if (uid) {
+        const result = await cancelActivityRegistration(activity.id, uid);
 
         if (!result.ok) {
           showErrorAlert('Kunde inte avboka', result.errorMessage);
@@ -290,8 +298,9 @@ export function ActivityRegistrationButton({
     setIsSubmitting(true);
 
     try {
-      if (registrationId) {
-        const result = await leaveWaitlistRegistration(activity.id, registrationId);
+      const uid = user?.uid?.trim();
+      if (uid) {
+        const result = await leaveWaitlistRegistration(activity.id, uid);
 
         if (!result.ok) {
           showErrorAlert('Kunde inte lämna väntelistan', result.errorMessage);

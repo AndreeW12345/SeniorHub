@@ -3,6 +3,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 
 import { notifyOrganizerAboutBooking } from '../notifications/deliver-events';
 import { COLLECTIONS } from '../notifications/types';
+import { readRegistrationStatus, syncActivityParticipants } from './sync-activity-participants';
 
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
@@ -19,10 +20,12 @@ export const onRegistrationCreated = onDocumentCreated(
       return;
     }
 
-    const status = readString(registration.status) ?? 'registered';
+    const status = readRegistrationStatus(registration);
     if (status !== 'registered') {
       return;
     }
+
+    await syncActivityParticipants(activityId);
 
     const userName = readString(registration.name) ?? 'Någon';
 

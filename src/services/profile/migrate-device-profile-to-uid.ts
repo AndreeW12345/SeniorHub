@@ -49,7 +49,9 @@ async function createEmptyUidProfile(
     doc(db, FIRESTORE_COLLECTIONS.users, uid),
     {
       ...profile,
+      role: 'user',
       platform: Platform.OS,
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     },
     { merge: true },

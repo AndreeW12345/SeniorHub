@@ -41,6 +41,7 @@
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.1",
@@ -56,6 +57,9 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "verify:firebase": "node scripts/verify-firestore.mjs",
+    "test:firestore-rules": "firebase emulators:exec --only firestore \"node --test tests/firestore-rules.test.mjs\"",
+    "migrate:registration-ids": "node scripts/migrate-registration-ids.mjs",
+    "migrate:registration-ids:dry-run": "node scripts/migrate-registration-ids.mjs --dry-run",
     "build:hosting": "node scripts/build-hosting.mjs",
     "deploy:hosting": "node scripts/deploy-hosting.mjs",
     "configure:mobile-auth-links": "node scripts/configure-mobile-auth-links.mjs",

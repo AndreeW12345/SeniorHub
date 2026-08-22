@@ -1,0 +1,256 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function userExists() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isOrganizer() {
+      return userExists()
+        && userDoc().role == 'organizer'
+        && userDoc().organizerOrganizationId is string
+        && userDoc().organizerOrganizationId.size() > 0;
+    }
+
+    function organizerOrgId() {
+      return userDoc().organizerOrganizationId;
+    }
+
+    function hasVerifiedEmail() {
+      return isSignedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && request.auth.token.email.size() > 0;
+    }
+
+    function authEmailMatches(fieldEmail) {
+      return hasVerifiedEmail()
+        && request.auth.token.email.lower() == fieldEmail.lower();
+    }
+
+    function userPrivilegedFieldsUnchanged() {
+      return request.resource.data.role == resource.data.role
+        && request.resource.data.get('organizerOrganizationId', null)
+           == resource.data.get('organizerOrganizationId', null);
+    }
+
+    function activityOrgIdUnchanged() {
+      return request.resource.data.organizationId == resource.data.organizationId;
+    }
+
+    function parentActivity(activityId) {
+      return get(/databases/$(database)/documents/activities/$(activityId)).data;
+    }
+
+    function parentActivityOrgId(activityId) {
+      return parentActivity(activityId).organizationId;
+    }
+
+    function isRegisteredForActivity(activityId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/activities/$(activityId)/registrations/$(request.auth.uid));
+    }
+
+    function activityCreateAllowedKeys() {
+      return [
+        'title', 'description', 'date', 'time', 'location', 'organizer', 'category',
+        'imageUrl', 'latitude', 'longitude', 'street', 'postalCode', 'city', 'fullAddress', 'address',
+        'registrationRequired', 'hasParticipantLimit', 'maxParticipants', 'participants',
+        'membershipRequired', 'membershipOrganization', 'membershipUrl',
+        'registrationMethod', 'registrationUrl', 'registrationPhone', 'registrationEmail',
+        'isCancelled', 'organizationId', 'createdAt', 'createdByUid',
+        'seriesId', 'occurrenceIndex', 'recurrence', 'isRecurrenceException'
+      ];
+    }
+
+    function activityUpdateAllowedKeys() {
+      return [
+        'title', 'description', 'date', 'time', 'location', 'organizer', 'category',
+        'imageUrl', 'latitude', 'longitude', 'street', 'postalCode', 'city', 'fullAddress', 'address',
+        'registrationRequired', 'hasParticipantLimit', 'maxParticipants', 'participants',
+        'membershipRequired', 'membershipOrganization', 'membershipUrl',
+        'registrationMethod', 'registrationUrl', 'registrationPhone', 'registrationEmail',
+        'isCancelled', 'updatedByUid', 'seriesId', 'occurrenceIndex', 'recurrence', 'isRecurrenceException'
+      ];
+    }
+
+    function userSelfUpdateAllowedKeys() {
+      return [
+        'name', 'phone', 'email', 'photoUrl', 'updatedAt', 'platform',
+        'fcmToken', 'fcmTokens', 'expoPushToken', 'notificationPreferences'
+      ];
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasAll([
+             'name', 'email', 'phone', 'photoUrl', 'role', 'createdAt', 'updatedAt'
+           ])
+        && request.resource.data.keys().hasOnly([
+             'name', 'email', 'phone', 'photoUrl', 'role', 'createdAt', 'updatedAt', 'platform',
+             'fcmToken', 'fcmTokens', 'expoPushToken', 'notificationPreferences'
+           ])
+        && request.resource.data.role == 'user';
+
+      allow update: if isOwner(uid)
+        && userPrivilegedFieldsUnchanged()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(userSelfUpdateAllowedKeys());
+
+      allow update: if isAdmin();
+
+      allow delete: if isAdmin();
+
+      match /notifications/{notificationId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    match /admins/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /organizations/{organizationId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /organizerApplications/{applicationId} {
+      allow read: if isAdmin();
+
+      allow create: if isSignedIn()
+        && hasVerifiedEmail()
+        && request.resource.data.applicantUid == request.auth.uid
+        && authEmailMatches(request.resource.data.email)
+        && request.resource.data.status == 'Ny'
+        && request.resource.data.keys().hasAll([
+             'name', 'email', 'phone', 'organization', 'description',
+             'createdAt', 'status', 'applicantUid'
+           ])
+        && request.resource.data.keys().hasOnly([
+             'name', 'email', 'phone', 'organization', 'description',
+             'createdAt', 'status', 'applicantUid'
+           ]);
+
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'status', 'organizationId', 'reviewedAt',
+             'reviewedByAdminUid', 'rejectionReason'
+           ]);
+
+      allow delete: if isAdmin();
+    }
+
+    match /organizers/{organizerId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /activities/{activityId} {
+      allow read: if true;
+
+      allow create: if isOrganizer()
+        && request.resource.data.organizationId == organizerOrgId()
+        && request.resource.data.keys().hasAll([
+             'title', 'description', 'date', 'time', 'location', 'organizer',
+             'category', 'organizationId'
+           ])
+        && request.resource.data.keys().hasOnly(activityCreateAllowedKeys());
+
+      allow update: if isOrganizer()
+        && resource.data.organizationId == organizerOrgId()
+        && request.resource.data.organizationId == organizerOrgId()
+        && activityOrgIdUnchanged()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(activityUpdateAllowedKeys());
+
+      allow delete: if isOrganizer()
+        && resource.data.organizationId == organizerOrgId();
+
+      allow create, update, delete: if isAdmin();
+
+      match /registrations/{registrationId} {
+        allow read: if
+          (isSignedIn() && registrationId == request.auth.uid)
+          || (isOrganizer() && parentActivityOrgId(activityId) == organizerOrgId())
+          || isAdmin();
+
+        allow create: if isSignedIn()
+          && registrationId == request.auth.uid
+          && !exists(/databases/$(database)/documents/activities/$(activityId)/registrations/$(registrationId))
+          && request.resource.data.keys().hasAll([
+               'name', 'phone', 'registeredAt', 'status'
+             ])
+          && request.resource.data.keys().hasOnly([
+               'name', 'phone', 'registeredAt', 'status'
+             ])
+          && request.resource.data.status in ['registered', 'waitlist'];
+
+        allow update: if isSignedIn()
+          && registrationId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               'status', 'cancelledAt', 'name', 'phone', 'registeredAt'
+             ])
+          && (
+            request.resource.data.status == 'cancelled'
+            || resource.data.status == 'cancelled'
+            || !(resource.data.status in ['registered', 'waitlist']
+                 && request.resource.data.status in ['registered', 'waitlist'])
+          );
+
+        allow delete: if isSignedIn()
+          && registrationId == request.auth.uid;
+
+        allow update: if isOrganizer()
+          && parentActivityOrgId(activityId) == organizerOrgId()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               'status', 'cancelledAt', 'promotedAt'
+             ]);
+
+        allow delete: if isOrganizer()
+          && parentActivityOrgId(activityId) == organizerOrgId();
+
+        allow create, update, delete: if isAdmin();
+      }
+
+      match /announcements/{announcementId} {
+        allow read: if isSignedIn() && (
+          isAdmin()
+          || (isOrganizer() && parentActivityOrgId(activityId) == organizerOrgId())
+          || isRegisteredForActivity(activityId)
+        );
+
+        allow create, update, delete: if isOrganizer()
+          && parentActivityOrgId(activityId) == organizerOrgId();
+
+        allow create, update, delete: if isAdmin();
+      }
+
+      match /reminderDeliveries/{deliveryId} {
+        allow read, write: if false;
+      }
+    }
+  }
+}

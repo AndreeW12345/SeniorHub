@@ -5,6 +5,7 @@ import {
   type OrganizerApplicationFormInput,
   buildOrganizerApplicationDescription,
 } from '@/constants/organizer-application';
+import { getFirebaseAuth } from '@/firebase';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
 
@@ -29,6 +30,29 @@ export async function submitOrganizerApplication(
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
 
+  const auth = getFirebaseAuth();
+  const currentUser = auth?.currentUser;
+  if (!currentUser?.uid) {
+    return { ok: false, errorMessage: 'Du måste vara inloggad för att skicka en ansökan.' };
+  }
+
+  const applicantUid = currentUser.uid.trim();
+
+  if (!currentUser.emailVerified) {
+    return {
+      ok: false,
+      errorMessage: 'Verifiera din e-postadress innan du skickar en arrangörsansökan.',
+    };
+  }
+
+  const authEmail = currentUser.email?.trim().toLowerCase();
+  if (!authEmail || authEmail !== email.toLowerCase()) {
+    return {
+      ok: false,
+      errorMessage: 'Ansökan måste skickas med samma e-postadress som ditt inloggade konto.',
+    };
+  }
+
   const db = getFirestoreDb();
   if (!db) {
     return { ok: false, errorMessage: 'Firestore kunde inte initieras.' };
@@ -41,6 +65,7 @@ export async function submitOrganizerApplication(
       phone,
       organization,
       description,
+      applicantUid,
       createdAt: serverTimestamp(),
       status: ORGANIZER_APPLICATION_STATUS.new,
     });

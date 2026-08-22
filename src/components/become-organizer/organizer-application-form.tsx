@@ -6,6 +6,7 @@ import { FormField } from '@/components/form-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/contexts/auth-context';
 import { submitOrganizerApplication } from '@/services/organizer-applications';
 
 type OrganizerApplicationFormProps = {
@@ -28,6 +29,7 @@ function isValidEmail(value: string): boolean {
 
 export function OrganizerApplicationForm({ onSubmit }: OrganizerApplicationFormProps) {
   const theme = useTheme();
+  const { user, isSignedIn } = useAuth();
   const [organization, setOrganization] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [email, setEmail] = useState('');
@@ -68,6 +70,16 @@ export function OrganizerApplicationForm({ onSubmit }: OrganizerApplicationFormP
     setSubmitError(null);
 
     if (Object.values(nextErrors).some(Boolean)) {
+      return;
+    }
+
+    if (!isSignedIn || !user) {
+      setSubmitError('Du måste vara inloggad för att skicka en ansökan.');
+      return;
+    }
+
+    if (!user.emailVerified) {
+      setSubmitError('Verifiera din e-postadress innan du skickar en arrangörsansökan.');
       return;
     }
 

@@ -1,5 +1,5 @@
 import * as ImageManipulator from 'expo-image-manipulator';
-import { getDownloadURL, ref, uploadString } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { getFirebaseStorage, isFirebaseStorageConfigured } from '@/firebase';
 
@@ -33,11 +33,22 @@ function buildStoragePath(activityId?: string): string {
   return `activities/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.jpg`;
 }
 
+/** RN-compatible blob from a local file URI (fetch→blob breaks; uploadString uses unsupported ArrayBuffer blobs). */
+function uriToBlob(uri: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = () => resolve(xhr.response);
+    xhr.onerror = () => reject(new TypeError('Network request failed'));
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
+}
+
 /**
  * Uploads a local image file to Firebase Storage and returns its download URL.
  *
- * Uses base64 + uploadString instead of fetch→blob→uploadBytes, which hangs
- * silently on React Native / Expo with the Firebase JS SDK.
+ * Uses XMLHttpRequest blob + uploadBytes for React Native / Expo compatibility.
  */
 export async function uploadActivityImage(
   localUri: string,
@@ -68,19 +79,19 @@ export async function uploadActivityImage(
       base64Length: compressed.base64?.length ?? 0,
     });
 
-    if (!compressed.base64) {
+    if (!compressed.uri) {
       return { ok: false, errorMessage: 'Kunde inte läsa den valda bilden.' };
     }
 
     const path = buildStoragePath(activityId);
     const storageRef = ref(storage, path);
-    console.log('[SeniorHub][upload] before uploadString', { path });
+    console.log('[SeniorHub][upload] before uploadBytes', { path });
 
-    // Avoid uploadBytes(blob): known hang on RN/Expo with Firebase JS SDK.
-    await uploadString(storageRef, compressed.base64, 'base64', {
+    const blob = await uriToBlob(compressed.uri);
+    await uploadBytes(storageRef, blob, {
       contentType: 'image/jpeg',
     });
-    console.log('[SeniorHub][upload] after uploadString');
+    console.log('[SeniorHub][upload] after uploadBytes');
 
     console.log('[SeniorHub][upload] before getDownloadURL');
     const downloadUrl = await getDownloadURL(storageRef);

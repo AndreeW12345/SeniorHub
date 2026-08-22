@@ -47,7 +47,7 @@ export default function ActivityDetailScreen() {
   const { id, resumeBooking } = useLocalSearchParams<{ id: string; resumeBooking?: string }>();
   const router = useRouter();
   const goBack = useSafeBack();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const { getActivityById } = useActivities();
   const { getOrganizationById } = useOrganizations();
   const { isMember } = useMemberships();
@@ -82,10 +82,10 @@ export default function ActivityDetailScreen() {
     : false;
   const { bookedCount, waitlistCount, getWaitlistPositionFor, adjustBookedCount } =
     useActivitySeatAvailability(activity);
-  const { isOnWaitlist, getRegistrationId } = useRegistrations();
+  const { isOnWaitlist, watchActivityRegistration } = useRegistrations();
   const waitlistPosition =
     activity && isOnWaitlist(activity.id)
-      ? getWaitlistPositionFor(getRegistrationId(activity.id))
+      ? getWaitlistPositionFor(user?.uid ?? null)
       : null;
   const detailImageHeight = isDesktop ? 380 : 300;
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
@@ -95,6 +95,8 @@ export default function ActivityDetailScreen() {
     if (!isSignedIn || !activityId) {
       return;
     }
+
+    watchActivityRegistration(activityId);
 
     void (async () => {
       const pending = await readPendingActivityBooking();
@@ -112,7 +114,7 @@ export default function ActivityDetailScreen() {
         await clearPendingActivityBooking();
       }
     })();
-  }, [activityId, isSignedIn, shouldResumeBooking]);
+  }, [activityId, isSignedIn, shouldResumeBooking, watchActivityRegistration]);
 
   if (!activity) {
     return (

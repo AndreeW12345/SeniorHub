@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { Activity } from '@/constants/activities';
 import type { ActivityRegistration } from '@/constants/registrations';
+import { subscribeActivityParticipantCount } from '@/services/activities/subscribe-activity-participant-count';
 import { subscribeActivityRegistrations } from '@/services/registrations/subscribe-activity-registrations';
 import {
   getSeatAvailability,
@@ -32,7 +33,7 @@ type UseActivitySeatAvailabilityResult = {
 
 /**
  * Live registered + waitlist counts for an activity.
- * Updates automatically when registrations change (e.g. cancel + waitlist promotion).
+ * Booked count comes from activities/{id}.participants; waitlist from registrations.
  */
 export function useActivitySeatAvailability(
   activity: Activity | undefined,
@@ -56,28 +57,51 @@ export function useActivitySeatAvailability(
 
     setIsLoading(true);
 
-    const unsubscribe = subscribeActivityRegistrations(
-      activity.id,
-      (registrations) => {
-        const registered = registrations.filter(
-          (registration) => registration.status === 'registered',
-        );
-        const waiting = sortWaitlistFifo(
-          registrations.filter((registration) => registration.status === 'waitlist'),
-        );
-        setBookedCount(registered.length);
-        setWaitlist(waiting);
+    let bookedReady = false;
+    let waitlistReady = false;
+
+    const finishLoadingIfReady = () => {
+      if (bookedReady && waitlistReady) {
         setIsLoading(false);
+      }
+    };
+
+    const unsubscribeBookedCount = subscribeActivityParticipantCount(
+      activity.id,
+      (participants) => {
+        setBookedCount(participants);
+        bookedReady = true;
+        finishLoadingIfReady();
       },
       () => {
         setBookedCount(fallbackBooked);
+        bookedReady = true;
+        finishLoadingIfReady();
+      },
+    );
+
+    const unsubscribeWaitlist = subscribeActivityRegistrations(
+      activity.id,
+      (registrations) => {
+        const waiting = sortWaitlistFifo(
+          registrations.filter((registration) => registration.status === 'waitlist'),
+        );
+        setWaitlist(waiting);
+        waitlistReady = true;
+        finishLoadingIfReady();
+      },
+      () => {
         setWaitlist([]);
-        setIsLoading(false);
+        waitlistReady = true;
+        finishLoadingIfReady();
       },
       { includeStatuses: ['registered', 'waitlist'] },
     );
 
-    return unsubscribe;
+    return () => {
+      unsubscribeBookedCount();
+      unsubscribeWaitlist();
+    };
   }, [activity, fallbackBooked, needsLiveCount]);
 
   const refresh = useCallback(async () => {

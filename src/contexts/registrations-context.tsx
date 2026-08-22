@@ -1,43 +1,53 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, onSnapshot } from 'firebase/firestore';
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 
-import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
-import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
+import { useAuth } from '@/contexts/auth-context';
+import {
+  subscribeMyActivityRegistration,
+  type MyActivityRegistrationStatus,
+} from '@/services/registrations/subscribe-my-activity-registration';
 
-const REGISTRATIONS_STORAGE_KEY = '@seniorhub/registrations';
+const REGISTRATIONS_STORAGE_PREFIX = '@seniorhub/registrations/';
 
 export type LocalRegistrationStatus = 'registered' | 'waitlist';
 
 export type LocalRegistration = {
   activityId: string;
-  /** Firestore registration document id when booked via SeniorHub. */
+  /** Firestore registration document id when booked via SeniorHub (equals auth uid). */
   registrationId?: string;
   status?: LocalRegistrationStatus;
 };
 
 type RegistrationsContextValue = {
   registeredActivityIds: string[];
-  /** Local bookings on this device (registered + waitlist). */
+  /** Bookings for the signed-in user on this device. */
   localBookings: LocalRegistration[];
   isLoading: boolean;
   isRegistered: (activityId: string) => boolean;
   isOnWaitlist: (activityId: string) => boolean;
+  /** Returns the current user's uid when they are booked/waitlisted on the activity. */
   getRegistrationId: (activityId: string) => string | null;
+  /** Ensures a Firestore listener exists for the user's registration on this activity. */
+  watchActivityRegistration: (activityId: string) => void;
   markAsRegistered: (activityId: string, registrationId?: string) => void;
   markAsWaitlisted: (activityId: string, registrationId?: string) => void;
   removeRegistration: (activityId: string) => void;
 };
 
 const RegistrationsContext = createContext<RegistrationsContextValue | null>(null);
+
+function getRegistrationsStorageKey(uid: string): string {
+  return `${REGISTRATIONS_STORAGE_PREFIX}${uid}`;
+}
 
 function parseStoredRegistrations(value: string | null): LocalRegistration[] {
   if (!value) {
@@ -112,15 +122,44 @@ function upsertLocalRegistration(
 }
 
 export function RegistrationsProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const uid = user?.uid?.trim() ?? null;
+
   const [localRegistrations, setLocalRegistrations] = useState<LocalRegistration[]>([]);
+  const [remoteStatusByActivity, setRemoteStatusByActivity] = useState<
+    Record<string, MyActivityRegistrationStatus | undefined>
+  >({});
   const [isLoading, setIsLoading] = useState(true);
+
+  const watchedActivitiesRef = useRef<Set<string>>(new Set());
+  const listenerUnsubsRef = useRef<Map<string, () => void>>(new Map());
+
+  const clearRegistrationListeners = useCallback(() => {
+    listenerUnsubsRef.current.forEach((unsubscribe) => unsubscribe());
+    listenerUnsubsRef.current.clear();
+    watchedActivitiesRef.current.clear();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
+    clearRegistrationListeners();
+    setRemoteStatusByActivity({});
+
+    if (!uid) {
+      setLocalRegistrations([]);
+      setIsLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const activeUid = uid;
+    setIsLoading(true);
+
     async function loadRegistrations() {
       try {
-        const stored = await AsyncStorage.getItem(REGISTRATIONS_STORAGE_KEY);
+        const stored = await AsyncStorage.getItem(getRegistrationsStorageKey(activeUid));
 
         if (isMounted) {
           setLocalRegistrations(parseStoredRegistrations(stored));
@@ -136,65 +175,198 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted = false;
+      clearRegistrationListeners();
     };
-  }, []);
+  }, [uid, clearRegistrationListeners]);
 
-  const persistRegistrations = useCallback(async (registrations: LocalRegistration[]) => {
-    await AsyncStorage.setItem(REGISTRATIONS_STORAGE_KEY, JSON.stringify(registrations));
-  }, []);
+  const persistRegistrations = useCallback(
+    async (registrations: LocalRegistration[], ownerUid: string) => {
+      await AsyncStorage.setItem(
+        getRegistrationsStorageKey(ownerUid),
+        JSON.stringify(registrations),
+      );
+    },
+    [],
+  );
+
+  const removeRegistrationForUid = useCallback(
+    (activityId: string, ownerUid: string) => {
+      setLocalRegistrations((current) => {
+        const next = current.filter((registration) => registration.activityId !== activityId);
+        void persistRegistrations(next, ownerUid);
+        return next;
+      });
+    },
+    [persistRegistrations],
+  );
+
+  const watchActivityRegistration = useCallback(
+    (activityId: string) => {
+      const trimmedActivityId = activityId.trim();
+      if (!uid || !trimmedActivityId) {
+        return;
+      }
+
+      if (watchedActivitiesRef.current.has(trimmedActivityId)) {
+        return;
+      }
+
+      watchedActivitiesRef.current.add(trimmedActivityId);
+
+      const unsubscribe = subscribeMyActivityRegistration(
+        trimmedActivityId,
+        uid,
+        (status) => {
+          setRemoteStatusByActivity((current) => ({
+            ...current,
+            [trimmedActivityId]: status,
+          }));
+
+          if (status === null) {
+            removeRegistrationForUid(trimmedActivityId, uid);
+            return;
+          }
+
+          if (status === 'registered') {
+            setLocalRegistrations((current) => {
+              const next = upsertLocalRegistration(current, trimmedActivityId, 'registered', uid);
+              void persistRegistrations(next, uid);
+              return next;
+            });
+            return;
+          }
+
+          if (status === 'waitlist') {
+            setLocalRegistrations((current) => {
+              const next = upsertLocalRegistration(current, trimmedActivityId, 'waitlist', uid);
+              void persistRegistrations(next, uid);
+              return next;
+            });
+          }
+        },
+      );
+
+      listenerUnsubsRef.current.set(trimmedActivityId, unsubscribe);
+    },
+    [uid, persistRegistrations, removeRegistrationForUid],
+  );
+
+  useEffect(() => {
+    if (!uid) {
+      return;
+    }
+
+    for (const registration of localRegistrations) {
+      watchActivityRegistration(registration.activityId);
+    }
+  }, [uid, localRegistrations, watchActivityRegistration]);
 
   const registeredActivityIds = useMemo(
     () =>
       localRegistrations
-        .filter((registration) => (registration.status ?? 'registered') === 'registered')
+        .filter((registration) => {
+          const remote = remoteStatusByActivity[registration.activityId];
+          if (remote === 'registered') {
+            return true;
+          }
+          if (remote === 'waitlist' || remote === null) {
+            return false;
+          }
+          return (registration.status ?? 'registered') === 'registered';
+        })
         .map((registration) => registration.activityId),
-    [localRegistrations],
+    [localRegistrations, remoteStatusByActivity],
   );
 
   const localBookings = useMemo(
     () =>
-      localRegistrations.map((registration) => ({
-        ...registration,
-        status: (registration.status ?? 'registered') as LocalRegistrationStatus,
-      })),
-    [localRegistrations],
+      localRegistrations
+        .filter((registration) => {
+          const remote = remoteStatusByActivity[registration.activityId];
+          if (remote === null) {
+            return false;
+          }
+          if (remote === 'registered' || remote === 'waitlist') {
+            return true;
+          }
+          return remote === undefined;
+        })
+        .map((registration) => ({
+          ...registration,
+          status: (registration.status ?? 'registered') as LocalRegistrationStatus,
+        })),
+    [localRegistrations, remoteStatusByActivity],
   );
 
   const isRegistered = useCallback(
-    (activityId: string) =>
-      localRegistrations.some(
-        (registration) =>
-          registration.activityId === activityId &&
-          (registration.status ?? 'registered') === 'registered',
-      ),
-    [localRegistrations],
+    (activityId: string) => {
+      const trimmedActivityId = activityId.trim();
+      if (!uid || !trimmedActivityId) {
+        return false;
+      }
+
+      const remote = remoteStatusByActivity[trimmedActivityId];
+      if (remote === 'registered') {
+        return true;
+      }
+      if (remote === 'waitlist' || remote === null) {
+        return false;
+      }
+
+      const local = localRegistrations.find(
+        (registration) => registration.activityId === trimmedActivityId,
+      );
+      return (local?.status ?? 'registered') === 'registered';
+    },
+    [localRegistrations, remoteStatusByActivity, uid],
   );
 
   const isOnWaitlist = useCallback(
-    (activityId: string) =>
-      localRegistrations.some(
-        (registration) =>
-          registration.activityId === activityId && registration.status === 'waitlist',
-      ),
-    [localRegistrations],
+    (activityId: string) => {
+      const trimmedActivityId = activityId.trim();
+      if (!uid || !trimmedActivityId) {
+        return false;
+      }
+
+      const remote = remoteStatusByActivity[trimmedActivityId];
+      if (remote === 'waitlist') {
+        return true;
+      }
+      if (remote === 'registered' || remote === null) {
+        return false;
+      }
+
+      const local = localRegistrations.find(
+        (registration) => registration.activityId === trimmedActivityId,
+      );
+      return local?.status === 'waitlist';
+    },
+    [localRegistrations, remoteStatusByActivity, uid],
   );
 
   const getRegistrationId = useCallback(
     (activityId: string) => {
-      const match = localRegistrations.find((registration) => registration.activityId === activityId);
-      return match?.registrationId?.trim() || null;
+      if (!uid) {
+        return null;
+      }
+
+      if (isRegistered(activityId) || isOnWaitlist(activityId)) {
+        return uid;
+      }
+
+      return null;
     },
-    [localRegistrations],
+    [isOnWaitlist, isRegistered, uid],
   );
 
   const markAsRegistered = useCallback(
     (activityId: string, registrationId?: string) => {
       const trimmedActivityId = activityId.trim();
-      if (!trimmedActivityId) {
+      if (!trimmedActivityId || !uid) {
         return;
       }
 
-      const trimmedRegistrationId = registrationId?.trim() || undefined;
+      const trimmedRegistrationId = registrationId?.trim() || uid;
 
       setLocalRegistrations((current) => {
         const next = upsertLocalRegistration(
@@ -203,21 +375,27 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
           'registered',
           trimmedRegistrationId,
         );
-        void persistRegistrations(next);
+        void persistRegistrations(next, uid);
         return next;
       });
+
+      setRemoteStatusByActivity((current) => ({
+        ...current,
+        [trimmedActivityId]: 'registered',
+      }));
+      watchActivityRegistration(trimmedActivityId);
     },
-    [persistRegistrations],
+    [persistRegistrations, uid, watchActivityRegistration],
   );
 
   const markAsWaitlisted = useCallback(
     (activityId: string, registrationId?: string) => {
       const trimmedActivityId = activityId.trim();
-      if (!trimmedActivityId) {
+      if (!trimmedActivityId || !uid) {
         return;
       }
 
-      const trimmedRegistrationId = registrationId?.trim() || undefined;
+      const trimmedRegistrationId = registrationId?.trim() || uid;
 
       setLocalRegistrations((current) => {
         const next = upsertLocalRegistration(
@@ -226,87 +404,34 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
           'waitlist',
           trimmedRegistrationId,
         );
-        void persistRegistrations(next);
+        void persistRegistrations(next, uid);
         return next;
       });
+
+      setRemoteStatusByActivity((current) => ({
+        ...current,
+        [trimmedActivityId]: 'waitlist',
+      }));
+      watchActivityRegistration(trimmedActivityId);
     },
-    [persistRegistrations],
+    [persistRegistrations, uid, watchActivityRegistration],
   );
 
   const removeRegistration = useCallback(
     (activityId: string) => {
-      setLocalRegistrations((current) => {
-        const next = current.filter((registration) => registration.activityId !== activityId);
-        void persistRegistrations(next);
-        return next;
-      });
+      const trimmedActivityId = activityId.trim();
+      if (!trimmedActivityId || !uid) {
+        return;
+      }
+
+      removeRegistrationForUid(trimmedActivityId, uid);
+      setRemoteStatusByActivity((current) => ({
+        ...current,
+        [trimmedActivityId]: null,
+      }));
     },
-    [persistRegistrations],
+    [removeRegistrationForUid, uid],
   );
-
-  // When this device is on a waitlist and gets auto-promoted, update local UI to "registered".
-  const waitlistSyncKey = useMemo(
-    () =>
-      localRegistrations
-        .filter(
-          (registration) =>
-            registration.status === 'waitlist' &&
-            typeof registration.registrationId === 'string' &&
-            registration.registrationId.trim().length > 0,
-        )
-        .map((registration) => `${registration.activityId}:${registration.registrationId}`)
-        .sort()
-        .join('|'),
-    [localRegistrations],
-  );
-
-  useEffect(() => {
-    if (!waitlistSyncKey || !isFirebaseConfigured()) {
-      return;
-    }
-
-    const db = getFirestoreDb();
-    if (!db) {
-      return;
-    }
-
-    const entries = waitlistSyncKey.split('|').map((entry) => {
-      const [activityId, registrationId] = entry.split(':');
-      return { activityId, registrationId };
-    });
-
-    const unsubscribers = entries.map(({ activityId, registrationId }) =>
-      onSnapshot(
-        doc(
-          db,
-          FIRESTORE_COLLECTIONS.activities,
-          activityId,
-          FIRESTORE_COLLECTIONS.registrations,
-          registrationId,
-        ),
-        (snapshot) => {
-          if (!snapshot.exists()) {
-            removeRegistration(activityId);
-            return;
-          }
-
-          const status = snapshot.data()?.status;
-          if (status === 'registered') {
-            markAsRegistered(activityId, registrationId);
-          } else if (status === 'cancelled') {
-            removeRegistration(activityId);
-          }
-        },
-        (error) => {
-          console.warn('[SeniorHub] Kunde inte synka väntelistestatus:', error);
-        },
-      ),
-    );
-
-    return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
-    };
-  }, [waitlistSyncKey, markAsRegistered, removeRegistration]);
 
   const value = useMemo(
     () => ({
@@ -316,6 +441,7 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
       isRegistered,
       isOnWaitlist,
       getRegistrationId,
+      watchActivityRegistration,
       markAsRegistered,
       markAsWaitlisted,
       removeRegistration,
@@ -327,6 +453,7 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
       isRegistered,
       isOnWaitlist,
       getRegistrationId,
+      watchActivityRegistration,
       markAsRegistered,
       markAsWaitlisted,
       removeRegistration,

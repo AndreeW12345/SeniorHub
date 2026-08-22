@@ -20,6 +20,8 @@ import {
   type RegistrationMethod,
 } from '@/constants/membership';
 import {
+  DEFAULT_RECURRENCE_OCCURRENCES,
+  MAX_RECURRENCE_OCCURRENCES,
   RECURRENCE_FREQUENCIES,
   RECURRENCE_FREQUENCY_LABELS,
   SERIES_EDIT_SCOPE_LABELS,
@@ -51,7 +53,12 @@ import {
   parseDateValue,
   splitStoredTimeRange,
 } from '@/utils/date-time-format';
-import { getWeekdayLabel, isSeriesActivity } from '@/utils/recurrence';
+import {
+  buildRecurrenceRule,
+  generateOccurrenceDates,
+  getWeekdayLabel,
+  isSeriesActivity,
+} from '@/utils/recurrence';
 
 type FormErrors = Partial<
   Record<
@@ -252,6 +259,54 @@ export function AdminActivityForm({
 
     return '';
   }, [date, recurrenceFrequency, startTime]);
+
+  const plannedOccurrenceCount = useMemo(() => {
+    if (!isRecurringSelected || !date.trim()) {
+      return null;
+    }
+
+    const rule = buildRecurrenceRule({
+      frequency: recurrenceFrequency,
+      startDate: date,
+      endDate: recurrenceEndDate.trim() || null,
+      maxOccurrences: recurrenceMaxOccurrences.trim()
+        ? Number(recurrenceMaxOccurrences.trim())
+        : null,
+    });
+
+    return generateOccurrenceDates(rule).length;
+  }, [
+    date,
+    isRecurringSelected,
+    recurrenceEndDate,
+    recurrenceFrequency,
+    recurrenceMaxOccurrences,
+  ]);
+
+  const recurrenceCreateSummary = useMemo(() => {
+    if (!isRecurringSelected) {
+      return null;
+    }
+
+    const hasEndDate = Boolean(recurrenceEndDate.trim());
+    const hasMax = Boolean(recurrenceMaxOccurrences.trim());
+
+    if (plannedOccurrenceCount == null) {
+      return `Skapas ${DEFAULT_RECURRENCE_OCCURRENCES} tillfällen om varken slutdatum eller max antal anges (högst ${MAX_RECURRENCE_OCCURRENCES}).`;
+    }
+
+    if (!hasEndDate && !hasMax) {
+      return `Skapas ${plannedOccurrenceCount} tillfällen (standard ${DEFAULT_RECURRENCE_OCCURRENCES}, högst ${MAX_RECURRENCE_OCCURRENCES}).`;
+    }
+
+    return `Skapas ${plannedOccurrenceCount} tillfälle${plannedOccurrenceCount === 1 ? '' : 'n'} (högst ${MAX_RECURRENCE_OCCURRENCES}).`;
+  }, [
+    isRecurringSelected,
+    plannedOccurrenceCount,
+    recurrenceEndDate,
+    recurrenceMaxOccurrences,
+  ]);
+
   const errorMessages = useMemo(
     () => Object.values(errors).filter((message): message is string => Boolean(message)),
     [errors],
@@ -334,6 +389,8 @@ export function AdminActivityForm({
           const parsedMax = Number(recurrenceMaxOccurrences.trim());
           if (!Number.isFinite(parsedMax) || parsedMax < 1) {
             nextErrors.recurrenceMaxOccurrences = 'Ange minst 1 tillfälle.';
+          } else if (parsedMax > MAX_RECURRENCE_OCCURRENCES) {
+            nextErrors.recurrenceMaxOccurrences = `Max ${MAX_RECURRENCE_OCCURRENCES} tillfällen.`;
           }
         }
       }
@@ -807,6 +864,11 @@ export function AdminActivityForm({
                 <ThemedText type="bodyLarge" themeColor="textSecondary">
                   {recurrenceHint}
                 </ThemedText>
+                {recurrenceCreateSummary ? (
+                  <ThemedText type="bodyLarge" themeColor="primary">
+                    {recurrenceCreateSummary}
+                  </ThemedText>
+                ) : null}
                 <DateTimeField
                   label="Slutdatum (valfritt)"
                   mode="date"
@@ -826,7 +888,7 @@ export function AdminActivityForm({
                     setErrors((current) => clearError(current, 'recurrenceMaxOccurrences'));
                   }}
                   error={errors.recurrenceMaxOccurrences}
-                  placeholder="Till exempel 12"
+                  placeholder={`Till exempel ${DEFAULT_RECURRENCE_OCCURRENCES}`}
                   keyboardType="number-pad"
                   editable={!isBusy}
                 />

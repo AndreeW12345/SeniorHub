@@ -1,4 +1,5 @@
 import {
+  DEFAULT_RECURRENCE_OCCURRENCES,
   isActiveRecurrenceFrequency,
   MAX_RECURRENCE_OCCURRENCES,
   type ActiveRecurrenceFrequency,
@@ -67,7 +68,7 @@ export function generateOccurrenceDates(rule: RecurrenceRule): string[] {
   const maxFromRule =
     typeof rule.maxOccurrences === 'number' && Number.isFinite(rule.maxOccurrences)
       ? Math.max(1, Math.floor(rule.maxOccurrences))
-      : MAX_RECURRENCE_OCCURRENCES;
+      : DEFAULT_RECURRENCE_OCCURRENCES;
   const maxCount = Math.min(maxFromRule, MAX_RECURRENCE_OCCURRENCES);
   const anchorDayOfMonth = start.getDate();
 

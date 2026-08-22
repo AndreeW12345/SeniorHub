@@ -1,14 +1,18 @@
 import {
-  addDoc,
   collection,
+  doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 
 import type { ActivityRegistration, RegistrationStatus } from '@/constants/registrations';
 import { DEFAULT_REGISTRATION_STATUS } from '@/constants/registrations';
+import { getFirebaseAuth } from '@/firebase';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
 import { mapRegistrationDocument } from '@/services/registrations/map-registration-document';
@@ -21,8 +25,6 @@ export type CreateRegistrationInput = {
   name: string;
   phone: string;
   status?: RegistrationStatus;
-  /** Firebase Auth uid when the booker is signed in – used for server push. */
-  userId?: string;
 };
 
 function getRegistrationsCollection(activityId: string) {
@@ -76,8 +78,8 @@ export async function fetchActivityRegistrations(
 }
 
 /**
- * Creates a registration document under an activity.
- * Ready for the next booking step (user self-registration from the app).
+ * Creates or reactivates a registration under activities/{activityId}/registrations/{auth.uid}.
+ * Document ID is always the signed-in user's Firebase Auth UID.
  */
 export async function createActivityRegistration(
   activityId: string,
@@ -86,6 +88,7 @@ export async function createActivityRegistration(
   const trimmedActivityId = activityId.trim();
   const name = input.name.trim();
   const phone = input.phone.trim();
+  const status = input.status ?? DEFAULT_REGISTRATION_STATUS;
 
   if (!trimmedActivityId) {
     return { ok: false, errorMessage: 'Aktiviteten kunde inte hittas.' };
@@ -103,21 +106,48 @@ export async function createActivityRegistration(
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
 
-  const registrationsRef = getRegistrationsCollection(trimmedActivityId);
-  if (!registrationsRef) {
+  const auth = getFirebaseAuth();
+  const currentUser = auth?.currentUser;
+  const uid = currentUser?.uid?.trim();
+
+  if (!uid) {
+    return { ok: false, errorMessage: 'Du måste vara inloggad för att anmäla dig.' };
+  }
+
+  const db = getFirestoreDb();
+  if (!db) {
     return { ok: false, errorMessage: 'Firestore kunde inte initieras.' };
   }
 
+  const registrationRef = doc(
+    db,
+    FIRESTORE_COLLECTIONS.activities,
+    trimmedActivityId,
+    FIRESTORE_COLLECTIONS.registrations,
+    uid,
+  );
+
   try {
-    const docRef = await addDoc(registrationsRef, {
+    const existing = await getDoc(registrationRef);
+    const payload = {
       name,
       phone,
       registeredAt: serverTimestamp(),
-      status: input.status ?? DEFAULT_REGISTRATION_STATUS,
-      ...(input.userId?.trim() ? { userId: input.userId.trim() } : {}),
-    });
+      status,
+    };
 
-    return { ok: true, id: docRef.id };
+    if (existing.exists()) {
+      const existingStatus = existing.data()?.status;
+      if (existingStatus !== 'cancelled') {
+        return { ok: false, errorMessage: 'Du är redan anmäld till den här aktiviteten.' };
+      }
+
+      await updateDoc(registrationRef, payload);
+      return { ok: true, id: uid };
+    }
+
+    await setDoc(registrationRef, payload);
+    return { ok: true, id: uid };
   } catch (error) {
     return {
       ok: false,

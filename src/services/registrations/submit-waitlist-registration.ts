@@ -3,7 +3,6 @@ import { createActivityRegistration } from '@/services/registrations/fetch-regis
 export type SubmitWaitlistRegistrationInput = {
   name: string;
   phone: string;
-  userId?: string;
 };
 
 export type SubmitWaitlistRegistrationResult =
@@ -22,7 +21,6 @@ export async function submitWaitlistRegistration(
     name: input.name,
     phone: input.phone,
     status: 'waitlist',
-    userId: input.userId,
   });
 
   if (!createResult.ok) {

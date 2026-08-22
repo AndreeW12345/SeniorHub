@@ -10,6 +10,7 @@ import type { Activity } from '@/constants/activities';
 import { getActivityPlaceName } from '@/constants/activities';
 import { getCategoryEmoji, getCategoryVisual } from '@/constants/category-visuals';
 import { useActivities } from '@/contexts/activities-context';
+import { useAuth } from '@/contexts/auth-context';
 import { useNotifications } from '@/contexts/notifications-context';
 import {
   useRegistrations,
@@ -40,15 +41,15 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
   const theme = useTheme();
   const router = useRouter();
   const { refreshActivities } = useActivities();
+  const { user } = useAuth();
   const { addNotification } = useNotifications();
-  const { getRegistrationId, removeRegistration } = useRegistrations();
+  const { removeRegistration } = useRegistrations();
   const [isCancelling, setIsCancelling] = useState(false);
-  const registrationId = getRegistrationId(activity.id);
   const { getWaitlistPositionFor } = useActivitySeatAvailability(
     status === 'waitlist' ? activity : undefined,
   );
   const waitlistPosition =
-    status === 'waitlist' ? getWaitlistPositionFor(registrationId) : null;
+    status === 'waitlist' ? getWaitlistPositionFor(user?.uid ?? null) : null;
 
   const statusLabel = getBookingStatusLabel(status, waitlistPosition);
   const isWaitlist = status === 'waitlist';
@@ -68,10 +69,11 @@ export function BookingCard({ activity, status, onCancelled }: BookingCardProps)
     setIsCancelling(true);
 
     try {
-      if (registrationId) {
+      const uid = user?.uid?.trim();
+      if (uid) {
         const result = isWaitlist
-          ? await leaveWaitlistRegistration(activity.id, registrationId)
-          : await cancelActivityRegistration(activity.id, registrationId);
+          ? await leaveWaitlistRegistration(activity.id, uid)
+          : await cancelActivityRegistration(activity.id, uid);
 
         if (!result.ok) {
           showErrorAlert('Kunde inte avanmäla dig', result.errorMessage);

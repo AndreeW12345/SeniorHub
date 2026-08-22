@@ -1,11 +1,9 @@
 import { createActivityRegistration } from '@/services/registrations/fetch-registrations';
-import { incrementActivityParticipants } from '@/services/activities/save-activity';
 import { notifyOrganizerBookingInFirestore } from '@/services/notifications/notify-organizer-booking';
 
 export type SubmitActivityRegistrationInput = {
   name: string;
   phone: string;
-  userId?: string;
 };
 
 export type SubmitActivityRegistrationResult =
@@ -13,8 +11,8 @@ export type SubmitActivityRegistrationResult =
   | { ok: false; errorMessage: string };
 
 /**
- * Saves a SeniorHub registration and updates the activity participant count.
- * Modular entry point for the user booking flow (duplicate checks / cancel can hook in later).
+ * Saves a SeniorHub registration. Participant count is synced server-side
+ * when the registration document is written.
  */
 export async function submitActivityRegistration(
   activityId: string,
@@ -24,7 +22,6 @@ export async function submitActivityRegistration(
     name: input.name,
     phone: input.phone,
     status: 'registered',
-    userId: input.userId,
   });
 
   if (!createResult.ok) {
@@ -36,17 +33,6 @@ export async function submitActivityRegistration(
     registrationId: createResult.id,
     userName: input.name,
   });
-
-  const countResult = await incrementActivityParticipants(activityId);
-
-  if (!countResult.ok) {
-    // Registration document was created; surface a soft warning but treat booking as saved
-    // so admin list stays in sync. Seat counter can be refreshed later.
-    console.warn(
-      '[SeniorHub] Anmälan sparades men deltagarräknaren kunde inte uppdateras:',
-      countResult.errorMessage,
-    );
-  }
 
   return { ok: true, registrationId: createResult.id };
 }
