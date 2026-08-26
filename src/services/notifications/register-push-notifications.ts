@@ -7,7 +7,6 @@ import {
   configureNotificationHandler,
   ensureAndroidNotificationChannel,
 } from './configure-notifications';
-import { getOrCreateDeviceId } from './get-or-create-device-id';
 import { saveUserPushToken } from './save-user-push-token';
 
 export type RegisterPushNotificationsResult =
@@ -81,9 +80,7 @@ export async function registerPushNotifications(options?: {
     }
 
     if (fcmToken || expoPushToken) {
-      const deviceId = await getOrCreateDeviceId();
       await saveUserPushToken({
-        deviceId,
         userId: options?.userId,
         fcmToken,
         expoPushToken,
@@ -107,9 +104,7 @@ export async function persistRefreshedPushToken(params: {
   userId?: string | null;
   preferences?: NotificationPreferences;
 }): Promise<void> {
-  const deviceId = await getOrCreateDeviceId();
   await saveUserPushToken({
-    deviceId,
     userId: params.userId,
     fcmToken: params.fcmToken,
     preferences: params.preferences,

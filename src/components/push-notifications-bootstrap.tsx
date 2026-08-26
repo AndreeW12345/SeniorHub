@@ -4,9 +4,9 @@ import { Platform } from 'react-native';
 
 import { useAuth } from '@/contexts/auth-context';
 import { useNotificationPreferences } from '@/contexts/notification-preferences-context';
+import { useUserProfile } from '@/contexts/user-profile-context';
 import {
   configureNotificationHandler,
-  getOrCreateDeviceId,
   persistRefreshedPushToken,
   registerPushNotifications,
   syncUserNotificationPreferences,
@@ -17,24 +17,33 @@ import {
  * and store token + preferences in Firestore for server-side push.
  */
 export function PushNotificationsBootstrap() {
-  const { user } = useAuth();
-  const { preferences, isLoading } = useNotificationPreferences();
+  const { user, isInitializing: isAuthInitializing } = useAuth();
+  const { isLoading: isProfileLoading } = useUserProfile();
+  const { preferences, isLoading: isPreferencesLoading } = useNotificationPreferences();
   const hasRegisteredRef = useRef(false);
   const lastRegisteredUserIdRef = useRef<string | null>(null);
+  const lastPersistedProfileUserRef = useRef<string | null>(null);
   const lastSyncedPrefsRef = useRef<string | null>(null);
   const userId = user?.uid ?? null;
+
+  const isBootstrapReady =
+    !isAuthInitializing && !isProfileLoading && !isPreferencesLoading && Platform.OS !== 'web';
+
+  const canPersistToFirestore = isBootstrapReady && Boolean(userId);
 
   useEffect(() => {
     configureNotificationHandler();
   }, []);
 
   useEffect(() => {
-    if (isLoading || Platform.OS === 'web') {
+    if (!isBootstrapReady) {
       return;
     }
 
     const shouldRegister =
-      !hasRegisteredRef.current || lastRegisteredUserIdRef.current !== userId;
+      !hasRegisteredRef.current ||
+      lastRegisteredUserIdRef.current !== userId ||
+      (canPersistToFirestore && lastPersistedProfileUserRef.current !== userId);
 
     if (!shouldRegister) {
       return;
@@ -45,11 +54,14 @@ export function PushNotificationsBootstrap() {
 
     void registerPushNotifications({ preferences, userId }).finally(() => {
       lastSyncedPrefsRef.current = JSON.stringify(preferences);
+      if (canPersistToFirestore && userId) {
+        lastPersistedProfileUserRef.current = userId;
+      }
     });
-  }, [isLoading, preferences, userId]);
+  }, [canPersistToFirestore, isBootstrapReady, preferences, userId]);
 
   useEffect(() => {
-    if (isLoading || Platform.OS === 'web') {
+    if (!canPersistToFirestore) {
       return;
     }
 
@@ -60,14 +72,11 @@ export function PushNotificationsBootstrap() {
 
     lastSyncedPrefsRef.current = serialized;
 
-    void (async () => {
-      const deviceId = await getOrCreateDeviceId();
-      await syncUserNotificationPreferences({ deviceId, userId, preferences });
-    })();
-  }, [isLoading, preferences, userId]);
+    void syncUserNotificationPreferences({ userId, preferences });
+  }, [canPersistToFirestore, preferences, userId]);
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS === 'web' || !canPersistToFirestore) {
       return;
     }
 
@@ -83,7 +92,7 @@ export function PushNotificationsBootstrap() {
     return () => {
       subscription.remove();
     };
-  }, [userId, preferences]);
+  }, [canPersistToFirestore, userId, preferences]);
 
   return null;
 }
