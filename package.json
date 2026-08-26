@@ -58,6 +58,7 @@
     "lint": "expo lint",
     "verify:firebase": "node scripts/verify-firestore.mjs",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node --test tests/firestore-rules.test.mjs\"",
+    "test:storage-rules": "firebase emulators:exec --project seniorhub-storage-rules-test --only firestore,storage \"node --test tests/storage-rules.test.mjs\"",
     "migrate:registration-ids": "node scripts/migrate-registration-ids.mjs",
     "migrate:registration-ids:dry-run": "node scripts/migrate-registration-ids.mjs --dry-run",
     "build:hosting": "node scripts/build-hosting.mjs",

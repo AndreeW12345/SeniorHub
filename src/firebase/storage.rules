@@ -1,0 +1,59 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    function userDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isOrganizer() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && userDoc().role == 'organizer'
+        && userDoc().organizerOrganizationId is string
+        && userDoc().organizerOrganizationId.size() > 0;
+    }
+
+    function organizerOrgId() {
+      return userDoc().organizerOrganizationId;
+    }
+
+    function adminOrgId() {
+      return firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.organizationId;
+    }
+
+    // Activity cover images — public in app lists/detail views.
+    // Covers both activities/{id}/cover.jpg and activities/{timestamp}-{random}.jpg
+    match /activities/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() || isOrganizer();
+    }
+
+    // Profile avatars — user uploads own photo from profil/edit.
+    match /profiles/{userId}/{fileName} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && fileName == 'avatar.jpg';
+    }
+
+    // Organization logos — admin org page; scope admin to own org.
+    match /organizations/{organizationId}/{fileName} {
+      allow read: if true;
+      allow write: if fileName == 'logo.jpg' && (
+        (isAdmin() && adminOrgId() == organizationId)
+        || (isOrganizer() && organizerOrgId() == organizationId)
+      );
+    }
+  }
+}
