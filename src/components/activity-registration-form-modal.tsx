@@ -110,7 +110,10 @@ export function ActivityRegistrationFormModal({
       }
 
       resetForm();
-      onSuccess(result.registrationId, mode);
+      onSuccess(
+        result.registrationId,
+        result.status === 'waitlist' ? 'waitlist' : 'registered',
+      );
     } finally {
       setIsSubmitting(false);
     }

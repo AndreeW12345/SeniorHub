@@ -1,4 +1,4 @@
-import { createActivityRegistration } from '@/services/registrations/fetch-registrations';
+import { bookActivityRegistration } from '@/services/registrations/book-activity-registration';
 
 export type SubmitWaitlistRegistrationInput = {
   name: string;
@@ -6,26 +6,30 @@ export type SubmitWaitlistRegistrationInput = {
 };
 
 export type SubmitWaitlistRegistrationResult =
-  | { ok: true; registrationId: string }
+  | {
+      ok: true;
+      registrationId: string;
+      status: 'registered' | 'waitlist';
+    }
   | { ok: false; errorMessage: string };
 
 /**
- * Saves a waitlist registration (status "waitlist") without taking a seat.
- * Ready for later auto-promotion into status "registered" when a seat frees up.
+ * Saves a waitlist registration via the atomic Cloud Function.
+ * Capacity is resolved server-side; a free seat yields status "registered".
  */
 export async function submitWaitlistRegistration(
   activityId: string,
   input: SubmitWaitlistRegistrationInput,
 ): Promise<SubmitWaitlistRegistrationResult> {
-  const createResult = await createActivityRegistration(activityId, {
-    name: input.name,
-    phone: input.phone,
-    status: 'waitlist',
-  });
+  const result = await bookActivityRegistration(activityId, input);
 
-  if (!createResult.ok) {
-    return createResult;
+  if (!result.ok) {
+    return result;
   }
 
-  return { ok: true, registrationId: createResult.id };
+  return {
+    ok: true,
+    registrationId: result.registrationId,
+    status: result.status,
+  };
 }

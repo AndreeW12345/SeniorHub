@@ -1,3 +1,4 @@
+export { bookActivityRegistration } from '@/services/registrations/book-activity-registration';
 export { submitActivityRegistration } from '@/services/registrations/submit-activity-registration';
 export { submitWaitlistRegistration } from '@/services/registrations/submit-waitlist-registration';
 export { cancelActivityRegistration } from '@/services/registrations/cancel-activity-registration';

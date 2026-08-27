@@ -1,5 +1,4 @@
-import { createActivityRegistration } from '@/services/registrations/fetch-registrations';
-import { notifyOrganizerBookingInFirestore } from '@/services/notifications/notify-organizer-booking';
+import { bookActivityRegistration } from '@/services/registrations/book-activity-registration';
 
 export type SubmitActivityRegistrationInput = {
   name: string;
@@ -7,32 +6,30 @@ export type SubmitActivityRegistrationInput = {
 };
 
 export type SubmitActivityRegistrationResult =
-  | { ok: true; registrationId: string }
+  | {
+      ok: true;
+      registrationId: string;
+      status: 'registered' | 'waitlist';
+    }
   | { ok: false; errorMessage: string };
 
 /**
- * Saves a SeniorHub registration. Participant count is synced server-side
- * when the registration document is written.
+ * Saves a SeniorHub registration via the atomic Cloud Function.
+ * Participant count and organizer notifications are handled server-side by triggers.
  */
 export async function submitActivityRegistration(
   activityId: string,
   input: SubmitActivityRegistrationInput,
 ): Promise<SubmitActivityRegistrationResult> {
-  const createResult = await createActivityRegistration(activityId, {
-    name: input.name,
-    phone: input.phone,
-    status: 'registered',
-  });
+  const result = await bookActivityRegistration(activityId, input);
 
-  if (!createResult.ok) {
-    return createResult;
+  if (!result.ok) {
+    return result;
   }
 
-  void notifyOrganizerBookingInFirestore({
-    activityId,
-    registrationId: createResult.id,
-    userName: input.name,
-  });
-
-  return { ok: true, registrationId: createResult.id };
+  return {
+    ok: true,
+    registrationId: result.registrationId,
+    status: result.status,
+  };
 }
