@@ -1,11 +1,11 @@
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDocFromServer, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { Platform } from 'react-native';
 
 import type { UserProfile, UserProfileUpdate } from '@/constants/user-profile';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb } from '@/firebase/config';
 
-/** Saves profile fields to Firestore `users/{uid}` (merge-safe). */
+/** Saves profile fields to Firestore `users/{uid}`. */
 export async function saveUserProfile(
   userId: string,
   update: UserProfileUpdate,
@@ -30,29 +30,44 @@ export async function saveUserProfile(
         ? update.photoUrl.trim()
         : null;
 
+  const userRef = doc(db, FIRESTORE_COLLECTIONS.users, trimmedId);
+
+  const updatePayload: Record<string, unknown> = {
+    name,
+    phone,
+    email,
+    platform: Platform.OS,
+    updatedAt: serverTimestamp(),
+  };
+
+  if (photoUrl !== undefined) {
+    updatePayload.photoUrl = photoUrl;
+  }
+
   try {
-    const userRef = doc(db, FIRESTORE_COLLECTIONS.users, trimmedId);
-    const existing = await getDoc(userRef);
+    const existing = await getDocFromServer(userRef);
 
-    const payload: Record<string, unknown> = {
-      name,
-      phone,
-      email,
-      platform: Platform.OS,
-      updatedAt: serverTimestamp(),
-    };
+    if (existing.exists()) {
+      await updateDoc(userRef, updatePayload);
+    } else {
+      const createPayload: Record<string, unknown> = {
+        ...updatePayload,
+        role: 'user',
+        photoUrl: photoUrl === undefined ? null : photoUrl,
+        createdAt: serverTimestamp(),
+      };
 
-    if (photoUrl !== undefined) {
-      payload.photoUrl = photoUrl;
+      try {
+        await setDoc(userRef, createPayload);
+      } catch (createError) {
+        const retrySnapshot = await getDocFromServer(userRef);
+        if (!retrySnapshot.exists()) {
+          throw createError;
+        }
+
+        await updateDoc(userRef, updatePayload);
+      }
     }
-
-    if (!existing.exists()) {
-      payload.role = 'user';
-      payload.photoUrl = photoUrl === undefined ? null : photoUrl;
-      payload.createdAt = serverTimestamp();
-    }
-
-    await setDoc(userRef, payload, { merge: true });
 
     return {
       ok: true,

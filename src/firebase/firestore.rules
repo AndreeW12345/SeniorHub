@@ -49,7 +49,7 @@ service cloud.firestore {
     }
 
     function userPrivilegedFieldsUnchanged() {
-      return request.resource.data.role == resource.data.role
+      return request.resource.data.get('role', null) == resource.data.get('role', null)
         && request.resource.data.get('organizerOrganizationId', null)
            == resource.data.get('organizerOrganizationId', null);
     }
