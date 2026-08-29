@@ -62,6 +62,7 @@
     "migrate:registration-ids": "node scripts/migrate-registration-ids.mjs",
     "migrate:registration-ids:dry-run": "node scripts/migrate-registration-ids.mjs --dry-run",
     "build:hosting": "node scripts/build-hosting.mjs",
+    "build:web": "node scripts/build-hosting.mjs",
     "deploy:hosting": "node scripts/deploy-hosting.mjs",
     "configure:mobile-auth-links": "node scripts/configure-mobile-auth-links.mjs",
     "configure:mobile-auth-links:remote": "node scripts/configure-mobile-auth-links-remote.mjs"

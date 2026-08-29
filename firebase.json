@@ -47,6 +47,10 @@
       {
         "source": "/auth/complete/**",
         "destination": "/auth/complete/index.html"
+      },
+      {
+        "source": "/app/**",
+        "destination": "/app/index.html"
       }
     ],
     "predeploy": ["node scripts/build-hosting.mjs"]

@@ -47,8 +47,20 @@ function withExpoRouterOrigin(
 
 const baseConfig = appJson.expo as ExpoConfig;
 
+/** Web hosting export only — set by scripts/build-hosting.mjs. Native builds omit this. */
+function getWebBaseUrl(): string | undefined {
+  const configured = process.env.EXPO_PUBLIC_WEB_BASE_URL?.trim();
+  if (!configured) {
+    return undefined;
+  }
+
+  const normalized = configured.replace(/\/$/, '');
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
 export default (): ExpoConfig => {
   const hostingDomain = getFirebaseHostingLinkDomain();
+  const webBaseUrl = getWebBaseUrl();
   const existingIntentFilters = baseConfig.android?.intentFilters ?? [];
 
   const firebaseAppLinkFilter = hostingDomain
@@ -84,5 +96,9 @@ export default (): ExpoConfig => {
       ],
     },
     plugins: withExpoRouterOrigin(baseConfig.plugins, hostingDomain),
+    experiments: {
+      ...baseConfig.experiments,
+      ...(webBaseUrl ? { baseUrl: webBaseUrl } : {}),
+    },
   };
 };

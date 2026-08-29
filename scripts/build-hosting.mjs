@@ -1,5 +1,8 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+const WEB_BASE_URL = '/app';
 
 const REQUIRED_ENV_KEYS = [
   'EXPO_PUBLIC_FIREBASE_API_KEY',
@@ -37,6 +40,33 @@ function loadEnvFile() {
   } catch {
     return { env: null, envPath };
   }
+}
+
+function run(command, args, env) {
+  const result = spawnSync(command, args, {
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+    env: {
+      ...process.env,
+      ...env,
+      EXPO_PUBLIC_WEB_BASE_URL: WEB_BASE_URL,
+    },
+  });
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
+function copyWebExportToHosting(hostingPublicDir) {
+  const distDir = resolve(process.cwd(), 'dist');
+  const appDir = resolve(hostingPublicDir, 'app');
+
+  rmSync(appDir, { recursive: true, force: true });
+  mkdirSync(appDir, { recursive: true });
+  cpSync(distDir, appDir, { recursive: true });
+
+  console.log(`Copied Expo web export to ${appDir}`);
 }
 
 function main() {
@@ -83,6 +113,10 @@ function main() {
   console.log(`Built hosting config for project "${firebaseConfig.projectId}".`);
   console.log(`  ${configPath}`);
   console.log(`  ${firebasercPath}`);
+
+  console.log(`\nExporting Expo web app for ${WEB_BASE_URL}...\n`);
+  run(process.platform === 'win32' ? 'npx' : 'npx', ['expo', 'export', '--platform', 'web'], env);
+  copyWebExportToHosting(hostingPublicDir);
 }
 
 main();
