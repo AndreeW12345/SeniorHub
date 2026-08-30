@@ -105,7 +105,10 @@
       } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
 
       const APP_SCHEME = 'seniorhub';
-      const EMAIL_STORAGE_KEY = 'emailForSignIn';
+      // Must match EMAIL_FOR_SIGN_IN_STORAGE_KEY in src/constants/auth.ts (AsyncStorage on web).
+      const EMAIL_STORAGE_KEY = '@seniorhub/emailForSignIn';
+      const LEGACY_EMAIL_STORAGE_KEY = 'emailForSignIn';
+      const WEB_APP_PROFILE_PATH = '/app/profil';
       const intro = document.getElementById('intro');
       const status = document.getElementById('status');
       const emailForm = document.getElementById('email-form');
@@ -139,6 +142,22 @@
         window.location.replace(appLink);
       }
 
+      function redirectToWebApp() {
+        window.location.replace(`${window.location.origin}${WEB_APP_PROFILE_PATH}`);
+      }
+
+      function readStoredEmail() {
+        return (
+          window.localStorage.getItem(EMAIL_STORAGE_KEY) ||
+          window.localStorage.getItem(LEGACY_EMAIL_STORAGE_KEY)
+        );
+      }
+
+      function clearStoredEmail() {
+        window.localStorage.removeItem(EMAIL_STORAGE_KEY);
+        window.localStorage.removeItem(LEGACY_EMAIL_STORAGE_KEY);
+      }
+
       async function completeSignInOnWeb(email) {
         const normalizedEmail = email.trim().toLowerCase();
         if (!normalizedEmail) {
@@ -159,11 +178,12 @@
           }
 
           await signInWithEmailLink(auth, normalizedEmail, href);
-          window.localStorage.removeItem(EMAIL_STORAGE_KEY);
+          clearStoredEmail();
           intro.textContent = 'Inloggningen lyckades';
           emailForm.classList.add('hidden');
           openAppLink.classList.add('hidden');
-          setStatus('Du är inloggad i webbläsaren.');
+          setStatus('Omdirigerar …');
+          redirectToWebApp();
         } catch (error) {
           console.error('[SeniorHub Hosting] Email link sign-in failed:', error);
           setStatus('Inloggningen misslyckades. Öppna länken i SeniorHub-appen eller begär en ny länk.', true);
@@ -189,7 +209,7 @@
           openAppLink.classList.remove('hidden');
           redirectToApp();
         } else {
-          const storedEmail = window.localStorage.getItem(EMAIL_STORAGE_KEY);
+          const storedEmail = readStoredEmail();
           if (storedEmail) {
             intro.textContent = 'Slutför inloggningen';
             await completeSignInOnWeb(storedEmail);

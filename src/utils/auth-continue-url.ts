@@ -50,16 +50,18 @@ export function getEmailLinkContinueUrl(): string {
   const hostingContinueUrl = `https://${hostingDomain}${AUTH_COMPLETE_PATH}`;
 
   if (Platform.OS === 'web') {
-    const configured = process.env.EXPO_PUBLIC_AUTH_CONTINUE_URL?.trim();
-    if (configured && !isLocalhostUrl(configured)) {
-      return configured;
-    }
-
+    // Web-only: use the browser origin so auth session and /app share the same domain
+    // (e.g. https://seniorhub.se/auth/complete, not a hardcoded *.web.app URL).
     if (typeof window !== 'undefined' && window.location?.origin) {
       const origin = window.location.origin;
       if (!isLocalhostUrl(origin)) {
         return `${origin}${AUTH_COMPLETE_PATH}`;
       }
+    }
+
+    const configured = process.env.EXPO_PUBLIC_AUTH_CONTINUE_URL?.trim();
+    if (configured && !isLocalhostUrl(configured)) {
+      return configured;
     }
 
     return hostingContinueUrl;
