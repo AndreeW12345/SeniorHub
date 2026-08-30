@@ -108,6 +108,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     flexGrow: 1,
+    ...(Platform.OS === 'web' ? { minWidth: '100%' as const } : null),
   },
   staticContent: {
     flex: 1,

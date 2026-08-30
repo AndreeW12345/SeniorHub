@@ -305,6 +305,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    ...(Platform.OS === 'web' ? { width: '100%' as const } : null),
   },
   authLoading: {
     alignItems: 'center',
