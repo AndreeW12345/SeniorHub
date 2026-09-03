@@ -1,7 +1,8 @@
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Radius, SoftShadow, Spacing } from '@/constants/theme';
+import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 
 type SearchBarProps = {
@@ -18,6 +19,8 @@ export function SearchBar({
   placeholder = 'Sök på namn, beskrivning eller plats...',
 }: SearchBarProps) {
   const theme = useTheme();
+  const { isCompact } = useResponsive();
+  const isMobileWeb = Platform.OS === 'web' && isCompact;
   const hasValue = value.trim().length > 0;
 
   const handleClear = () => {
@@ -31,6 +34,7 @@ export function SearchBar({
         styles.container,
         SoftShadow,
         { backgroundColor: theme.searchBackground },
+        isMobileWeb && styles.containerMobileWeb,
       ]}>
       <SymbolView
         tintColor={theme.primary}
@@ -42,12 +46,13 @@ export function SearchBar({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={theme.textSecondary}
-        style={[styles.input, { color: theme.text }]}
+        style={[styles.input, { color: theme.text }, isMobileWeb && styles.inputMobileWeb]}
         accessibilityLabel="Sök aktiviteter"
         accessibilityHint="Skriv för att filtrera aktiviteter på namn, beskrivning eller plats"
         returnKeyType="search"
         autoCorrect={false}
         autoCapitalize="none"
+        {...(isMobileWeb ? { inputMode: 'search' as const } : null)}
       />
       {hasValue ? (
         <Pressable
@@ -77,6 +82,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three + 4,
     minHeight: 68,
   },
+  containerMobileWeb: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+  },
   input: {
     flex: 1,
     fontSize: 21,
@@ -84,6 +94,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     paddingVertical: 0,
     letterSpacing: 0.1,
+  },
+  inputMobileWeb: {
+    minWidth: 0,
+    maxWidth: '100%',
+    fontSize: 16,
+    lineHeight: 24,
   },
   clearButton: {
     alignItems: 'center',

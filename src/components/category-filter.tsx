@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { CATEGORIES, type Category } from '@/constants/activities';
@@ -14,13 +14,16 @@ type CategoryFilterProps = {
 export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
   const theme = useTheme();
   const { isCompact } = useResponsive();
+  const isMobileWeb = Platform.OS === 'web' && isCompact;
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
-      accessibilityRole="tablist">
+    <View style={isMobileWeb ? styles.scrollViewportMobileWeb : undefined}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={isMobileWeb ? styles.horizontalScrollMobileWeb : undefined}
+        contentContainerStyle={styles.scrollContent}
+        accessibilityRole="tablist">
       {CATEGORIES.map((category) => {
         const isSelected = category === selected;
 
@@ -51,11 +54,22 @@ export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
           </Pressable>
         );
       })}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollViewportMobileWeb: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+  },
+  horizontalScrollMobileWeb: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+  },
   scrollContent: {
     gap: Spacing.three,
     paddingVertical: Spacing.two,

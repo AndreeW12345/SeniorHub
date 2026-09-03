@@ -48,7 +48,8 @@ export function ScreenLayout({
   showBackButton = false,
 }: ScreenLayoutProps) {
   const insets = useSafeAreaInsets();
-  const { horizontalPadding, sectionGap, contentWidth } = useResponsive();
+  const { horizontalPadding, sectionGap, contentWidth, isCompact } = useResponsive();
+  const isDesktopWeb = Platform.OS === 'web' && !isCompact;
   const tabInset = omitTabInset ? 0 : BottomTabInset;
   const paddingBottom = footer ? Spacing.four : insets.bottom + tabInset + Spacing.six;
 
@@ -90,7 +91,12 @@ export function ScreenLayout({
     <ThemedView style={styles.container}>
       <ScreenHeader title={title} subtitle={subtitle} showBackButton={showBackButton} />
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom }, ...contentStyles]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isDesktopWeb && styles.scrollContentDesktopWeb,
+          { paddingBottom },
+          ...contentStyles,
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
         {children}
@@ -108,7 +114,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     flexGrow: 1,
-    ...(Platform.OS === 'web' ? { minWidth: '100%' as const } : null),
+  },
+  scrollContentDesktopWeb: {
+    minWidth: '100%',
   },
   staticContent: {
     flex: 1,

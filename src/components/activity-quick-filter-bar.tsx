@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import {
@@ -19,14 +19,17 @@ type ActivityQuickFilterBarProps = {
 export function ActivityQuickFilterBar({ selected, onToggle }: ActivityQuickFilterBarProps) {
   const theme = useTheme();
   const { isCompact } = useResponsive();
+  const isMobileWeb = Platform.OS === 'web' && isCompact;
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
-      accessibilityRole="tablist"
-      accessibilityLabel="Snabbfilter">
+    <View style={isMobileWeb ? styles.scrollViewportMobileWeb : undefined}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={isMobileWeb ? styles.horizontalScrollMobileWeb : undefined}
+        contentContainerStyle={styles.scrollContent}
+        accessibilityRole="tablist"
+        accessibilityLabel="Snabbfilter">
       {ACTIVITY_QUICK_FILTERS.map((filter) => {
         const isSelected = selected.includes(filter);
         const label = ACTIVITY_QUICK_FILTER_LABELS[filter];
@@ -59,11 +62,22 @@ export function ActivityQuickFilterBar({ selected, onToggle }: ActivityQuickFilt
           </Pressable>
         );
       })}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollViewportMobileWeb: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+  },
+  horizontalScrollMobileWeb: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+  },
   scrollContent: {
     gap: Spacing.three,
     paddingVertical: Spacing.two,

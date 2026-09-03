@@ -51,7 +51,8 @@ export default function AktiviteterScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const { horizontalPadding, sectionGap, contentWidth, isDesktop } = useResponsive();
+  const { horizontalPadding, sectionGap, contentWidth, isDesktop, isCompact } = useResponsive();
+  const isMobileWeb = Platform.OS === 'web' && isCompact;
   const { isSignedIn, user, isInitializing } = useAuth();
   const { profile } = useUserProfile();
   const { favoriteIds } = useFavorites();
@@ -141,7 +142,10 @@ export default function AktiviteterScreen() {
       onLayout={(event) => {
         browseSectionOffsetRef.current = event.nativeEvent.layout.y;
       }}
-      style={styles.browseSection}>
+      style={[
+        styles.browseSection,
+        isMobileWeb && styles.browseSectionMobileWeb,
+      ]}>
       <View style={styles.browseHeader}>
         <ThemedText type="sectionTitle" accessibilityRole="header">
           Alla aktiviteter
@@ -157,7 +161,7 @@ export default function AktiviteterScreen() {
         onClear={clearSearchQuery}
       />
 
-      <View style={styles.filterBar}>
+      <View style={[styles.filterBar, isMobileWeb && styles.filterBarMobileWeb]}>
         <ActivityQuickFilterBar selected={quickFilters} onToggle={toggleQuickFilter} />
         <CategoryFilter selected={selectedCategory} onSelect={setSelectedCategory} />
       </View>
@@ -276,6 +280,7 @@ export default function AktiviteterScreen() {
           }}
           style={[
             styles.pageBody,
+            isMobileWeb && styles.pageBodyMobileWeb,
             {
               paddingHorizontal: horizontalPadding,
               maxWidth: contentWidth,
@@ -307,6 +312,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     ...(Platform.OS === 'web' ? { width: '100%' as const } : null),
   },
+  pageBodyMobileWeb: {
+    minWidth: 0,
+    maxWidth: '100%',
+  },
   authLoading: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -325,11 +334,21 @@ const styles = StyleSheet.create({
   browseSection: {
     gap: Spacing.four,
   },
+  browseSectionMobileWeb: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+  },
   browseHeader: {
     gap: Spacing.two,
   },
   filterBar: {
     gap: Spacing.two,
+  },
+  filterBarMobileWeb: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
   },
   resultsHeader: {
     gap: Spacing.two,
