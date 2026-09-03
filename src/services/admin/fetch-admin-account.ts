@@ -31,9 +31,6 @@ export async function fetchAdminAccount(uid: string): Promise<AdminAccount | nul
     }
 
     const data = snapshot.data() as Record<string, unknown>;
-    if (!isAdminEmailAllowed(readEmail(data))) {
-      return null;
-    }
 
     return mapAdminAccountDocument(snapshot.id, data);
   } catch (error) {
