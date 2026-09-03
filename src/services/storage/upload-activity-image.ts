@@ -54,10 +54,7 @@ export async function uploadActivityImage(
   localUri: string,
   activityId?: string,
 ): Promise<UploadActivityImageResult> {
-  console.log('[SeniorHub][upload] start', { hasUri: Boolean(localUri), activityId });
-
   if (!isFirebaseStorageConfigured()) {
-    console.log('[SeniorHub][upload] stop: Storage not configured');
     return {
       ok: false,
       errorMessage: 'Firebase Storage är inte konfigurerat. Kontrollera storageBucket i .env.',
@@ -66,18 +63,11 @@ export async function uploadActivityImage(
 
   const storage = getFirebaseStorage();
   if (!storage) {
-    console.log('[SeniorHub][upload] stop: Storage init failed');
     return { ok: false, errorMessage: 'Firebase Storage kunde inte initieras.' };
   }
 
   try {
-    console.log('[SeniorHub][upload] before compress');
     const compressed = await compressActivityImage(localUri);
-    console.log('[SeniorHub][upload] after compress', {
-      hasUri: Boolean(compressed.uri),
-      hasBase64: Boolean(compressed.base64),
-      base64Length: compressed.base64?.length ?? 0,
-    });
 
     if (!compressed.uri) {
       return { ok: false, errorMessage: 'Kunde inte läsa den valda bilden.' };
@@ -85,20 +75,12 @@ export async function uploadActivityImage(
 
     const path = buildStoragePath(activityId);
     const storageRef = ref(storage, path);
-    console.log('[SeniorHub][upload] before uploadBytes', { path });
-
     const blob = await uriToBlob(compressed.uri);
     await uploadBytes(storageRef, blob, {
       contentType: 'image/jpeg',
     });
-    console.log('[SeniorHub][upload] after uploadBytes');
 
-    console.log('[SeniorHub][upload] before getDownloadURL');
     const downloadUrl = await getDownloadURL(storageRef);
-    console.log('[SeniorHub][upload] after getDownloadURL', {
-      hasUrl: Boolean(downloadUrl),
-    });
-
     return { ok: true, downloadUrl };
   } catch (error) {
     console.error('[SeniorHub][upload] failed:', error);

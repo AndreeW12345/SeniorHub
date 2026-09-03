@@ -35,7 +35,6 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
   const belongsToSeries = isSeriesActivity(activity);
 
   const performDelete = async (scope: 'occurrence' | 'series' = 'occurrence') => {
-    console.log('[SeniorHub] Bekräftad borttagning startar:', activity.id, activity.title, scope);
     setIsDeleting(true);
 
     const result = await deleteActivityFromFirestore(activity.id, {
@@ -51,13 +50,10 @@ export function AdminActivityListItem({ activity, onDeleted }: AdminActivityList
       return;
     }
 
-    console.log('[SeniorHub] Borttagning lyckades:', activity.id, scope);
     onDeleted(activity.id);
   };
 
   const handleDeletePress = () => {
-    console.log('[SeniorHub] Ta bort-knapp tryckt:', activity.id, activity.title);
-
     if (belongsToSeries) {
       confirmSeriesDestructiveAction(
         'Ta bort återkommande aktivitet',

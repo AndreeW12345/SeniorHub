@@ -26,6 +26,7 @@ export {
   subscribeToAuthState,
 } from '@/services/auth/session';
 export { deleteCurrentAuthUser } from '@/services/auth/delete-auth-user';
+export { deleteUserAccount } from '@/services/auth/delete-user-account';
 
 /** @deprecated Prefer signInWithPasswordAdmin */
 export { signInWithPasswordAdmin as signInAdmin } from '@/services/auth/providers/password-admin';

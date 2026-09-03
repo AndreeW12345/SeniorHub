@@ -29,11 +29,8 @@ export function confirmDestructiveAction(
   confirmLabel: string,
   onConfirm: () => void,
 ) {
-  console.log(`[SeniorHub] Bekräftelsedialog visas: ${title}`);
-
   if (Platform.OS === 'web') {
     const confirmed = window.confirm(`${title}\n\n${message}`);
-    console.log('[SeniorHub] Bekräftelsesvar:', confirmed ? 'ja' : 'nej');
 
     if (confirmed) {
       onConfirm();
@@ -58,8 +55,6 @@ export function confirmSeriesDestructiveAction(
   message: string,
   onChoose: (choice: SeriesActionChoice) => void,
 ) {
-  console.log(`[SeniorHub] Serie-bekräftelse visas: ${title}`);
-
   if (Platform.OS === 'web') {
     const removeSeries = window.confirm(
       `${title}\n\n${message}\n\nTryck OK för att påverka HELA serien.\nTryck Avbryt för att välja endast detta tillfälle.`,

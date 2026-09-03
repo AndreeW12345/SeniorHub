@@ -17,6 +17,7 @@ import {
   query,
   setDoc,
   updateDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -158,10 +159,10 @@ describe('registrations – user', () => {
     await assertSucceeds(getDoc(registrationRef(user2Db, 'act-tyreso', 'user2')));
   });
 
-  it('can create only own registration at auth uid path', async () => {
+  it('cannot create a registration directly from the client', async () => {
     const user1Db = authedDb('user1', { email: 'user1@example.com' });
 
-    await assertSucceeds(
+    await assertFails(
       setDoc(registrationRef(user1Db, 'act-tyreso', 'user1'), {
         name: 'User One',
         phone: '0701111111',
@@ -184,17 +185,8 @@ describe('registrations – user', () => {
     );
   });
 
-  it('cannot book the same activity twice', async () => {
+  it('cannot book the same activity twice via client create', async () => {
     const user1Db = authedDb('user1', { email: 'user1@example.com' });
-
-    await assertSucceeds(
-      setDoc(registrationRef(user1Db, 'act-tyreso', 'user1'), {
-        name: 'User One',
-        phone: '0701111111',
-        registeredAt: new Date(),
-        status: 'registered',
-      }),
-    );
 
     await assertFails(
       setDoc(registrationRef(user1Db, 'act-tyreso', 'user1'), {
@@ -367,6 +359,81 @@ describe('organizerApplications', () => {
         applicantUid: 'user1',
         createdAt: new Date(),
         status: 'Ny',
+      }),
+    );
+  });
+});
+
+describe('security hardening', () => {
+  it('denies a user from updating another user registration', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertFails(
+      updateDoc(registrationRef(user1Db, 'act-tyreso', 'user2'), {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies a user from changing registration name or phone', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'activities/act-tyreso/registrations/user1'), {
+        name: 'User One',
+        phone: '0701111111',
+        registeredAt: new Date(),
+        status: 'registered',
+      });
+    });
+
+    await assertFails(
+      updateDoc(registrationRef(user1Db, 'act-tyreso', 'user1'), {
+        name: 'Changed Name',
+      }),
+    );
+  });
+
+  it('denies a user from deleting their registration document', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'activities/act-tyreso/registrations/user1'), {
+        name: 'User One',
+        phone: '0701111111',
+        registeredAt: new Date(),
+        status: 'registered',
+      });
+    });
+
+    await assertFails(deleteDoc(registrationRef(user1Db, 'act-tyreso', 'user1')));
+  });
+
+  it('denies a regular user from creating an admin document', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertFails(
+      setDoc(doc(user1Db, 'admins', 'user1'), {
+        organizationId: 'seniorhub',
+        role: 'admin',
+        email: 'user1@example.com',
+      }),
+    );
+  });
+
+  it('denies a user from reading another user profile', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertFails(getDoc(doc(user1Db, 'users', 'user2')));
+  });
+
+  it('denies an organizer from changing activity organizationId', async () => {
+    const organizerDb = authedDb('org-tyreso', { email: 'org@spf-tyreso.se' });
+
+    await assertFails(
+      updateDoc(doc(organizerDb, 'activities', 'act-tyreso'), {
+        organizationId: 'spf-nacka',
       }),
     );
   });

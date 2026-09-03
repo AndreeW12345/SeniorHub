@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
 
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
@@ -7,16 +6,15 @@ import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useSafeBack } from '@/hooks/use-safe-back';
 import { useTheme } from '@/hooks/use-theme';
 
-/** Privacy information — technical draft; requires legal review before public launch. */
-export default function PrivacyScreen() {
+/** Terms of Service — technical draft; requires legal review before public launch. */
+export default function TermsScreen() {
   const theme = useTheme();
   const goBack = useSafeBack();
-  const router = useRouter();
 
   return (
     <ScreenLayout
-      title="Sekretess"
-      subtitle="Hur vi hanterar dina uppgifter"
+      title="Användarvillkor"
+      subtitle="Villkor för användning av SeniorHub"
       showBackButton
       omitTabInset>
       <View style={[styles.card, CardShadow, { backgroundColor: theme.card }]}>
@@ -25,41 +23,25 @@ export default function PrivacyScreen() {
         </ThemedText>
 
         <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.paragraph}>
-          SeniorHub samlar in namn, telefonnummer, e-postadress och eventuell profilbild när du
-          skapar konto. Uppgifterna lagras i Firebase (Google Cloud) i EU/EES när så är
-          konfigurerat i projektet.
+          SeniorHub tillhandahåller en plattform för att hitta och anmäla sig till aktiviteter för
+          seniorer. Tjänsten tillhandahålls i befintligt skick.
         </ThemedText>
 
         <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.paragraph}>
-          Aktivitetsbokningar sparas i Firestore kopplade till ditt konto. Arrangörer kan se namn
-          och telefonnummer för deltagare på sina egna aktiviteter. Favoriter sparas lokalt på
-          din enhet.
+          Du ansvarar för att uppgifterna du anger är korrekta. Du får inte missbruka bokningssystemet,
+          försöka kringgå kapacitetsgränser eller störa andra användare.
         </ThemedText>
 
         <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.paragraph}>
-          Push-notiser kräver en enhetstoken som lagras i din användarprofil om du aktiverar
-          notiser. Notisinställningar synkas för att skicka påminnelser.
+          Aktiviteter arrangeras av tredje part (föreningar/organisatörer). SeniorHub ansvarar inte
+          för arrangörernas genomförande av aktiviteter — detta ska preciseras i den juridiska
+          versionen.
         </ThemedText>
 
         <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.paragraph}>
-          Du kan begära radering av ditt konto under Profil → Konto → Ta bort konto. Då
-          anonymiseras bokningar, profiluppgifter och notiser raderas, och inloggningen tas bort.
+          Kontot kan avslutas när som helst via Profil → Konto. Fullständiga villkor om ansvar,
+          uppsägning och tvistlösning ska fyllas i efter juridisk granskning.
         </ThemedText>
-
-        <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.paragraph}>
-          Personuppgiftsansvarig, fullständig rättslig grund, lagringstid och kontaktuppgifter
-          ska fyllas i efter juridisk granskning.
-        </ThemedText>
-
-        <Pressable
-          onPress={() => router.push('/profil/villkor' as Href)}
-          accessibilityRole="button"
-          accessibilityLabel="Läs användarvillkor"
-          style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}>
-          <ThemedText type="bodyLarge" themeColor="primary" style={styles.linkText}>
-            Läs användarvillkor (utkast)
-          </ThemedText>
-        </Pressable>
       </View>
 
       <Pressable
@@ -87,14 +69,6 @@ const styles = StyleSheet.create({
   },
   paragraph: {
     lineHeight: 32,
-  },
-  linkRow: {
-    minHeight: 48,
-    justifyContent: 'center',
-  },
-  linkText: {
-    fontWeight: '700',
-    textDecorationLine: 'underline',
   },
   backButton: {
     minHeight: 64,

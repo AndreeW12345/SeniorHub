@@ -2,7 +2,14 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import { COLLECTIONS } from '../notifications/types';
+import { europeWest1CallableOptions } from '../config/callable-options';
 import { readRegistrationStatus } from '../triggers/sync-activity-participants';
+import {
+  readActivityId,
+  readRegistrationName,
+  readRegistrationPhone,
+} from '../utils/input-validation';
+import { assertRateLimit } from '../utils/rate-limit';
 
 type RegistrationStatus = 'registered' | 'waitlist';
 
@@ -17,9 +24,8 @@ type BookActivityRegistrationResponse = {
   status: RegistrationStatus;
 };
 
-function readString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
-}
+
+const BOOKING_COOLDOWN_MS = 2_000;
 
 function readMaxParticipants(data: FirebaseFirestore.DocumentData): number | null {
   if (data.hasParticipantLimit !== true) {
@@ -56,7 +62,7 @@ function resolveRegistrationStatus(
  * Updates activities.participants inside the same transaction when a seat is taken.
  */
 export const bookActivityRegistration = onCall(
-  { region: 'europe-west1' },
+  europeWest1CallableOptions(),
   async (request): Promise<BookActivityRegistrationResponse> => {
     const uid = request.auth?.uid?.trim();
     if (!uid) {
@@ -64,21 +70,26 @@ export const bookActivityRegistration = onCall(
     }
 
     const payload = (request.data ?? {}) as BookActivityRegistrationRequest;
-    const activityId = readString(payload.activityId);
-    const name = readString(payload.name);
-    const phone = readString(payload.phone);
+    const activityId = readActivityId(payload.activityId);
+    const name = readRegistrationName(payload.name);
+    const phone = readRegistrationPhone(payload.phone);
 
     if (!activityId) {
       throw new HttpsError('invalid-argument', 'Aktiviteten kunde inte hittas.');
     }
 
     if (!name) {
-      throw new HttpsError('invalid-argument', 'Ange namn.');
+      throw new HttpsError('invalid-argument', 'Ange namn (max 100 tecken).');
     }
 
     if (!phone) {
-      throw new HttpsError('invalid-argument', 'Ange telefonnummer.');
+      throw new HttpsError('invalid-argument', 'Ange telefonnummer (max 30 tecken).');
     }
+
+    await assertRateLimit({
+      docPath: `${COLLECTIONS.users}/${uid}/security/bookActivity`,
+      cooldownMs: BOOKING_COOLDOWN_MS,
+    });
 
     const db = getFirestore();
     const activityRef = db.collection(COLLECTIONS.activities).doc(activityId);

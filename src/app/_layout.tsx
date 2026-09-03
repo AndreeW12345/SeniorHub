@@ -157,6 +157,13 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="profil/villkor"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
                                 name="profil/hjalp"
                                 options={{
                                   presentation: 'card',

@@ -63,14 +63,22 @@ async function main() {
   });
 
   const projectConfigManager = getAuth().projectConfigManager();
+  const domain = process.env.HOSTING_DOMAIN?.trim();
+
+  if (!domain) {
+    throw new Error(
+      'HOSTING_DOMAIN is missing. Set it in functions/.env or your shell before running this script.',
+    );
+  }
+
   const before = await projectConfigManager.getProjectConfig();
   const after = await projectConfigManager.updateProjectConfig({
     mobileLinksConfig: {
-      domain: 'HOSTING_DOMAIN',
+      domain,
     },
   });
 
-  console.log('Updated Firebase Auth mobileLinksConfig.domain to HOSTING_DOMAIN.');
+  console.log(`Updated Firebase Auth mobileLinksConfig.domain to ${domain}.`);
   console.log('Before:', before.mobileLinksConfig ?? null);
   console.log('After:', after.mobileLinksConfig ?? null);
   console.log(

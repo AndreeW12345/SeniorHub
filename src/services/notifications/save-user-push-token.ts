@@ -50,32 +50,6 @@ async function withPushTokenWriteLock<T>(operation: () => Promise<T>): Promise<T
   return run;
 }
 
-async function userProfileDocExists(userId: string): Promise<boolean> {
-  const db = getFirestoreDb();
-  if (!db) {
-    return false;
-  }
-
-  const currentUser = getFirebaseAuth()?.currentUser ?? null;
-  const firebaseUid = currentUser?.uid ?? null;
-  console.log('[SeniorHub PUSH DEBUG]');
-  console.log('userId passed:', userId);
-  console.log('firebase currentUser uid:', firebaseUid);
-  console.log('firebase currentUser exists:', currentUser !== null);
-  console.log('uids match:', firebaseUid !== null && firebaseUid === userId);
-
-  const userDocPath = `users/${userId}`;
-  console.log(`[SeniorHub PUSH DEBUG] getDoc START ${userDocPath}`);
-  try {
-    const snapshot = await getDoc(doc(db, FIRESTORE_COLLECTIONS.users, userId));
-    console.log(`[SeniorHub PUSH DEBUG] getDoc OK ${userDocPath}, exists: ${snapshot.exists()}`);
-    return snapshot.exists();
-  } catch (error) {
-    console.error(`[SeniorHub PUSH DEBUG] getDoc THREW ${userDocPath}:`, error);
-    throw error;
-  }
-}
-
 function readStoredTokenArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
@@ -146,51 +120,6 @@ function buildPushTokenUpdatePayload(
   return payload;
 }
 
-function logPushTokenUpdatePayload(payload: Record<string, unknown>, userDocPath: string): void {
-  console.log(`[SeniorHub PUSH DEBUG] updateDoc START ${userDocPath}`);
-  console.log('[SeniorHub PUSH DEBUG] updateDoc payload keys:', Object.keys(payload));
-  for (const key of Object.keys(payload)) {
-    const value = payload[key];
-    console.log(
-      `[SeniorHub PUSH DEBUG] payload field "${key}":`,
-      value,
-      `(undefined: ${value === undefined})`,
-    );
-  }
-  console.log(
-    '[SeniorHub PUSH DEBUG] payload undefined keys:',
-    Object.keys(payload).filter((key) => payload[key] === undefined),
-  );
-  console.log('[SeniorHub PUSH DEBUG] updateDoc payload object:', payload);
-}
-
-function logPushTokenUpdateDenied(params: {
-  userDocPath: string;
-  existingData: Record<string, unknown>;
-  payload: Record<string, unknown>;
-  error: unknown;
-}): void {
-  const existingKeys = Object.keys(params.existingData);
-  const disallowedExistingKeys = existingKeys.filter((key) => !USER_SELF_UPDATE_ALLOWED_KEYS.has(key));
-
-  console.error(`[SeniorHub PUSH DEBUG] updateDoc DENIED ${params.userDocPath}`);
-  console.error('[SeniorHub PUSH DEBUG] existing document keys:', existingKeys);
-  console.error(
-    '[SeniorHub PUSH DEBUG] existing keys outside userSelfUpdateAllowedKeys():',
-    disallowedExistingKeys,
-  );
-  console.error('[SeniorHub PUSH DEBUG] privileged fields on document:', {
-    role: params.existingData.role ?? '(missing)',
-    organizerOrganizationId: params.existingData.organizerOrganizationId ?? '(missing)',
-  });
-  console.error('[SeniorHub PUSH DEBUG] payload keys sent:', Object.keys(params.payload));
-  console.error(
-    '[SeniorHub PUSH DEBUG] hint: rules allow update only when affectedKeys ⊆ userSelfUpdateAllowedKeys();',
-    'unchanged document fields (e.g. migratedFromDeviceId) must not appear in the diff.',
-  );
-  console.error('[SeniorHub PUSH DEBUG] updateDoc THREW:', params.error);
-}
-
 async function writePushTokenDoc(params: SavePushTokenParams): Promise<boolean> {
   const db = getFirestoreDb();
   if (!db) {
@@ -203,25 +132,12 @@ async function writePushTokenDoc(params: SavePushTokenParams): Promise<boolean> 
   }
 
   const currentUser = getFirebaseAuth()?.currentUser ?? null;
-  const firebaseUid = currentUser?.uid ?? null;
-  console.log('[SeniorHub PUSH DEBUG]');
-  console.log('userId passed:', trimmedId);
-  console.log('firebase currentUser uid:', firebaseUid);
-  console.log('firebase currentUser exists:', currentUser !== null);
-  console.log('uids match:', firebaseUid !== null && firebaseUid === trimmedId);
+  if (!currentUser || currentUser.uid !== trimmedId) {
+    return false;
+  }
 
   const userRef = doc(db, FIRESTORE_COLLECTIONS.users, trimmedId);
-  const userDocPath = `users/${trimmedId}`;
-
-  console.log(`[SeniorHub PUSH DEBUG] getDoc START ${userDocPath}`);
-  let snapshot;
-  try {
-    snapshot = await getDoc(userRef);
-    console.log(`[SeniorHub PUSH DEBUG] getDoc OK ${userDocPath}, exists: ${snapshot.exists()}`);
-  } catch (error) {
-    console.error(`[SeniorHub PUSH DEBUG] getDoc THREW ${userDocPath}:`, error);
-    throw error;
-  }
+  const snapshot = await getDoc(userRef);
 
   if (!snapshot.exists()) {
     return false;
@@ -231,20 +147,21 @@ async function writePushTokenDoc(params: SavePushTokenParams): Promise<boolean> 
   const payload = buildPushTokenUpdatePayload(existingData, params);
 
   if (Object.keys(payload).length === 0) {
-    console.log(`[SeniorHub PUSH DEBUG] updateDoc SKIP ${userDocPath} (push fields already up to date)`);
     return true;
   }
 
-  logPushTokenUpdatePayload(payload, userDocPath);
-
-  try {
-    await updateDoc(userRef, payload);
-    console.log(`[SeniorHub PUSH DEBUG] updateDoc OK ${userDocPath}`);
-    return true;
-  } catch (error) {
-    logPushTokenUpdateDenied({ userDocPath, existingData, payload, error });
-    throw error;
+  const disallowedExistingKeys = Object.keys(existingData).filter(
+    (key) => !USER_SELF_UPDATE_ALLOWED_KEYS.has(key),
+  );
+  if (disallowedExistingKeys.length > 0 && __DEV__) {
+    console.warn(
+      '[SeniorHub] User document contains fields outside self-update allowlist:',
+      disallowedExistingKeys,
+    );
   }
+
+  await updateDoc(userRef, payload);
+  return true;
 }
 
 /** Saves FCM / Expo push tokens (and optional prefs) under users/{auth.uid}. */
@@ -304,12 +221,13 @@ export async function syncUserNotificationPreferences(params: {
 
   await withPushTokenWriteLock(async () => {
     try {
-      const profileExists = await userProfileDocExists(userId);
-      if (!profileExists) {
+      const userRef = doc(db, FIRESTORE_COLLECTIONS.users, userId);
+      const snapshot = await getDoc(userRef);
+      if (!snapshot.exists()) {
         return;
       }
 
-      await updateDoc(doc(db, FIRESTORE_COLLECTIONS.users, userId), payload);
+      await updateDoc(userRef, payload);
     } catch (error) {
       console.warn('[SeniorHub] Kunde inte synka notisinställningar:', error);
     }

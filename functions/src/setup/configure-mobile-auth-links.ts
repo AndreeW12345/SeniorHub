@@ -1,6 +1,6 @@
 import { getAuth } from 'firebase-admin/auth';
-import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret, defineString } from 'firebase-functions/params';
+import { onRequest } from 'firebase-functions/v2/https';
 
 /**
  * Set before deploy:
@@ -11,7 +11,7 @@ import { defineSecret, defineString } from 'firebase-functions/params';
  */
 export const MOBILE_AUTH_LINKS_SETUP_SECRET = defineSecret('MOBILE_AUTH_LINKS_SETUP_SECRET');
 
-/** Firebase Hosting domain for mobileLinksConfig, e.g. seniorhub-se.web.app */
+/** Firebase Hosting domain for mobileLinksConfig, e.g. seniorhub.se */
 export const HOSTING_DOMAIN = defineString('HOSTING_DOMAIN', {
   default: '',
   description: 'Firebase Hosting domain used for Auth mobile/app links.',
@@ -23,6 +23,8 @@ export const HOSTING_DOMAIN = defineString('HOSTING_DOMAIN', {
  *
  * Deploy:  firebase deploy --only functions:configureMobileAuthLinks
  * Invoke:  MOBILE_AUTH_LINKS_SETUP_SECRET=... npm run configure:mobile-auth-links:remote
+ *
+ * Disable or delete this function after successful setup to reduce attack surface.
  */
 export const configureMobileAuthLinks = onRequest(
   { secrets: [MOBILE_AUTH_LINKS_SETUP_SECRET] },
@@ -54,14 +56,14 @@ export const configureMobileAuthLinks = onRequest(
           ok: true,
           alreadyConfigured: true,
           domain,
-          note: 'mobileLinksConfig.domain already matches HOSTING_DOMAIN.',
+          note: 'mobileLinksConfig.domain already matches HOSTING_DOMAIN. Consider disabling this function.',
         });
         return;
       }
 
       const after = await projectConfigManager.updateProjectConfig({
         mobileLinksConfig: {
-          domain: 'HOSTING_DOMAIN' as never,
+          domain: domain as never,
         },
       });
 
@@ -69,7 +71,7 @@ export const configureMobileAuthLinks = onRequest(
         ok: true,
         before: before.mobileLinksConfig ?? null,
         after: after.mobileLinksConfig ?? null,
-        note: 'Client ActionCodeSettings.linkDomain must match your deployed Hosting site.',
+        note: 'Setup complete. Disable configureMobileAuthLinks in production when no longer needed.',
       });
     } catch (error) {
       console.error('[configureMobileAuthLinks] Failed:', error);

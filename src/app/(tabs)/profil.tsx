@@ -13,7 +13,7 @@ import { useTheme } from '@/hooks/use-theme';
 import {
   clearEmailForSignIn,
   clearPendingRegistration,
-  deleteCurrentAuthUser,
+  deleteUserAccount,
 } from '@/services/auth';
 import { confirmDestructiveAction, showErrorAlert, showSuccessAlert } from '@/utils/confirm-alert';
 
@@ -96,21 +96,22 @@ export default function ProfileScreen() {
           const wasSignedIn = isSignedIn;
 
           if (wasSignedIn) {
-            const authDelete = await deleteCurrentAuthUser();
-            if (!authDelete.ok) {
-              showErrorAlert(
-                'Kunde inte ta bort kontot',
-                'Logga in igen med din e-postlänk och försök ta bort kontot direkt efteråt.',
-              );
+            const accountDelete = await deleteUserAccount();
+            if (!accountDelete.ok) {
+              showErrorAlert('Kunde inte ta bort kontot', accountDelete.errorMessage);
               return;
             }
-            await clearLocalProfileCache();
-          }
 
-          const result = await deleteProfile();
-          if (!result.ok) {
-            showErrorAlert('Kunde inte ta bort', result.errorMessage);
-            return;
+            await signOut();
+            await clearEmailForSignIn();
+            await clearPendingRegistration();
+            await clearLocalProfileCache();
+          } else {
+            const result = await deleteProfile();
+            if (!result.ok) {
+              showErrorAlert('Kunde inte ta bort', result.errorMessage);
+              return;
+            }
           }
 
           showSuccessAlert('Konto borttaget', 'Dina uppgifter har tagits bort.');

@@ -71,6 +71,16 @@ async function seedFirestore() {
       role: 'organizer',
       organizerOrganizationId: 'spf-nacka',
     });
+
+    await db.collection('activities').doc('act-tyreso').set({
+      title: 'Fika',
+      organizationId: 'spf-tyreso',
+    });
+
+    await db.collection('activities').doc('act-nacka').set({
+      title: 'Dans',
+      organizationId: 'spf-nacka',
+    });
   });
 }
 
@@ -129,9 +139,19 @@ describe('activities/**', () => {
     await assertSucceeds(storage.ref('activities/admin-act/cover.jpg').put(jpegBlob()));
   });
 
-  it('allows organizer write', async () => {
+  it('allows organizer write for own organization activity', async () => {
     const storage = authedStorage('org-tyreso');
-    await assertSucceeds(storage.ref('activities/org-act/cover.jpg').put(jpegBlob()));
+    await assertSucceeds(storage.ref('activities/act-tyreso/cover.jpg').put(jpegBlob()));
+  });
+
+  it('denies organizer write for another organization activity', async () => {
+    const storage = authedStorage('org-tyreso');
+    await assertFails(storage.ref('activities/act-nacka/cover.jpg').put(jpegBlob()));
+  });
+
+  it('allows flat-path upload before activity id exists', async () => {
+    const storage = authedStorage('org-tyreso');
+    await assertSucceeds(storage.ref('activities/temp-upload.jpg').put(jpegBlob()));
   });
 });
 

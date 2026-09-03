@@ -32,17 +32,38 @@ service firebase.storage {
       return firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.organizationId;
     }
 
-    // Activity cover images — public in app lists/detail views.
-    // Covers both activities/{id}/cover.jpg and activities/{timestamp}-{random}.jpg
-    match /activities/{allPaths=**} {
+    function activityBelongsToOrganizer(activityId) {
+      return firestore.exists(/databases/(default)/documents/activities/$(activityId))
+        && firestore.get(/databases/(default)/documents/activities/$(activityId)).data.organizationId
+           == organizerOrgId();
+    }
+
+    function isValidImageUpload() {
+      return request.resource != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Activity cover images for existing activities — scoped to organizer's organization.
+    match /activities/{activityId}/cover.jpg {
       allow read: if true;
-      allow write: if isAdmin() || isOrganizer();
+      allow write: if isValidImageUpload() && (
+        isAdmin()
+        || (isOrganizer() && activityBelongsToOrganizer(activityId))
+      );
+    }
+
+    // Temporary uploads before an activity id exists (organizer/admin only).
+    match /activities/{fileName} {
+      allow read: if true;
+      allow write: if isValidImageUpload() && (isAdmin() || isOrganizer());
     }
 
     // Profile avatars — user uploads own photo from profil/edit.
     match /profiles/{userId}/{fileName} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow write: if isSignedIn()
+      allow write: if isValidImageUpload()
+        && isSignedIn()
         && request.auth.uid == userId
         && fileName == 'avatar.jpg';
     }
@@ -50,7 +71,8 @@ service firebase.storage {
     // Organization logos — admin org page; scope admin to own org.
     match /organizations/{organizationId}/{fileName} {
       allow read: if true;
-      allow write: if fileName == 'logo.jpg' && (
+      allow write: if isValidImageUpload()
+        && fileName == 'logo.jpg' && (
         (isAdmin() && adminOrgId() == organizationId)
         || (isOrganizer() && organizerOrgId() == organizationId)
       );

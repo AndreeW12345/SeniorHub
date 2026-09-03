@@ -2,6 +2,8 @@ import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { Firestore, getFirestore } from 'firebase/firestore';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
 
+import { initializeFirebaseAppCheck } from '@/firebase/app-check';
+
 type FirebaseConfig = {
   apiKey: string;
   authDomain: string;
@@ -42,6 +44,7 @@ export function getFirebaseApp(): FirebaseApp | null {
 
   if (!firebaseApp) {
     firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    initializeFirebaseAppCheck();
   }
 
   return firebaseApp;

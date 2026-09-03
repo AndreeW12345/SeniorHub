@@ -75,7 +75,7 @@ service cloud.firestore {
       return [
         'title', 'description', 'date', 'time', 'location', 'organizer', 'category',
         'imageUrl', 'latitude', 'longitude', 'street', 'postalCode', 'city', 'fullAddress', 'address',
-        'registrationRequired', 'hasParticipantLimit', 'maxParticipants', 'participants',
+        'registrationRequired', 'hasParticipantLimit', 'maxParticipants',
         'membershipRequired', 'membershipOrganization', 'membershipUrl',
         'registrationMethod', 'registrationUrl', 'registrationPhone', 'registrationEmail',
         'isCancelled', 'organizationId', 'createdAt', 'createdByUid',
@@ -87,7 +87,7 @@ service cloud.firestore {
       return [
         'title', 'description', 'date', 'time', 'location', 'organizer', 'category',
         'imageUrl', 'latitude', 'longitude', 'street', 'postalCode', 'city', 'fullAddress', 'address',
-        'registrationRequired', 'hasParticipantLimit', 'maxParticipants', 'participants',
+        'registrationRequired', 'hasParticipantLimit', 'maxParticipants',
         'membershipRequired', 'membershipOrganization', 'membershipUrl',
         'registrationMethod', 'registrationUrl', 'registrationPhone', 'registrationEmail',
         'isCancelled', 'updatedByUid', 'seriesId', 'occurrenceIndex', 'recurrence', 'isRecurrenceException'
@@ -121,6 +121,10 @@ service cloud.firestore {
       allow update: if isAdmin();
 
       allow delete: if isAdmin();
+
+      match /security/{docId} {
+        allow read, write: if false;
+      }
 
       match /notifications/{notificationId} {
         allow read: if isOwner(uid) || isAdmin();
@@ -197,31 +201,16 @@ service cloud.firestore {
           || (isOrganizer() && parentActivityOrgId(activityId) == organizerOrgId())
           || isAdmin();
 
-        allow create: if isSignedIn()
-          && registrationId == request.auth.uid
-          && !exists(/databases/$(database)/documents/activities/$(activityId)/registrations/$(registrationId))
-          && request.resource.data.keys().hasAll([
-               'name', 'phone', 'registeredAt', 'status'
-             ])
-          && request.resource.data.keys().hasOnly([
-               'name', 'phone', 'registeredAt', 'status'
-             ])
-          && request.resource.data.status in ['registered', 'waitlist'];
+        // Bookings are created only via the bookActivityRegistration Cloud Function (Admin SDK).
+        allow create: if isAdmin();
 
         allow update: if isSignedIn()
           && registrationId == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-               'status', 'cancelledAt', 'name', 'phone', 'registeredAt'
+               'status', 'cancelledAt'
              ])
-          && (
-            request.resource.data.status == 'cancelled'
-            || resource.data.status == 'cancelled'
-            || !(resource.data.status in ['registered', 'waitlist']
-                 && request.resource.data.status in ['registered', 'waitlist'])
-          );
-
-        allow delete: if isSignedIn()
-          && registrationId == request.auth.uid;
+          && request.resource.data.status == 'cancelled'
+          && resource.data.status in ['registered', 'waitlist'];
 
         allow update: if isOrganizer()
           && parentActivityOrgId(activityId) == organizerOrgId()
