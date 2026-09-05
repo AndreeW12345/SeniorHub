@@ -12,9 +12,8 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Platform, Pressable, StyleSheet, View, type TextStyle } from 'react-native';
 
 import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
 
-import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { Colors, MaxContentWidth, Radius, Spacing, TabBarColors } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useNotifications } from '@/contexts/notifications-context';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -149,12 +148,15 @@ function TabButton({
         compact && styles.tabPressableCompact,
         pressed && styles.pressed,
       ]}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={[styles.tabButtonView, compact && styles.tabButtonViewCompact]}>
+      <View
+        style={[
+          styles.tabButtonView,
+          compact && styles.tabButtonViewCompact,
+          { backgroundColor: isFocused ? TabBarColors.activeTab : 'transparent' },
+        ]}>
         <View style={styles.iconWrap}>
           <SymbolView
-            tintColor={isFocused ? theme.primary : theme.textSecondary}
+            tintColor={theme.primary}
             name={icon}
             size={20}
           />
@@ -170,7 +172,7 @@ function TabButton({
         </View>
         <ThemedText
           type="smallBold"
-          themeColor={isFocused ? 'primary' : 'textSecondary'}
+          themeColor="primary"
           style={[
             styles.tabLabel,
             compact && styles.tabLabelCompact,
@@ -180,7 +182,7 @@ function TabButton({
           numberOfLines={compact ? (isMultiLineCompactLabel ? 2 : 1) : 2}>
           {displayLabel}
         </ThemedText>
-      </ThemedView>
+      </View>
     </Pressable>
   );
 }
@@ -201,14 +203,12 @@ function CustomTabList({ compact, children, ...props }: TabListProps & { compact
   const tabItems = Children.toArray(children);
 
   const inner = compact ? (
-    <ThemedView type="backgroundElement" style={[styles.innerContainer, styles.innerContainerCompact]}>
+    <View style={[styles.innerContainer, styles.innerContainerCompact, styles.tabBarSurface]}>
       <CompactTabRow items={tabItems.slice(0, COMPACT_TAB_COLUMNS)} />
       <CompactTabRow items={tabItems.slice(COMPACT_TAB_COLUMNS)} />
-    </ThemedView>
+    </View>
   ) : (
-    <ThemedView type="backgroundElement" style={styles.innerContainer}>
-      {children}
-    </ThemedView>
+    <View style={[styles.innerContainer, styles.tabBarSurface]}>{children}</View>
   );
 
   return (
@@ -258,6 +258,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: Spacing.one,
     maxWidth: MaxContentWidth,
+  },
+  tabBarSurface: {
+    backgroundColor: TabBarColors.background,
+    borderWidth: 1,
+    borderColor: TabBarColors.border,
   },
   innerContainerCompact: {
     width: '100%',

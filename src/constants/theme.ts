@@ -82,3 +82,10 @@ export const BottomTabInset = Platform.select({
   default: 80,
 }) as number;
 export const MaxContentWidth = 880;
+
+/** Shared bottom tab bar palette for web and native. */
+export const TabBarColors = {
+  background: '#C7D6E3',
+  activeTab: '#AFC3D5',
+  border: '#94A8BC',
+} as const;

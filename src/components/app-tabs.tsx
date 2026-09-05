@@ -1,6 +1,6 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
-import { Colors } from '@/constants/theme';
+import { Colors, TabBarColors } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useNotifications } from '@/contexts/notifications-context';
 
@@ -16,13 +16,15 @@ export default function AppTabs() {
 
   return (
     <NativeTabs
-      backgroundColor={theme.background}
-      indicatorColor={theme.primaryLight}
+      backgroundColor={TabBarColors.background}
+      indicatorColor={TabBarColors.activeTab}
+      shadowColor={TabBarColors.border}
       badgeBackgroundColor={theme.favorite}
       badgeTextColor="#FFFFFF"
+      iconColor={theme.primary}
       labelStyle={{
         selected: { color: theme.primary },
-        default: { color: theme.textSecondary },
+        default: { color: theme.primary },
       }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Aktiviteter</NativeTabs.Trigger.Label>
