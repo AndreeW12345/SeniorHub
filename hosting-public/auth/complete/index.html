@@ -202,12 +202,6 @@
         if (!isSignInWithEmailLink(auth, href)) {
           intro.textContent = 'Ogiltig inloggningslänk';
           setStatus('Be om en ny inloggningslänk i SeniorHub-appen.', true);
-        } else if (isMobileDevice()) {
-          intro.textContent = 'Öppnar SeniorHub …';
-          setStatus('Slutför inloggningen i appen. Länken kan bara användas en gång.');
-          openAppLink.href = buildAppDeepLink();
-          openAppLink.classList.remove('hidden');
-          redirectToApp();
         } else {
           const storedEmail = readStoredEmail();
           if (storedEmail) {

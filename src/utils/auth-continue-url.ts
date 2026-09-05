@@ -4,6 +4,8 @@ import { Platform } from 'react-native';
 const APP_BUNDLE_ID = 'com.andreew12345.seniorhub';
 
 const AUTH_COMPLETE_PATH = '/auth/complete';
+const MOBILE_WEB_BREAKPOINT = 600;
+const DEFAULT_WEB_APP_BASE_PATH = '/app';
 
 function stripProtocol(domain: string): string {
   return domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -41,6 +43,42 @@ export function getFirebaseHostingLinkDomain(): string {
   );
 }
 
+/** True when the user is in a mobile browser tab (not the native app). */
+export function isMobileWebBrowser(): boolean {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') {
+    return false;
+  }
+
+  const isCompactViewport = window.innerWidth < MOBILE_WEB_BREAKPOINT;
+  const isMobileUserAgent = /Android|iPhone|iPod/i.test(window.navigator.userAgent);
+
+  return isMobileUserAgent || isCompactViewport;
+}
+
+function getWebAppBasePath(): string {
+  const configured = process.env.EXPO_PUBLIC_WEB_BASE_URL?.trim().replace(/\/$/, '');
+  if (configured) {
+    return configured.startsWith('/') ? configured : `/${configured}`;
+  }
+
+  if (typeof window !== 'undefined') {
+    const { pathname } = window.location;
+    if (pathname === DEFAULT_WEB_APP_BASE_PATH || pathname.startsWith(`${DEFAULT_WEB_APP_BASE_PATH}/`)) {
+      return DEFAULT_WEB_APP_BASE_PATH;
+    }
+  }
+
+  return DEFAULT_WEB_APP_BASE_PATH;
+}
+
+function getWebAuthCompletePath(): string {
+  if (isMobileWebBrowser()) {
+    return `${getWebAppBasePath()}${AUTH_COMPLETE_PATH}`;
+  }
+
+  return AUTH_COMPLETE_PATH;
+}
+
 /**
  * HTTPS continue URL embedded in Firebase ActionCodeSettings.url.
  * Must use the deployed Firebase Hosting domain — never localhost or a custom app scheme.
@@ -55,7 +93,7 @@ export function getEmailLinkContinueUrl(): string {
     if (typeof window !== 'undefined' && window.location?.origin) {
       const origin = window.location.origin;
       if (!isLocalhostUrl(origin)) {
-        return `${origin}${AUTH_COMPLETE_PATH}`;
+        return `${origin}${getWebAuthCompletePath()}`;
       }
     }
 

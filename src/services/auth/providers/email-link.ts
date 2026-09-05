@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import {
   isSignInWithEmailLink,
   sendSignInLinkToEmail,
@@ -14,7 +15,11 @@ import {
 import { getFirebaseAuth } from '@/firebase';
 import { getAuthErrorCode, getSwedishAuthErrorMessage } from '@/services/auth/errors';
 import type { AuthActionResult, AuthProviderModule, AuthResult } from '@/services/auth/providers/types';
-import { getAppBundleId, getEmailLinkContinueUrl } from '@/utils/auth-continue-url';
+import {
+  getAppBundleId,
+  getEmailLinkContinueUrl,
+  isMobileWebBrowser,
+} from '@/utils/auth-continue-url';
 
 export const emailLinkProvider: AuthProviderModule = {
   id: 'email_link',
@@ -23,6 +28,16 @@ export const emailLinkProvider: AuthProviderModule = {
 };
 
 function buildActionCodeSettings(): ActionCodeSettings {
+  const url = getEmailLinkContinueUrl();
+
+  // Mobile web completes inside the browser SPA (/app/auth/complete) without native app links.
+  if (Platform.OS === 'web' && isMobileWebBrowser()) {
+    return {
+      url,
+      handleCodeInApp: true,
+    };
+  }
+
   const bundleId = getAppBundleId();
 
   // Firebase Hosting universal / app link flow (see Firebase Email Link Auth docs).
@@ -32,7 +47,7 @@ function buildActionCodeSettings(): ActionCodeSettings {
   // Firebase rejects those with auth/invalid-hosting-link-domain and auto-selects the
   // project Hosting domain when linkDomain is omitted.
   return {
-    url: getEmailLinkContinueUrl(),
+    url,
     handleCodeInApp: true,
     iOS: {
       bundleId,
