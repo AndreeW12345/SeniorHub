@@ -9,7 +9,7 @@ import {
 } from 'expo-router/ui';
 import type { Href } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import { Platform, Pressable, StyleSheet, View, type TextStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, type TextStyle, type ViewStyle } from 'react-native';
 
 import { ThemedText } from './themed-text';
 
@@ -59,6 +59,19 @@ const TAB_LABEL_COMPACT_MULTI_LINE_WEB: TextStyle =
         wordBreak: 'normal',
         hyphens: 'none',
       } as TextStyle)
+    : {};
+
+/** Pin mobile-web tab bar to the visual viewport bottom; safe-area keeps iPhone home indicator clear. */
+const TAB_LIST_CONTAINER_COMPACT_WEB: ViewStyle =
+  Platform.OS === 'web'
+    ? ({
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      } as unknown as ViewStyle)
     : {};
 
 function formatUnreadBadge(count: number): string {
@@ -212,7 +225,13 @@ function CustomTabList({ compact, children, ...props }: TabListProps & { compact
   );
 
   return (
-    <View {...props} style={[styles.tabListContainer, compact && styles.tabListContainerCompact]}>
+    <View
+      {...props}
+      style={[
+        styles.tabListContainer,
+        compact && styles.tabListContainerCompact,
+        compact && TAB_LIST_CONTAINER_COMPACT_WEB,
+      ]}>
       {inner}
     </View>
   );
@@ -247,6 +266,8 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
     minWidth: 0,
     overflow: 'hidden',
+    paddingTop: Spacing.three,
+    paddingHorizontal: Spacing.three,
   },
   innerContainer: {
     paddingVertical: Spacing.two,
