@@ -1,11 +1,12 @@
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 
 import { FormField } from '@/components/form-field';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { readPendingActivityBooking } from '@/services/auth/pending-activity-booking';
@@ -19,10 +20,12 @@ export default function RegisterScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [errors, setErrors] = useState<{
     firstName?: string;
     lastName?: string;
     email?: string;
+    legalConsent?: string;
   }>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -55,12 +58,20 @@ export default function RegisterScreen() {
       firstName: trimmedFirst ? undefined : 'Ange ditt förnamn.',
       lastName: trimmedLast ? undefined : 'Ange ditt efternamn.',
       email: trimmedEmail ? undefined : 'Ange en e-postadress.',
+      legalConsent: acceptedLegal
+        ? undefined
+        : 'Du måste godkänna användarvillkor och integritetspolicy för att skapa konto.',
     };
 
     setErrors(nextErrors);
     setSubmitError(null);
 
-    if (nextErrors.firstName || nextErrors.lastName || nextErrors.email) {
+    if (
+      nextErrors.firstName ||
+      nextErrors.lastName ||
+      nextErrors.email ||
+      nextErrors.legalConsent
+    ) {
       return;
     }
 
@@ -169,6 +180,75 @@ export default function RegisterScreen() {
               autoComplete="email"
             />
 
+            <View
+              style={[
+                styles.legalConsentRow,
+                CardShadow,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: acceptedLegal, disabled: isSending }}
+                accessibilityLabel="Godkänn användarvillkor och integritetspolicy"
+                disabled={isSending}
+                onPress={() => {
+                  setAcceptedLegal((current) => !current);
+                  setErrors((current) => ({ ...current, legalConsent: undefined }));
+                }}
+                style={({ pressed }) => [
+                  styles.legalConsentCheckbox,
+                  {
+                    backgroundColor: acceptedLegal ? theme.primary : theme.card,
+                    borderColor: acceptedLegal ? theme.primary : theme.border,
+                  },
+                  pressed && !isSending && styles.pressed,
+                ]}>
+                {acceptedLegal ? (
+                  <SymbolView
+                    tintColor="#FFFFFF"
+                    name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+                    size={18}
+                    weight="bold"
+                  />
+                ) : null}
+              </Pressable>
+
+              <View style={styles.legalConsentTextWrap}>
+                <ThemedText type="bodyLarge" style={styles.legalConsentText}>
+                  Jag har läst och godkänner{' '}
+                </ThemedText>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel="Läs användarvillkor"
+                  onPress={() => router.push('/profil/villkor' as Href)}>
+                  <ThemedText type="bodyLarge" themeColor="primary" style={styles.legalConsentLink}>
+                    användarvillkoren
+                  </ThemedText>
+                </Pressable>
+                <ThemedText type="bodyLarge" style={styles.legalConsentText}>
+                  {' '}
+                  och{' '}
+                </ThemedText>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel="Läs integritetspolicy"
+                  onPress={() => router.push('/profil/sekretess' as Href)}>
+                  <ThemedText type="bodyLarge" themeColor="primary" style={styles.legalConsentLink}>
+                    integritetspolicyn
+                  </ThemedText>
+                </Pressable>
+                <ThemedText type="bodyLarge" style={styles.legalConsentText}>
+                  .
+                </ThemedText>
+              </View>
+            </View>
+
+            {errors.legalConsent ? (
+              <ThemedText type="small" themeColor="favorite">
+                {errors.legalConsent}
+              </ThemedText>
+            ) : null}
+
             {submitError ? (
               <ThemedText type="bodyLarge" themeColor="favorite" style={styles.errorText}>
                 {submitError}
@@ -229,6 +309,54 @@ const styles = StyleSheet.create({
   },
   errorText: {
     textAlign: 'center',
+  },
+  legalConsentRow: {
+    minHeight: 60,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three + 2,
+    width: '100%',
+    maxWidth: '100%',
+  },
+  legalConsentCheckbox: {
+    width: 28,
+    height: 28,
+    marginTop: 2,
+    borderRadius: Radius.sm,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  legalConsentTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  legalConsentText: {
+    fontWeight: '600',
+    lineHeight: 28,
+  },
+  legalConsentLink: {
+    fontWeight: '700',
+    lineHeight: 28,
+    textDecorationLine: 'underline',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
   },
   linkButton: {
     alignItems: 'center',

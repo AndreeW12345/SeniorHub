@@ -16,6 +16,82 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function adminDoc() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAdmin()
+        && adminDoc().get('role', 'admin') == 'superadmin';
+    }
+
+    function adminOrgId() {
+      return adminDoc().get('organizationId', '');
+    }
+
+    function adminCanAccessOrganization(orgId) {
+      return isSuperAdmin()
+        || (isAdmin()
+          && adminOrgId() is string
+          && adminOrgId().size() > 0
+          && adminOrgId() == orgId);
+    }
+
+    function adminCanAccessActivityData(data) {
+      return isSuperAdmin()
+        || (isAdmin()
+          && data.organizationId is string
+          && data.organizationId.size() > 0
+          && data.organizationId == adminOrgId());
+    }
+
+    function adminCanAccessActivity(activityId) {
+      return adminCanAccessActivityData(parentActivity(activityId));
+    }
+
+    function isValidAdminRole(role) {
+      return role == 'admin' || role == 'superadmin';
+    }
+
+    function isValidUserRole(role) {
+      return role == 'user' || role == 'organizer';
+    }
+
+    function adminSelfDocUpdateValid() {
+      return request.resource.data.get('role', null) == resource.data.get('role', null)
+        && request.resource.data.get('organizationId', null)
+           == resource.data.get('organizationId', null)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['email', 'displayName', 'updatedAt']);
+    }
+
+    function adminDocWriteValid() {
+      return request.resource.data.organizationId is string
+        && request.resource.data.organizationId.size() > 0
+        && isValidAdminRole(request.resource.data.get('role', 'admin'));
+    }
+
+    function userAdminResolvedRole() {
+      return request.resource.data.get('role', resource.data.get('role', 'user'));
+    }
+
+    function userAdminUpdateValid() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['role', 'organizerOrganizationId'])
+        || (
+          isValidUserRole(userAdminResolvedRole())
+          && (
+            (userAdminResolvedRole() == 'organizer'
+              && request.resource.data.get('organizerOrganizationId', null) is string
+              && request.resource.data.get('organizerOrganizationId', null).size() > 0
+              && (isSuperAdmin()
+                || request.resource.data.get('organizerOrganizationId', null) == adminOrgId()))
+            || (userAdminResolvedRole() == 'user'
+              && request.resource.data.get('organizerOrganizationId', null) == null)
+          )
+        );
+    }
+
     function userDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
@@ -118,9 +194,9 @@ service cloud.firestore {
         && userPrivilegedFieldsUnchanged()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(userSelfUpdateAllowedKeys());
 
-      allow update: if isAdmin();
+      allow update: if isAdmin() && userAdminUpdateValid();
 
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
 
       match /security/{docId} {
         allow read, write: if false;
@@ -128,18 +204,22 @@ service cloud.firestore {
 
       match /notifications/{notificationId} {
         allow read: if isOwner(uid) || isAdmin();
-        allow create, update, delete: if isAdmin();
+        allow create, update, delete: if false;
       }
     }
 
     match /admins/{uid} {
       allow read: if isOwner(uid) || isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow create: if isSuperAdmin() && adminDocWriteValid();
+      allow update: if isSuperAdmin()
+        || (isAdmin() && isOwner(uid) && adminSelfDocUpdateValid());
+      allow delete: if isSuperAdmin();
     }
 
     match /organizations/{organizationId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create: if isSuperAdmin();
+      allow update, delete: if adminCanAccessOrganization(organizationId);
     }
 
     match /organizerApplications/{applicationId} {
@@ -193,16 +273,21 @@ service cloud.firestore {
       allow delete: if isOrganizer()
         && resource.data.organizationId == organizerOrgId();
 
-      allow create, update, delete: if isAdmin();
+      allow create: if isAdmin() && adminCanAccessActivityData(request.resource.data);
+      allow update: if isAdmin()
+        && adminCanAccessActivityData(resource.data)
+        && adminCanAccessActivityData(request.resource.data)
+        && (isSuperAdmin() || activityOrgIdUnchanged());
+      allow delete: if isAdmin() && adminCanAccessActivityData(resource.data);
 
       match /registrations/{registrationId} {
         allow read: if
           (isSignedIn() && registrationId == request.auth.uid)
           || (isOrganizer() && parentActivityOrgId(activityId) == organizerOrgId())
-          || isAdmin();
+          || (isAdmin() && adminCanAccessActivity(activityId));
 
         // Bookings are created only via the bookActivityRegistration Cloud Function (Admin SDK).
-        allow create: if isAdmin();
+        allow create: if false;
 
         allow update: if isSignedIn()
           && registrationId == request.auth.uid
@@ -212,21 +297,13 @@ service cloud.firestore {
           && request.resource.data.status == 'cancelled'
           && resource.data.status in ['registered', 'waitlist'];
 
-        allow update: if isOrganizer()
-          && parentActivityOrgId(activityId) == organizerOrgId()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-               'status', 'cancelledAt', 'promotedAt'
-             ]);
-
-        allow delete: if isOrganizer()
-          && parentActivityOrgId(activityId) == organizerOrgId();
-
-        allow create, update, delete: if isAdmin();
+        allow update: if isAdmin() && adminCanAccessActivity(activityId);
+        allow delete: if isAdmin() && adminCanAccessActivity(activityId);
       }
 
       match /announcements/{announcementId} {
         allow read: if isSignedIn() && (
-          isAdmin()
+          (isAdmin() && adminCanAccessActivity(activityId))
           || (isOrganizer() && parentActivityOrgId(activityId) == organizerOrgId())
           || isRegisteredForActivity(activityId)
         );
@@ -234,7 +311,8 @@ service cloud.firestore {
         allow create, update, delete: if isOrganizer()
           && parentActivityOrgId(activityId) == organizerOrgId();
 
-        allow create, update, delete: if isAdmin();
+        allow create, update, delete: if isAdmin()
+          && adminCanAccessActivity(activityId);
       }
 
       match /reminderDeliveries/{deliveryId} {

@@ -12,6 +12,27 @@ service firebase.storage {
         && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
     }
 
+    function adminDoc() {
+      return firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAdmin()
+        && adminDoc().get('role', 'admin') == 'superadmin';
+    }
+
+    function adminOrgId() {
+      return adminDoc().get('organizationId', '');
+    }
+
+    function adminCanAccessOrganization(orgId) {
+      return isSuperAdmin()
+        || (isAdmin()
+          && adminOrgId() is string
+          && adminOrgId().size() > 0
+          && adminOrgId() == orgId);
+    }
+
     function userDoc() {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
     }
@@ -28,14 +49,38 @@ service firebase.storage {
       return userDoc().organizerOrganizationId;
     }
 
-    function adminOrgId() {
-      return firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.organizationId;
+    function activityExists(activityId) {
+      return firestore.exists(/databases/(default)/documents/activities/$(activityId));
+    }
+
+    function activityOrganizationId(activityId) {
+      return firestore.get(/databases/(default)/documents/activities/$(activityId)).data.organizationId;
     }
 
     function activityBelongsToOrganizer(activityId) {
-      return firestore.exists(/databases/(default)/documents/activities/$(activityId))
-        && firestore.get(/databases/(default)/documents/activities/$(activityId)).data.organizationId
-           == organizerOrgId();
+      return activityExists(activityId)
+        && activityOrganizationId(activityId) == organizerOrgId();
+    }
+
+    function activityBelongsToAdmin(activityId) {
+      return activityExists(activityId)
+        && adminCanAccessOrganization(activityOrganizationId(activityId));
+    }
+
+    function canUploadActivityCover(activityId) {
+      return isValidImageUpload() && (
+        (isOrganizer() && activityBelongsToOrganizer(activityId))
+        || (isAdmin() && activityBelongsToAdmin(activityId))
+      );
+    }
+
+    function canUploadTemporaryActivityImage() {
+      return isValidImageUpload() && (
+        isOrganizer()
+        || (isAdmin()
+          && (isSuperAdmin()
+            || (adminOrgId() is string && adminOrgId().size() > 0)))
+      );
     }
 
     function isValidImageUpload() {
@@ -44,19 +89,16 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
-    // Activity cover images for existing activities — scoped to organizer's organization.
+    // Activity cover images for existing activities — scoped to organizer/admin organization.
     match /activities/{activityId}/cover.jpg {
       allow read: if true;
-      allow write: if isValidImageUpload() && (
-        isAdmin()
-        || (isOrganizer() && activityBelongsToOrganizer(activityId))
-      );
+      allow write: if canUploadActivityCover(activityId);
     }
 
     // Temporary uploads before an activity id exists (organizer/admin only).
     match /activities/{fileName} {
       allow read: if true;
-      allow write: if isValidImageUpload() && (isAdmin() || isOrganizer());
+      allow write: if canUploadTemporaryActivityImage();
     }
 
     // Profile avatars — user uploads own photo from profil/edit.
@@ -73,7 +115,7 @@ service firebase.storage {
       allow read: if true;
       allow write: if isValidImageUpload()
         && fileName == 'logo.jpg' && (
-        (isAdmin() && adminOrgId() == organizationId)
+        adminCanAccessOrganization(organizationId)
         || (isOrganizer() && organizerOrgId() == organizationId)
       );
     }
