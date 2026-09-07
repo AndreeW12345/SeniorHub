@@ -1,3 +1,5 @@
+import type { PendingLegalConsent } from '@/constants/legal-consent';
+
 /** Pluggable auth provider identifiers for current and future sign-in methods. */
 export const AUTH_PROVIDER_IDS = [
   'email_link',
@@ -23,6 +25,7 @@ export type PendingRegistration = {
   firstName: string;
   lastName: string;
   email: string;
+  legalConsent: PendingLegalConsent;
 };
 
 export type PendingActivityBookingMode = 'registered' | 'waitlist';

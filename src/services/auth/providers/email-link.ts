@@ -12,6 +12,10 @@ import {
   PENDING_REGISTRATION_STORAGE_KEY,
   type PendingRegistration,
 } from '@/constants/auth';
+import {
+  isValidPendingLegalConsent,
+  type PendingLegalConsent,
+} from '@/constants/legal-consent';
 import { getFirebaseAuth } from '@/firebase';
 import { getAuthErrorCode, getSwedishAuthErrorMessage } from '@/services/auth/errors';
 import type { AuthActionResult, AuthProviderModule, AuthResult } from '@/services/auth/providers/types';
@@ -77,14 +81,36 @@ export async function clearEmailForSignIn(): Promise<void> {
 export async function storePendingRegistration(
   registration: PendingRegistration,
 ): Promise<void> {
+  if (!isValidPendingLegalConsent(registration.legalConsent)) {
+    throw new Error('Legal consent is required before registration can proceed.');
+  }
+
   await AsyncStorage.setItem(
     PENDING_REGISTRATION_STORAGE_KEY,
     JSON.stringify({
       firstName: registration.firstName.trim(),
       lastName: registration.lastName.trim(),
       email: registration.email.trim().toLowerCase(),
+      legalConsent: {
+        acceptedAt: registration.legalConsent.acceptedAt.trim(),
+        version: registration.legalConsent.version.trim(),
+      } satisfies PendingLegalConsent,
     } satisfies PendingRegistration),
   );
+}
+
+function parsePendingLegalConsent(record: Record<string, unknown>): PendingLegalConsent | null {
+  const consentRecord = record.legalConsent;
+  if (!consentRecord || typeof consentRecord !== 'object') {
+    return null;
+  }
+
+  const consent = consentRecord as Record<string, unknown>;
+  const acceptedAt = typeof consent.acceptedAt === 'string' ? consent.acceptedAt.trim() : '';
+  const version = typeof consent.version === 'string' ? consent.version.trim() : '';
+
+  const parsed: PendingLegalConsent = { acceptedAt, version };
+  return isValidPendingLegalConsent(parsed) ? parsed : null;
 }
 
 export async function readPendingRegistration(): Promise<PendingRegistration | null> {
@@ -103,12 +129,13 @@ export async function readPendingRegistration(): Promise<PendingRegistration | n
     const firstName = typeof record.firstName === 'string' ? record.firstName.trim() : '';
     const lastName = typeof record.lastName === 'string' ? record.lastName.trim() : '';
     const email = typeof record.email === 'string' ? record.email.trim().toLowerCase() : '';
+    const legalConsent = parsePendingLegalConsent(record);
 
-    if (!firstName || !lastName || !email) {
+    if (!firstName || !lastName || !email || !legalConsent) {
       return null;
     }
 
-    return { firstName, lastName, email };
+    return { firstName, lastName, email, legalConsent };
   } catch {
     return null;
   }

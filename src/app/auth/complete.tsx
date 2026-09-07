@@ -15,7 +15,7 @@ import {
   readPendingRegistration,
 } from '@/services/auth';
 import { readPendingActivityBooking } from '@/services/auth/pending-activity-booking';
-import { fetchUserProfile, migrateDeviceProfileToUid, saveUserProfile } from '@/services/profile';
+import { ensureUserProfileAfterSignIn } from '@/services/profile/ensure-user-profile-after-sign-in';
 import { readSearchParam, resolveAuthEmailLink } from '@/utils/resolve-auth-email-link';
 
 async function resolvePostSignInRoute(): Promise<Href> {
@@ -61,21 +61,19 @@ export default function AuthCompleteScreen() {
 
       const pending = await readPendingRegistration();
       const uid = result.user.uid;
-      await migrateDeviceProfileToUid(uid);
-
-      const existing = await fetchUserProfile(uid);
-      const existingProfile = existing.ok ? existing.profile : null;
       const profileEmail = result.user.email?.trim() || nextEmail;
-      const fullName = pending
-        ? `${pending.firstName} ${pending.lastName}`.trim()
-        : existingProfile?.name?.trim() || '';
 
-      await saveUserProfile(uid, {
-        name: fullName,
-        phone: existingProfile?.phone ?? '',
-        email: profileEmail,
-        photoUrl: existingProfile?.photoUrl,
+      const profileResult = await ensureUserProfileAfterSignIn({
+        uid,
+        authEmail: profileEmail,
+        pendingRegistration: pending,
       });
+
+      if (!profileResult.ok) {
+        setStatus('error');
+        setMessage(profileResult.errorMessage);
+        return;
+      }
 
       if (pending) {
         await clearPendingRegistration();
@@ -190,16 +188,23 @@ export default function AuthCompleteScreen() {
             </ThemedText>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Till inloggning"
-              onPress={() => router.replace('/login' as Href)}
+              accessibilityLabel="Till registrering"
+              onPress={() => router.replace('/register' as Href)}
               style={({ pressed }) => [
                 styles.button,
                 { backgroundColor: theme.primary },
                 pressed && styles.pressed,
               ]}>
               <ThemedText type="bodyLarge" style={styles.buttonText}>
-                Till inloggning
+                Till registrering
               </ThemedText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Till inloggning"
+              onPress={() => router.replace('/login' as Href)}
+              style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}>
+              <ThemedText type="linkPrimary">Till inloggning</ThemedText>
             </Pressable>
           </>
         ) : null}
@@ -233,6 +238,10 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  linkButton: {
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
   },
   pressed: {
     opacity: 0.9,

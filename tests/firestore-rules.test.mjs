@@ -56,6 +56,7 @@ async function seedBaseData() {
     await setDoc(doc(db, 'admins/admin1'), {
       email: 'admin@seniorhub.se',
       role: 'admin',
+      organizationId: 'spf-tyreso',
     });
 
     await setDoc(doc(db, 'users/user1'), {
@@ -434,6 +435,95 @@ describe('security hardening', () => {
     await assertFails(
       updateDoc(doc(organizerDb, 'activities', 'act-tyreso'), {
         organizationId: 'spf-nacka',
+      }),
+    );
+  });
+});
+
+describe('legal consent', () => {
+  const LEGAL_TERMS_VERSION = '2026-09-07';
+
+  function userCreateWithConsent(email, overrides = {}) {
+    return {
+      name: 'New User',
+      email,
+      phone: '',
+      photoUrl: null,
+      role: 'user',
+      termsAccepted: true,
+      termsAcceptedAt: new Date(),
+      termsAcceptedVersion: LEGAL_TERMS_VERSION,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    };
+  }
+
+  it('denies creating a user profile without legal consent', async () => {
+    const newUserDb = authedDb('new-user', { email: 'new@example.com' });
+
+    await assertFails(
+      setDoc(doc(newUserDb, 'users', 'new-user'), {
+        name: 'New User',
+        email: 'new@example.com',
+        phone: '',
+        photoUrl: null,
+        role: 'user',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  it('allows creating a user profile with valid legal consent', async () => {
+    const newUserDb = authedDb('new-user-consented', { email: 'newconsented@example.com' });
+
+    await assertSucceeds(
+      setDoc(
+        doc(newUserDb, 'users', 'new-user-consented'),
+        userCreateWithConsent('newconsented@example.com'),
+      ),
+    );
+  });
+
+  it('denies creating a user profile with outdated legal consent version', async () => {
+    const newUserDb = authedDb('new-user-old', { email: 'newold@example.com' });
+
+    await assertFails(
+      setDoc(
+        doc(newUserDb, 'users', 'new-user-old'),
+        userCreateWithConsent('newold@example.com', {
+          termsAcceptedVersion: '2020-01-01',
+        }),
+      ),
+    );
+  });
+
+  it('allows existing users without consent fields to update profile', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertSucceeds(
+      updateDoc(doc(user1Db, 'users', 'user1'), {
+        name: 'User One Updated',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies removing legal consent on update', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), 'users/user-consented'),
+        userCreateWithConsent('consented@example.com'),
+      );
+    });
+
+    const userDb = authedDb('user-consented', { email: 'consented@example.com' });
+
+    await assertFails(
+      updateDoc(doc(userDb, 'users', 'user-consented'), {
+        termsAccepted: false,
+        updatedAt: new Date(),
       }),
     );
   });

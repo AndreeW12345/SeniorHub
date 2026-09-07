@@ -10,6 +10,7 @@ import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { readPendingActivityBooking } from '@/services/auth/pending-activity-booking';
+import { CURRENT_LEGAL_TERMS_VERSION } from '@/constants/legal-consent';
 
 /** Passwordless account creation for regular users. */
 export default function RegisterScreen() {
@@ -82,6 +83,10 @@ export default function RegisterScreen() {
         firstName: trimmedFirst,
         lastName: trimmedLast,
         email: trimmedEmail,
+        legalConsent: {
+          acceptedAt: new Date().toISOString(),
+          version: CURRENT_LEGAL_TERMS_VERSION,
+        },
       });
 
       if (!result.ok) {

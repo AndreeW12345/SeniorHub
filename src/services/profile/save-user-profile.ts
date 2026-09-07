@@ -2,13 +2,21 @@ import { doc, getDocFromServer, serverTimestamp, setDoc, updateDoc } from 'fireb
 import { Platform } from 'react-native';
 
 import type { UserProfile, UserProfileUpdate } from '@/constants/user-profile';
+import { CURRENT_LEGAL_TERMS_VERSION } from '@/constants/legal-consent';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb } from '@/firebase/config';
+
+export type SaveUserProfileOptions = {
+  legalConsent?: {
+    version: string;
+  };
+};
 
 /** Saves profile fields to Firestore `users/{uid}`. */
 export async function saveUserProfile(
   userId: string,
   update: UserProfileUpdate,
+  options: SaveUserProfileOptions = {},
 ): Promise<{ ok: true; profile: UserProfile } | { ok: false; errorMessage: string }> {
   const trimmedId = userId.trim();
   if (!trimmedId) {
@@ -50,10 +58,21 @@ export async function saveUserProfile(
     if (existing.exists()) {
       await updateDoc(userRef, updatePayload);
     } else {
+      const legalConsent = options.legalConsent;
+      if (!legalConsent || legalConsent.version.trim() !== CURRENT_LEGAL_TERMS_VERSION) {
+        return {
+          ok: false,
+          errorMessage: 'Legal consent is required before creating a new account profile.',
+        };
+      }
+
       const createPayload: Record<string, unknown> = {
         ...updatePayload,
         role: 'user',
         photoUrl: photoUrl === undefined ? null : photoUrl,
+        termsAccepted: true,
+        termsAcceptedAt: serverTimestamp(),
+        termsAcceptedVersion: legalConsent.version.trim(),
         createdAt: serverTimestamp(),
       };
 

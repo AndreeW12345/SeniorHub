@@ -177,21 +177,44 @@ service cloud.firestore {
       ];
     }
 
+    function currentLegalTermsVersion() {
+      return '2026-09-07';
+    }
+
+    function legalConsentValidOnCreate() {
+      return request.resource.data.termsAccepted == true
+        && request.resource.data.termsAcceptedAt is timestamp
+        && request.resource.data.termsAcceptedVersion == currentLegalTermsVersion();
+    }
+
+    function userLegalConsentUnchanged() {
+      return !resource.data.keys().hasAny(['termsAccepted', 'termsAcceptedAt', 'termsAcceptedVersion'])
+        || (
+          request.resource.data.termsAccepted == resource.data.termsAccepted
+          && request.resource.data.termsAcceptedAt == resource.data.termsAcceptedAt
+          && request.resource.data.termsAcceptedVersion == resource.data.termsAcceptedVersion
+        );
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
 
       allow create: if isOwner(uid)
         && request.resource.data.keys().hasAll([
-             'name', 'email', 'phone', 'photoUrl', 'role', 'createdAt', 'updatedAt'
+             'name', 'email', 'phone', 'photoUrl', 'role', 'createdAt', 'updatedAt',
+             'termsAccepted', 'termsAcceptedAt', 'termsAcceptedVersion'
            ])
         && request.resource.data.keys().hasOnly([
              'name', 'email', 'phone', 'photoUrl', 'role', 'createdAt', 'updatedAt', 'platform',
-             'fcmToken', 'fcmTokens', 'expoPushToken', 'notificationPreferences'
+             'fcmToken', 'fcmTokens', 'expoPushToken', 'notificationPreferences',
+             'termsAccepted', 'termsAcceptedAt', 'termsAcceptedVersion'
            ])
-        && request.resource.data.role == 'user';
+        && request.resource.data.role == 'user'
+        && legalConsentValidOnCreate();
 
       allow update: if isOwner(uid)
         && userPrivilegedFieldsUnchanged()
+        && userLegalConsentUnchanged()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(userSelfUpdateAllowedKeys());
 
       allow update: if isAdmin() && userAdminUpdateValid();
