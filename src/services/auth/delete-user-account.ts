@@ -1,8 +1,8 @@
 import { FirebaseError } from 'firebase/app';
 import { httpsCallable } from 'firebase/functions';
 
+import { ensureFirebaseAppCheckReady, isFirebaseConfigured } from '@/firebase/config';
 import { getFirebaseFunctions } from '@/firebase/functions-instance';
-import { isFirebaseConfigured } from '@/firebase/config';
 
 export type DeleteUserAccountResult = { ok: true } | { ok: false; errorMessage: string };
 
@@ -36,6 +36,7 @@ export async function deleteUserAccount(): Promise<DeleteUserAccountResult> {
   }
 
   try {
+    await ensureFirebaseAppCheckReady();
     const callable = httpsCallable<Record<string, never>, { ok: true }>(
       functions,
       'deleteUserAccount',

@@ -25,6 +25,35 @@ const firebaseConfig: FirebaseConfig = {
 let firebaseApp: FirebaseApp | null = null;
 let firestoreDb: Firestore | null = null;
 let firebaseStorage: FirebaseStorage | null = null;
+let appCheckInitPromise: Promise<void> | null = null;
+
+function startFirebaseAppCheckInit(app: FirebaseApp): void {
+  if (appCheckInitPromise) {
+    return;
+  }
+
+  const result = initializeFirebaseAppCheck(app);
+  if (result instanceof Promise) {
+    appCheckInitPromise = result
+      .then(() => undefined)
+      .catch((error) => {
+        console.warn('[Firebase] App Check initialization failed', error);
+      });
+    return;
+  }
+
+  appCheckInitPromise = Promise.resolve();
+}
+
+/** Waits until native/web App Check has finished initializing (no-op when unconfigured). */
+export async function ensureFirebaseAppCheckReady(): Promise<void> {
+  getFirebaseApp();
+  if (!appCheckInitPromise) {
+    return;
+  }
+
+  await appCheckInitPromise;
+}
 
 /** Returns true when all required Firebase env vars are present. */
 export function isFirebaseConfigured(): boolean {
@@ -44,7 +73,7 @@ export function getFirebaseApp(): FirebaseApp | null {
 
   if (!firebaseApp) {
     firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    initializeFirebaseAppCheck();
+    startFirebaseAppCheckInit(firebaseApp);
   }
 
   return firebaseApp;

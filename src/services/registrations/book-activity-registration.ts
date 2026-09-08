@@ -2,7 +2,7 @@ import { FirebaseError } from 'firebase/app';
 import { httpsCallable } from 'firebase/functions';
 
 import { getFirebaseFunctions } from '@/firebase/functions-instance';
-import { isFirebaseConfigured } from '@/firebase/config';
+import { ensureFirebaseAppCheckReady, isFirebaseConfigured } from '@/firebase/config';
 import type { RegistrationStatus } from '@/constants/registrations';
 
 export type BookActivityRegistrationInput = {
@@ -74,6 +74,7 @@ export async function bookActivityRegistration(
   }
 
   try {
+    await ensureFirebaseAppCheckReady();
     const callable = httpsCallable<CallableRequest, CallableResponse>(
       functions,
       'bookActivityRegistration',
