@@ -119,6 +119,18 @@
         return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       }
 
+      function isWebInitiatedLink(href) {
+        try {
+          return new URL(href).searchParams.get('platform') === 'web';
+        } catch {
+          return false;
+        }
+      }
+
+      function shouldTryOpenApp(href) {
+        return isMobileDevice() && !isWebInitiatedLink(href);
+      }
+
       function buildAppDeepLink() {
         const path = window.location.pathname.replace(/^\//, '');
         return `${APP_SCHEME}://${path}${window.location.search}`;
@@ -206,7 +218,17 @@
           const storedEmail = readStoredEmail();
           if (storedEmail) {
             intro.textContent = 'Slutför inloggningen';
-            await completeSignInOnWeb(storedEmail);
+            if (shouldTryOpenApp(href)) {
+              redirectToApp();
+              window.setTimeout(() => {
+                void completeSignInOnWeb(storedEmail);
+              }, 2000);
+            } else {
+              await completeSignInOnWeb(storedEmail);
+            }
+          } else if (shouldTryOpenApp(href)) {
+            redirectToApp();
+            showEmailPrompt('Ange samma e-postadress som du fick länken till.');
           } else {
             showEmailPrompt('Ange samma e-postadress som du fick länken till.');
           }

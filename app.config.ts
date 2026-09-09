@@ -1,6 +1,4 @@
-import type { ExpoConfig } from 'expo/config';
-
-import appJson from './app.json';
+import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 function getFirebaseHostingLinkDomain(): string | undefined {
   const hostingDomain = process.env.EXPO_PUBLIC_FIREBASE_HOSTING_DOMAIN?.trim();
@@ -45,8 +43,6 @@ function withExpoRouterOrigin(
   });
 }
 
-const baseConfig = appJson.expo as ExpoConfig;
-
 /** Web hosting export only — set by scripts/build-hosting.mjs. Native builds omit this. */
 function getWebBaseUrl(): string | undefined {
   const configured = process.env.EXPO_PUBLIC_WEB_BASE_URL?.trim();
@@ -58,10 +54,10 @@ function getWebBaseUrl(): string | undefined {
   return normalized.startsWith('/') ? normalized : `/${normalized}`;
 }
 
-export default (): ExpoConfig => {
+export default ({ config }: ConfigContext): ExpoConfig => {
   const hostingDomain = getFirebaseHostingLinkDomain();
   const webBaseUrl = getWebBaseUrl();
-  const existingIntentFilters = baseConfig.android?.intentFilters ?? [];
+  const existingIntentFilters = config.android?.intentFilters ?? [];
 
   const firebaseAppLinkFilter = hostingDomain
     ? {
@@ -79,9 +75,9 @@ export default (): ExpoConfig => {
     : null;
 
   return {
-    ...baseConfig,
+    ...config,
     ios: {
-      ...baseConfig.ios,
+      ...config.ios,
       ...(hostingDomain
         ? {
             associatedDomains: [`applinks:${hostingDomain}`],
@@ -89,15 +85,15 @@ export default (): ExpoConfig => {
         : {}),
     },
     android: {
-      ...baseConfig.android,
+      ...config.android,
       intentFilters: [
         ...existingIntentFilters,
         ...(firebaseAppLinkFilter ? [firebaseAppLinkFilter] : []),
       ],
     },
-    plugins: withExpoRouterOrigin(baseConfig.plugins, hostingDomain),
+    plugins: withExpoRouterOrigin(config.plugins, hostingDomain),
     experiments: {
-      ...baseConfig.experiments,
+      ...config.experiments,
       ...(webBaseUrl ? { baseUrl: webBaseUrl } : {}),
     },
   };

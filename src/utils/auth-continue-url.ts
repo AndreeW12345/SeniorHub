@@ -79,6 +79,13 @@ function getWebAuthCompletePath(): string {
   return AUTH_COMPLETE_PATH;
 }
 
+/** Marks magic links sent from the web app so Hosting can stay in-browser on mobile. */
+function withWebPlatformMarker(url: string): string {
+  const parsed = new URL(url);
+  parsed.searchParams.set('platform', 'web');
+  return parsed.toString();
+}
+
 /**
  * HTTPS continue URL embedded in Firebase ActionCodeSettings.url.
  * Must use the deployed Firebase Hosting domain — never localhost or a custom app scheme.
@@ -93,16 +100,16 @@ export function getEmailLinkContinueUrl(): string {
     if (typeof window !== 'undefined' && window.location?.origin) {
       const origin = window.location.origin;
       if (!isLocalhostUrl(origin)) {
-        return `${origin}${getWebAuthCompletePath()}`;
+        return withWebPlatformMarker(`${origin}${getWebAuthCompletePath()}`);
       }
     }
 
     const configured = process.env.EXPO_PUBLIC_AUTH_CONTINUE_URL?.trim();
     if (configured && !isLocalhostUrl(configured)) {
-      return configured;
+      return withWebPlatformMarker(configured);
     }
 
-    return hostingContinueUrl;
+    return withWebPlatformMarker(hostingContinueUrl);
   }
 
   return hostingContinueUrl;
