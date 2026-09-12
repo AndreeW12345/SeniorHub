@@ -13,11 +13,12 @@ import type { AdminAccount } from '@/constants/admin-account';
 import type { PendingRegistration } from '@/constants/auth';
 import { ensureDefaultAdminAccount, fetchAdminAccount } from '@/services/admin';
 import {
-  sendMagicLink,
+  sendLoginMagicLink,
   signInWithPasswordAdmin,
   signOutCurrentUser,
   storePendingRegistration,
   subscribeToAuthState,
+  sendMagicLink,
   type AuthActionResult,
   type AuthResult,
 } from '@/services/auth';
@@ -136,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendSignInLink = useCallback(async (email: string) => {
-    return sendMagicLink(email);
+    return sendLoginMagicLink(email);
   }, []);
 
   const registerWithMagicLink = useCallback(async (input: PendingRegistration) => {

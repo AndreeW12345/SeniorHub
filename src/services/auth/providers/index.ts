@@ -27,6 +27,7 @@ export {
   isAuthEmailLink,
   readEmailForSignIn,
   readPendingRegistration,
+  sendLoginMagicLink,
   sendMagicLink,
   storeEmailForSignIn,
   storePendingRegistration,

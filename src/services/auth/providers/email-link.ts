@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import {
+  fetchSignInMethodsForEmail,
   isSignInWithEmailLink,
   sendSignInLinkToEmail,
   signInWithEmailLink,
@@ -143,6 +144,41 @@ export async function readPendingRegistration(): Promise<PendingRegistration | n
 
 export async function clearPendingRegistration(): Promise<void> {
   await AsyncStorage.removeItem(PENDING_REGISTRATION_STORAGE_KEY);
+}
+
+/**
+ * Sends a Magic Link for login only when the email already has a Firebase Auth account.
+ * Prevents signInWithEmailLink from auto-creating a new Auth user on the login path.
+ */
+export async function sendLoginMagicLink(email: string): Promise<AuthActionResult> {
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) {
+    return { ok: false, errorMessage: 'Ange en e-postadress.' };
+  }
+
+  const auth = getFirebaseAuth();
+  if (!auth) {
+    return {
+      ok: false,
+      errorMessage: 'Firebase är inte konfigurerat. Kontrollera .env-inställningarna.',
+    };
+  }
+
+  try {
+    const signInMethods = await fetchSignInMethodsForEmail(auth, trimmed);
+    if (signInMethods.length === 0) {
+      return {
+        ok: false,
+        errorMessage:
+          'Det finns inget konto med den här e-postadressen. Skapa ett konto först.',
+      };
+    }
+
+    return sendMagicLink(trimmed);
+  } catch (error) {
+    console.error('[SeniorHub] Kunde inte verifiera e-postadress för inloggning:', error);
+    return { ok: false, errorMessage: getSwedishAuthErrorMessage(getAuthErrorCode(error)) };
+  }
 }
 
 /** Sends a Firebase Magic Link to the given email address. */

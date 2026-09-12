@@ -7,6 +7,7 @@ export {
   isAuthEmailLink,
   readEmailForSignIn,
   readPendingRegistration,
+  sendLoginMagicLink,
   sendMagicLink,
   signInWithPasswordAdmin,
   storeEmailForSignIn,
