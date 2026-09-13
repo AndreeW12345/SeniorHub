@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDocFromServer } from 'firebase/firestore';
 
 import { EMPTY_USER_PROFILE, type UserProfile } from '@/constants/user-profile';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
@@ -39,7 +39,7 @@ export async function migrateDeviceProfileToUid(
   }
 
   try {
-    const uidSnapshot = await getDoc(doc(db, FIRESTORE_COLLECTIONS.users, trimmedUid));
+    const uidSnapshot = await getDocFromServer(doc(db, FIRESTORE_COLLECTIONS.users, trimmedUid));
 
     if (uidSnapshot.exists()) {
       await AsyncStorage.setItem(migratedKeyForUid(trimmedUid), '1');

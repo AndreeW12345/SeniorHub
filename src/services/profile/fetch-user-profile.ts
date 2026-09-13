@@ -1,4 +1,4 @@
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDocFromServer } from 'firebase/firestore';
 
 import { EMPTY_USER_PROFILE, type UserProfile } from '@/constants/user-profile';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
@@ -39,7 +39,7 @@ export async function fetchUserProfile(
   }
 
   try {
-    const snapshot = await getDoc(doc(db, FIRESTORE_COLLECTIONS.users, trimmedId));
+    const snapshot = await getDocFromServer(doc(db, FIRESTORE_COLLECTIONS.users, trimmedId));
     return {
       ok: true,
       profile: mapUserProfileDocument(

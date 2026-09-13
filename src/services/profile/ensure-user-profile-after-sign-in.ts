@@ -2,6 +2,7 @@ import { doc, getDocFromServer } from 'firebase/firestore';
 
 import type { PendingRegistration } from '@/constants/auth';
 import { isValidPendingLegalConsent } from '@/constants/legal-consent';
+import type { UserProfile } from '@/constants/user-profile';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb } from '@/firebase/config';
 import { signOutCurrentUser } from '@/services/auth/session';
@@ -18,7 +19,7 @@ export type EnsureUserProfileAfterSignInInput = {
 };
 
 export type EnsureUserProfileAfterSignInResult =
-  | { ok: true; isNewUser: boolean }
+  | { ok: true; isNewUser: boolean; profile: UserProfile }
   | { ok: false; errorMessage: string; requiresRegistration: boolean };
 
 async function userProfileDocumentExists(uid: string): Promise<boolean> {
@@ -93,7 +94,7 @@ export async function ensureUserProfileAfterSignIn(
       };
     }
 
-    return { ok: true, isNewUser: true };
+    return { ok: true, isNewUser: true, profile: saveResult.profile };
   }
 
   await migrateDeviceProfileToUid(uid);
@@ -115,5 +116,5 @@ export async function ensureUserProfileAfterSignIn(
     return { ok: false, errorMessage: saveResult.errorMessage, requiresRegistration: false };
   }
 
-  return { ok: true, isNewUser: false };
+  return { ok: true, isNewUser: false, profile: saveResult.profile };
 }

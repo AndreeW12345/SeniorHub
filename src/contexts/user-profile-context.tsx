@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -25,6 +26,8 @@ type UserProfileContextValue = {
   /** Firebase Auth UID used as Firestore `users/{uid}` document id, or null when signed out. */
   userId: string | null;
   isLoading: boolean;
+  /** Applies a known profile snapshot and cancels any in-flight Firestore refresh. */
+  applyProfile: (profile: UserProfile) => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateProfile: (
     update: UserProfileUpdate,
@@ -69,6 +72,13 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const userId = user?.uid?.trim() || null;
   const [profile, setProfile] = useState<UserProfile>({ ...EMPTY_USER_PROFILE });
   const [isLoading, setIsLoading] = useState(true);
+  const refreshRequestIdRef = useRef(0);
+
+  const applyProfile = useCallback(async (nextProfile: UserProfile) => {
+    refreshRequestIdRef.current += 1;
+    setProfile(nextProfile);
+    await cacheProfile(nextProfile);
+  }, []);
 
   const refreshProfile = useCallback(async () => {
     if (!userId) {
@@ -77,10 +87,24 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const requestId = ++refreshRequestIdRef.current;
+
+    const applyIfCurrent = async (nextProfile: UserProfile) => {
+      if (requestId !== refreshRequestIdRef.current) {
+        return;
+      }
+
+      setProfile(nextProfile);
+      await cacheProfile(nextProfile);
+    };
+
     const migration = await migrateDeviceProfileToUid(userId);
+    if (requestId !== refreshRequestIdRef.current) {
+      return;
+    }
+
     if (migration.ok) {
-      setProfile(migration.profile);
-      await cacheProfile(migration.profile);
+      await applyIfCurrent(migration.profile);
 
       if (migration.migrated) {
         return;
@@ -88,15 +112,18 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     }
 
     const result = await fetchUserProfile(userId);
+    if (requestId !== refreshRequestIdRef.current) {
+      return;
+    }
+
     if (result.ok) {
-      setProfile(result.profile);
-      await cacheProfile(result.profile);
+      await applyIfCurrent(result.profile);
       return;
     }
 
     const cached = parseCachedProfile(await AsyncStorage.getItem(PROFILE_CACHE_KEY));
     if (cached) {
-      setProfile(cached);
+      await applyIfCurrent(cached);
     }
   }, [userId]);
 
@@ -186,6 +213,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       profile,
       userId,
       isLoading,
+      applyProfile,
       refreshProfile,
       updateProfile,
       deleteProfile,
@@ -195,6 +223,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       profile,
       userId,
       isLoading,
+      applyProfile,
       refreshProfile,
       updateProfile,
       deleteProfile,

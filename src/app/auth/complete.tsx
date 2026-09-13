@@ -7,6 +7,7 @@ import { FormField } from '@/components/form-field';
 import { ScreenLayout } from '@/components/screen-layout';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
+import { useUserProfile } from '@/contexts/user-profile-context';
 import { useTheme } from '@/hooks/use-theme';
 import {
   clearPendingRegistration,
@@ -33,6 +34,7 @@ async function resolvePostSignInRoute(): Promise<Href> {
 export default function AuthCompleteScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { applyProfile } = useUserProfile();
   const params = useLocalSearchParams<{
     link?: string | string[];
     apiKey?: string | string[];
@@ -79,11 +81,13 @@ export default function AuthCompleteScreen() {
         await clearPendingRegistration();
       }
 
+      await applyProfile(profileResult.profile);
+
       setStatus('success');
       setMessage('Du är nu inloggad.');
       router.replace(await resolvePostSignInRoute());
     },
-    [router],
+    [applyProfile, router],
   );
 
   useEffect(() => {
