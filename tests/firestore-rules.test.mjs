@@ -528,3 +528,64 @@ describe('legal consent', () => {
     );
   });
 });
+
+describe('phone index', () => {
+  it('allows a signed-in user to read an unclaimed phone index slot', async () => {
+    const userDb = authedDb('phone-read-user', { email: 'phoneread@example.com' });
+
+    await assertSucceeds(getDoc(doc(userDb, 'phoneIndex', '0701234567')));
+  });
+
+  it('denies reading a phone number claimed by another user', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'phoneIndex/0707777777'), {
+        uid: 'existing-user',
+        createdAt: new Date(),
+      });
+    });
+
+    const userDb = authedDb('phone-read-user', { email: 'phoneread@example.com' });
+
+    await assertFails(getDoc(doc(userDb, 'phoneIndex', '0707777777')));
+  });
+
+  it('allows a signed-in user to claim an unused phone number', async () => {
+    const userDb = authedDb('phone-user', { email: 'phone@example.com' });
+
+    await assertSucceeds(
+      setDoc(doc(userDb, 'phoneIndex', '0701234567'), {
+        uid: 'phone-user',
+        createdAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies claiming a phone number for another uid', async () => {
+    const userDb = authedDb('phone-user', { email: 'phone@example.com' });
+
+    await assertFails(
+      setDoc(doc(userDb, 'phoneIndex', '0709999999'), {
+        uid: 'other-user',
+        createdAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies duplicate phone index entries', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'phoneIndex/0708888888'), {
+        uid: 'existing-user',
+        createdAt: new Date(),
+      });
+    });
+
+    const userDb = authedDb('new-phone-user', { email: 'newphone@example.com' });
+
+    await assertFails(
+      setDoc(doc(userDb, 'phoneIndex', '0708888888'), {
+        uid: 'new-phone-user',
+        createdAt: new Date(),
+      }),
+    );
+  });
+});

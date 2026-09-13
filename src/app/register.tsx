@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { readPendingActivityBooking } from '@/services/auth/pending-activity-booking';
 import { CURRENT_LEGAL_TERMS_VERSION } from '@/constants/legal-consent';
+import { isValidSwedishPhone } from '@/utils/normalize-swedish-phone';
 
 /** Passwordless account creation for regular users. */
 export default function RegisterScreen() {
@@ -21,11 +22,13 @@ export default function RegisterScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [errors, setErrors] = useState<{
     firstName?: string;
     lastName?: string;
     email?: string;
+    phone?: string;
     legalConsent?: string;
   }>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -54,11 +57,17 @@ export default function RegisterScreen() {
     const trimmedFirst = firstName.trim();
     const trimmedLast = lastName.trim();
     const trimmedEmail = email.trim();
+    const trimmedPhone = phone.trim();
 
     const nextErrors = {
       firstName: trimmedFirst ? undefined : 'Ange ditt förnamn.',
       lastName: trimmedLast ? undefined : 'Ange ditt efternamn.',
       email: trimmedEmail ? undefined : 'Ange en e-postadress.',
+      phone: !trimmedPhone
+        ? 'Ange telefonnummer.'
+        : !isValidSwedishPhone(trimmedPhone)
+          ? 'Ange ett giltigt svenskt telefonnummer.'
+          : undefined,
       legalConsent: acceptedLegal
         ? undefined
         : 'Du måste godkänna användarvillkor och integritetspolicy för att skapa konto.',
@@ -71,6 +80,7 @@ export default function RegisterScreen() {
       nextErrors.firstName ||
       nextErrors.lastName ||
       nextErrors.email ||
+      nextErrors.phone ||
       nextErrors.legalConsent
     ) {
       return;
@@ -83,6 +93,7 @@ export default function RegisterScreen() {
         firstName: trimmedFirst,
         lastName: trimmedLast,
         email: trimmedEmail,
+        phone: trimmedPhone,
         legalConsent: {
           acceptedAt: new Date().toISOString(),
           version: CURRENT_LEGAL_TERMS_VERSION,
@@ -178,6 +189,21 @@ export default function RegisterScreen() {
               keyboardType="email-address"
               textContentType="emailAddress"
               autoComplete="email"
+            />
+
+            <FormField
+              label="Telefonnummer"
+              value={phone}
+              onChangeText={(value) => {
+                setPhone(value);
+                setErrors((current) => ({ ...current, phone: undefined }));
+                setSubmitError(null);
+              }}
+              error={errors.phone}
+              placeholder="070-123 45 67"
+              keyboardType="phone-pad"
+              textContentType="telephoneNumber"
+              autoComplete="tel"
             />
 
             <View

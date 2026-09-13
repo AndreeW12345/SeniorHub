@@ -7,6 +7,8 @@ export const FIRESTORE_COLLECTIONS = {
    * Document id = stable local device id or Firebase Auth uid.
    */
   users: 'users',
+  /** Maps normalized phone numbers to Firebase Auth uid for uniqueness. */
+  phoneIndex: 'phoneIndex',
   /**
    * Signed-in admin profiles (document id = Firebase Auth uid).
    * Holds organizationId + role for multi-tenant admin filtering.

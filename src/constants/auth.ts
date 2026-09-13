@@ -28,6 +28,7 @@ export type PendingRegistration = {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   legalConsent: PendingLegalConsent;
 };
 

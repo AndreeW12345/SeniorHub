@@ -176,12 +176,21 @@ export const deleteUserAccount = onCall(europeWest1CallableOptions(), async (req
 
   const db = getFirestore();
   const userRef = db.collection(COLLECTIONS.users).doc(uid);
+  const userSnapshot = await userRef.get();
+  const userData = userSnapshot.data();
+  const phoneNormalized =
+    typeof userData?.phoneNormalized === 'string' ? userData.phoneNormalized.trim() : '';
 
   await anonymizeUserRegistrations(uid);
   await deleteUserReminderDeliveries(uid);
   await deleteUserOrganizerApplications(uid);
   await deleteUserNotifications(uid);
   await deleteProfileAvatar(uid);
+
+  if (phoneNormalized) {
+    await db.collection('phoneIndex').doc(phoneNormalized).delete();
+  }
+
   await userRef.delete();
 
   try {

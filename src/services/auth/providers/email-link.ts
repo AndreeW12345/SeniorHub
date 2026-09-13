@@ -95,6 +95,7 @@ export async function storePendingRegistration(
       firstName: registration.firstName.trim(),
       lastName: registration.lastName.trim(),
       email: registration.email.trim().toLowerCase(),
+      phone: registration.phone.trim(),
       legalConsent: {
         acceptedAt: registration.legalConsent.acceptedAt.trim(),
         version: registration.legalConsent.version.trim(),
@@ -133,13 +134,14 @@ export async function readPendingRegistration(): Promise<PendingRegistration | n
     const firstName = typeof record.firstName === 'string' ? record.firstName.trim() : '';
     const lastName = typeof record.lastName === 'string' ? record.lastName.trim() : '';
     const email = typeof record.email === 'string' ? record.email.trim().toLowerCase() : '';
+    const phone = typeof record.phone === 'string' ? record.phone.trim() : '';
     const legalConsent = parsePendingLegalConsent(record);
 
-    if (!firstName || !lastName || !email || !legalConsent) {
+    if (!firstName || !lastName || !email || !phone || !legalConsent) {
       return null;
     }
 
-    return { firstName, lastName, email, legalConsent };
+    return { firstName, lastName, email, phone, legalConsent };
   } catch {
     return null;
   }

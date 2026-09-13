@@ -75,7 +75,7 @@ export async function ensureUserProfileAfterSignIn(
       uid,
       {
         name: `${pending.firstName} ${pending.lastName}`.trim(),
-        phone: '',
+        phone: pending.phone,
         email: authEmail,
       },
       {

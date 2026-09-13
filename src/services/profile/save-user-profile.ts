@@ -1,10 +1,20 @@
-import { doc, getDocFromServer, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  doc,
+  getDocFromServer,
+  runTransaction,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 import { Platform } from 'react-native';
 
 import type { UserProfile, UserProfileUpdate } from '@/constants/user-profile';
 import { CURRENT_LEGAL_TERMS_VERSION } from '@/constants/legal-consent';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb } from '@/firebase/config';
+import { normalizeSwedishPhone } from '@/utils/normalize-swedish-phone';
+
+const PHONE_ALREADY_IN_USE = 'PHONE_ALREADY_IN_USE';
 
 export type SaveUserProfileOptions = {
   legalConsent?: {
@@ -76,9 +86,44 @@ export async function saveUserProfile(
         createdAt: serverTimestamp(),
       };
 
+      const phoneNormalized = phone ? normalizeSwedishPhone(phone) : null;
+      if (phone && !phoneNormalized) {
+        return {
+          ok: false,
+          errorMessage: 'Ange ett giltigt svenskt telefonnummer.',
+        };
+      }
+
+      if (phoneNormalized) {
+        createPayload.phoneNormalized = phoneNormalized;
+      }
+
       try {
-        await setDoc(userRef, createPayload);
+        if (phoneNormalized) {
+          await runTransaction(db, async (transaction) => {
+            const phoneIndexRef = doc(db, FIRESTORE_COLLECTIONS.phoneIndex, phoneNormalized);
+            const phoneIndexSnapshot = await transaction.get(phoneIndexRef);
+            if (phoneIndexSnapshot.exists()) {
+              throw new Error(PHONE_ALREADY_IN_USE);
+            }
+
+            transaction.set(phoneIndexRef, {
+              uid: trimmedId,
+              createdAt: serverTimestamp(),
+            });
+            transaction.set(userRef, createPayload);
+          });
+        } else {
+          await setDoc(userRef, createPayload);
+        }
       } catch (createError) {
+        if (createError instanceof Error && createError.message === PHONE_ALREADY_IN_USE) {
+          return {
+            ok: false,
+            errorMessage: 'Telefonnumret används redan av ett konto.',
+          };
+        }
+
         const retrySnapshot = await getDocFromServer(userRef);
         if (!retrySnapshot.exists()) {
           throw createError;

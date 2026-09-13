@@ -196,6 +196,24 @@ service cloud.firestore {
         );
     }
 
+    function canReadPhoneIndex(normalizedPhone) {
+      return isSignedIn()
+        && (
+          !exists(/databases/$(database)/documents/phoneIndex/$(normalizedPhone))
+          || resource.data.uid == request.auth.uid
+        );
+    }
+
+    match /phoneIndex/{normalizedPhone} {
+      allow read: if canReadPhoneIndex(normalizedPhone);
+      allow create: if isSignedIn()
+        && request.auth.uid == request.resource.data.uid
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && !exists(/databases/$(database)/documents/phoneIndex/$(normalizedPhone));
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
 
@@ -205,7 +223,7 @@ service cloud.firestore {
              'termsAccepted', 'termsAcceptedAt', 'termsAcceptedVersion'
            ])
         && request.resource.data.keys().hasOnly([
-             'name', 'email', 'phone', 'photoUrl', 'role', 'createdAt', 'updatedAt', 'platform',
+             'name', 'email', 'phone', 'phoneNormalized', 'photoUrl', 'role', 'createdAt', 'updatedAt', 'platform',
              'fcmToken', 'fcmTokens', 'expoPushToken', 'notificationPreferences',
              'termsAccepted', 'termsAcceptedAt', 'termsAcceptedVersion'
            ])

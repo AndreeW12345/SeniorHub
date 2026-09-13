@@ -23,6 +23,8 @@ import {
   type AuthActionResult,
   type AuthResult,
 } from '@/services/auth';
+import { checkRegistrationPhoneAvailable } from '@/services/auth/check-registration-phone';
+import { isValidSwedishPhone } from '@/utils/normalize-swedish-phone';
 
 type AuthContextValue = {
   /** Firebase Auth user (regular user or admin), or null when signed out. */
@@ -142,8 +144,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const registerWithMagicLink = useCallback(async (input: PendingRegistration) => {
+    const trimmedPhone = input.phone.trim();
+    if (!isValidSwedishPhone(trimmedPhone)) {
+      return { ok: false as const, errorMessage: 'Ange ett giltigt svenskt telefonnummer.' };
+    }
+
+    const phoneCheck = await checkRegistrationPhoneAvailable(trimmedPhone);
+    if (!phoneCheck.ok) {
+      return { ok: false as const, errorMessage: phoneCheck.errorMessage };
+    }
+
+    if (!phoneCheck.available) {
+      return {
+        ok: false as const,
+        errorMessage: 'Telefonnumret används redan av ett konto.',
+      };
+    }
+
     await clearPendingLoginIntent();
-    await storePendingRegistration(input);
+    await storePendingRegistration({ ...input, phone: trimmedPhone });
     return sendMagicLink(input.email);
   }, []);
 
