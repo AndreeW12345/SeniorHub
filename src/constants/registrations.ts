@@ -23,3 +23,9 @@ export function isRegistrationStatus(value: unknown): value is RegistrationStatu
 export function normalizeRegistrationStatus(value: unknown): RegistrationStatus {
   return isRegistrationStatus(value) ? value : DEFAULT_REGISTRATION_STATUS;
 }
+
+/** Returns trimmed booking phone when present on a registration document. */
+export function readRegistrationPhone(phone: string | undefined): string | null {
+  const trimmed = phone?.trim();
+  return trimmed ? trimmed : null;
+}

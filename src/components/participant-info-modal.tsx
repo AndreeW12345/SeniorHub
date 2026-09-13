@@ -2,7 +2,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import type { ActivityRegistration } from '@/constants/registrations';
+import { readRegistrationPhone, type ActivityRegistration } from '@/constants/registrations';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -28,7 +28,7 @@ function getStatusLabel(
   return 'Anmäld';
 }
 
-/** Simple admin info sheet for a participant (name, optional email, status). */
+/** Simple admin info sheet for a participant (name, phone, status). */
 export function ParticipantInfoModal({
   visible,
   registration,
@@ -42,7 +42,7 @@ export function ParticipantInfoModal({
     return null;
   }
 
-  const email = registration.email?.trim();
+  const registrationPhone = readRegistrationPhone(registration.phone);
   const statusLabel = getStatusLabel(registration, queuePosition);
 
   return (
@@ -82,13 +82,13 @@ export function ParticipantInfoModal({
             </ThemedText>
           </View>
 
-          {email ? (
+          {registrationPhone ? (
             <View style={styles.field}>
               <ThemedText type="smallBold" themeColor="textSecondary">
-                E-post
+                Telefon
               </ThemedText>
               <ThemedText type="bodyLarge" style={styles.value}>
-                {email}
+                {registrationPhone}
               </ThemedText>
             </View>
           ) : null}

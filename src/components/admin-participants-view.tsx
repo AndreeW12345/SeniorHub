@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ParticipantInfoModal } from '@/components/participant-info-modal';
 import { ThemedText } from '@/components/themed-text';
-import type { ActivityRegistration } from '@/constants/registrations';
+import { readRegistrationPhone, type ActivityRegistration } from '@/constants/registrations';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { subscribeActivityRegistrations } from '@/services/registrations';
@@ -96,26 +96,39 @@ export function AdminParticipantsView({ activityId }: AdminParticipantsViewProps
               </View>
             ) : (
               <View style={styles.list}>
-                {registrations.map((registration) => (
-                  <Pressable
-                    key={registration.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${registration.name}, status Anmäld`}
-                    onPress={() => setSelected({ registration, queuePosition: null })}
-                    style={({ pressed }) => [
-                      styles.card,
-                      CardShadow,
-                      { backgroundColor: theme.card, borderColor: theme.border },
-                      pressed && styles.pressed,
-                    ]}>
-                    <ThemedText type="bodyLarge" style={styles.name}>
-                      {registration.name}
-                    </ThemedText>
-                    <ThemedText type="bodyLarge" themeColor="textSecondary">
-                      Status: Anmäld
-                    </ThemedText>
-                  </Pressable>
-                ))}
+                {registrations.map((registration) => {
+                  const registrationPhone = readRegistrationPhone(registration.phone);
+
+                  return (
+                    <Pressable
+                      key={registration.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        registrationPhone
+                          ? `${registration.name}, telefon ${registrationPhone}, status Anmäld`
+                          : `${registration.name}, status Anmäld`
+                      }
+                      onPress={() => setSelected({ registration, queuePosition: null })}
+                      style={({ pressed }) => [
+                        styles.card,
+                        CardShadow,
+                        { backgroundColor: theme.card, borderColor: theme.border },
+                        pressed && styles.pressed,
+                      ]}>
+                      <ThemedText type="bodyLarge" style={styles.name}>
+                        {registration.name}
+                      </ThemedText>
+                      {registrationPhone ? (
+                        <ThemedText type="bodyLarge" themeColor="textSecondary">
+                          Telefon: {registrationPhone}
+                        </ThemedText>
+                      ) : null}
+                      <ThemedText type="bodyLarge" themeColor="textSecondary">
+                        Status: Anmäld
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
               </View>
             )}
           </View>
@@ -135,12 +148,17 @@ export function AdminParticipantsView({ activityId }: AdminParticipantsViewProps
               <View style={styles.list}>
                 {orderedWaitlist.map((registration, index) => {
                   const queuePosition = index + 1;
+                  const registrationPhone = readRegistrationPhone(registration.phone);
 
                   return (
                     <Pressable
                       key={registration.id}
                       accessibilityRole="button"
-                      accessibilityLabel={`${registration.name}, köplats ${queuePosition}, status Väntelista`}
+                      accessibilityLabel={
+                        registrationPhone
+                          ? `${registration.name}, telefon ${registrationPhone}, köplats ${queuePosition}, status Väntelista`
+                          : `${registration.name}, köplats ${queuePosition}, status Väntelista`
+                      }
                       onPress={() => setSelected({ registration, queuePosition })}
                       style={({ pressed }) => [
                         styles.card,
@@ -151,6 +169,11 @@ export function AdminParticipantsView({ activityId }: AdminParticipantsViewProps
                       <ThemedText type="bodyLarge" style={styles.name}>
                         {registration.name}
                       </ThemedText>
+                      {registrationPhone ? (
+                        <ThemedText type="bodyLarge" themeColor="textSecondary">
+                          Telefon: {registrationPhone}
+                        </ThemedText>
+                      ) : null}
                       <ThemedText type="bodyLarge" themeColor="textSecondary">
                         Köplats: {queuePosition}
                       </ThemedText>
