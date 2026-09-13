@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FormField } from '@/components/form-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
+import { useUserProfile } from '@/contexts/user-profile-context';
 import { useTheme } from '@/hooks/use-theme';
 import { submitActivityRegistration } from '@/services/registrations/submit-activity-registration';
 import { submitWaitlistRegistration } from '@/services/registrations/submit-waitlist-registration';
@@ -45,6 +46,9 @@ export function ActivityRegistrationFormModal({
 }: ActivityRegistrationFormModalProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { profile, isLoading: isProfileLoading } = useUserProfile();
+  const profilePrefilledRef = useRef(false);
+  const userEditedRef = useRef(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
@@ -52,8 +56,27 @@ export function ActivityRegistrationFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isWaitlist = mode === 'waitlist';
+  const isFormReady = !isProfileLoading;
+
+  useEffect(() => {
+    if (!visible) {
+      profilePrefilledRef.current = false;
+      userEditedRef.current = false;
+      return;
+    }
+
+    if (!isFormReady || profilePrefilledRef.current || userEditedRef.current) {
+      return;
+    }
+
+    setName(profile.name.trim());
+    setPhone(profile.phone.trim());
+    profilePrefilledRef.current = true;
+  }, [visible, isFormReady, profile.name, profile.phone]);
 
   const resetForm = () => {
+    profilePrefilledRef.current = false;
+    userEditedRef.current = false;
     setName('');
     setPhone('');
     setErrors({});
@@ -148,35 +171,48 @@ export function ActivityRegistrationFormModal({
                 : activityTitle}
             </ThemedText>
 
-            <FormField
-              label="Namn *"
-              value={name}
-              onChangeText={(value) => {
-                setName(value);
-                if (errors.name) {
-                  setErrors((current) => ({ ...current, name: undefined }));
-                }
-              }}
-              error={errors.name}
-              placeholder="Ditt namn"
-              autoCapitalize="words"
-              editable={!isSubmitting}
-            />
+            {isFormReady ? (
+              <>
+                <FormField
+                  label="Namn *"
+                  value={name}
+                  onChangeText={(value) => {
+                    userEditedRef.current = true;
+                    setName(value);
+                    if (errors.name) {
+                      setErrors((current) => ({ ...current, name: undefined }));
+                    }
+                  }}
+                  error={errors.name}
+                  placeholder="Ditt namn"
+                  autoCapitalize="words"
+                  editable={!isSubmitting}
+                />
 
-            <FormField
-              label="Telefonnummer *"
-              value={phone}
-              onChangeText={(value) => {
-                setPhone(value);
-                if (errors.phone) {
-                  setErrors((current) => ({ ...current, phone: undefined }));
-                }
-              }}
-              error={errors.phone}
-              placeholder="Till exempel 070-123 45 67"
-              keyboardType="phone-pad"
-              editable={!isSubmitting}
-            />
+                <FormField
+                  label="Telefonnummer *"
+                  value={phone}
+                  onChangeText={(value) => {
+                    userEditedRef.current = true;
+                    setPhone(value);
+                    if (errors.phone) {
+                      setErrors((current) => ({ ...current, phone: undefined }));
+                    }
+                  }}
+                  error={errors.phone}
+                  placeholder="Till exempel 070-123 45 67"
+                  keyboardType="phone-pad"
+                  editable={!isSubmitting}
+                />
+              </>
+            ) : (
+              <View style={styles.loading}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <ThemedText type="bodyLarge" themeColor="textSecondary">
+                  Laddar dina uppgifter...
+                </ThemedText>
+              </View>
+            )}
 
             {submitError ? (
               <ThemedText type="bodyLarge" themeColor="favorite" style={styles.submitError}>
@@ -187,7 +223,7 @@ export function ActivityRegistrationFormModal({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={isWaitlist ? 'Bekräfta väntelista' : 'Bekräfta anmälan'}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isFormReady}
               onPress={() => void handleConfirm()}
               style={({ pressed }) => [
                 styles.primaryButton,
@@ -252,6 +288,11 @@ const styles = StyleSheet.create({
   subtitle: {
     lineHeight: 30,
     marginTop: -Spacing.two,
+  },
+  loading: {
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.four,
   },
   submitError: {
     textAlign: 'center',
