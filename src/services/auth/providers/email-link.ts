@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import {
-  fetchSignInMethodsForEmail,
+  deleteUser,
+  getAdditionalUserInfo,
   isSignInWithEmailLink,
   sendSignInLinkToEmail,
   signInWithEmailLink,
@@ -10,6 +11,7 @@ import {
 
 import {
   EMAIL_FOR_SIGN_IN_STORAGE_KEY,
+  PENDING_LOGIN_INTENT_STORAGE_KEY,
   PENDING_REGISTRATION_STORAGE_KEY,
   type PendingRegistration,
 } from '@/constants/auth';
@@ -18,6 +20,7 @@ import {
   type PendingLegalConsent,
 } from '@/constants/legal-consent';
 import { getFirebaseAuth } from '@/firebase';
+import { checkLoginEmailExists } from '@/services/auth/check-login-email-exists';
 import { getAuthErrorCode, getSwedishAuthErrorMessage } from '@/services/auth/errors';
 import type { AuthActionResult, AuthProviderModule, AuthResult } from '@/services/auth/providers/types';
 import {
@@ -146,9 +149,30 @@ export async function clearPendingRegistration(): Promise<void> {
   await AsyncStorage.removeItem(PENDING_REGISTRATION_STORAGE_KEY);
 }
 
+export async function storePendingLoginIntent(): Promise<void> {
+  await AsyncStorage.setItem(PENDING_LOGIN_INTENT_STORAGE_KEY, '1');
+}
+
+export async function readPendingLoginIntent(): Promise<boolean> {
+  const value = await AsyncStorage.getItem(PENDING_LOGIN_INTENT_STORAGE_KEY);
+  return value === '1';
+}
+
+export async function clearPendingLoginIntent(): Promise<void> {
+  await AsyncStorage.removeItem(PENDING_LOGIN_INTENT_STORAGE_KEY);
+}
+
+const LOGIN_ACCOUNT_NOT_FOUND_MESSAGE =
+  'Det finns inget konto med den här e-postadressen. Skapa ett konto först.';
+
 /**
- * Sends a Magic Link for login only when the email already has a Firebase Auth account.
- * Prevents signInWithEmailLink from auto-creating a new Auth user on the login path.
+ * Sends a Magic Link for login.
+ *
+ * Does not call fetchSignInMethodsForEmail — with Firebase email enumeration protection
+ * (enabled by default) that API returns an empty list even for existing accounts.
+ * Uses the checkLoginEmail Cloud Function (Admin SDK) before sending the link.
+ * signInWithEmailLink still auto-creates Auth users; completeMagicLinkSignIn rejects
+ * login when Firebase reports a newly created user if the pre-check was bypassed.
  */
 export async function sendLoginMagicLink(email: string): Promise<AuthActionResult> {
   const trimmed = email.trim().toLowerCase();
@@ -156,29 +180,18 @@ export async function sendLoginMagicLink(email: string): Promise<AuthActionResul
     return { ok: false, errorMessage: 'Ange en e-postadress.' };
   }
 
-  const auth = getFirebaseAuth();
-  if (!auth) {
-    return {
-      ok: false,
-      errorMessage: 'Firebase är inte konfigurerat. Kontrollera .env-inställningarna.',
-    };
+  const lookup = await checkLoginEmailExists(trimmed);
+  if (!lookup.ok) {
+    return { ok: false, errorMessage: lookup.errorMessage };
   }
 
-  try {
-    const signInMethods = await fetchSignInMethodsForEmail(auth, trimmed);
-    if (signInMethods.length === 0) {
-      return {
-        ok: false,
-        errorMessage:
-          'Det finns inget konto med den här e-postadressen. Skapa ett konto först.',
-      };
-    }
-
-    return sendMagicLink(trimmed);
-  } catch (error) {
-    console.error('[SeniorHub] Kunde inte verifiera e-postadress för inloggning:', error);
-    return { ok: false, errorMessage: getSwedishAuthErrorMessage(getAuthErrorCode(error)) };
+  if (!lookup.exists) {
+    return { ok: false, errorMessage: LOGIN_ACCOUNT_NOT_FOUND_MESSAGE };
   }
+
+  await clearPendingRegistration();
+  await storePendingLoginIntent();
+  return sendMagicLink(trimmed);
 }
 
 /** Sends a Firebase Magic Link to the given email address. */
@@ -215,11 +228,47 @@ export function isAuthEmailLink(url: string): boolean {
   return isSignInWithEmailLink(auth, url);
 }
 
+function readOobCodeFromLink(linkUrl: string): string | null {
+  try {
+    return new URL(linkUrl).searchParams.get('oobCode');
+  } catch {
+    return null;
+  }
+}
+
+/** Prevents duplicate signInWithEmailLink calls when the same oobCode is handled twice. */
+const inFlightMagicLinkSignIn = new Map<string, Promise<AuthResult>>();
+
 /**
  * Completes Magic Link sign-in for the given email and link URL.
  * Creates the Firebase Auth user automatically on first use.
  */
 export async function completeMagicLinkSignIn(
+  email: string,
+  linkUrl: string,
+): Promise<AuthResult> {
+  const oobCode = readOobCodeFromLink(linkUrl);
+  if (oobCode) {
+    const inFlight = inFlightMagicLinkSignIn.get(oobCode);
+    if (inFlight) {
+      return inFlight;
+    }
+  }
+
+  const task = completeMagicLinkSignInOnce(email, linkUrl);
+  if (oobCode) {
+    inFlightMagicLinkSignIn.set(oobCode, task);
+    try {
+      return await task;
+    } finally {
+      inFlightMagicLinkSignIn.delete(oobCode);
+    }
+  }
+
+  return task;
+}
+
+async function completeMagicLinkSignInOnce(
   email: string,
   linkUrl: string,
 ): Promise<AuthResult> {
@@ -249,6 +298,24 @@ export async function completeMagicLinkSignIn(
 
   try {
     const credential = await signInWithEmailLink(auth, trimmedEmail, linkUrl);
+    const isLoginIntent = await readPendingLoginIntent();
+    const isNewAuthUser = getAdditionalUserInfo(credential)?.isNewUser === true;
+
+    if (isLoginIntent && isNewAuthUser) {
+      await clearPendingLoginIntent();
+      await clearEmailForSignIn();
+      try {
+        await deleteUser(credential.user);
+      } catch (deleteError) {
+        console.error('[SeniorHub] Kunde inte ta bort auto-skapad Auth-användare:', deleteError);
+      }
+      return { ok: false, errorMessage: LOGIN_ACCOUNT_NOT_FOUND_MESSAGE };
+    }
+
+    if (isLoginIntent) {
+      await clearPendingLoginIntent();
+    }
+
     await clearEmailForSignIn();
     return { ok: true, user: credential.user };
   } catch (error) {

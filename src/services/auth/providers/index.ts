@@ -23,13 +23,16 @@ export function getAvailableAuthProviders(): AuthProviderModule[] {
 export {
   completeMagicLinkSignIn,
   clearEmailForSignIn,
+  clearPendingLoginIntent,
   clearPendingRegistration,
   isAuthEmailLink,
   readEmailForSignIn,
+  readPendingLoginIntent,
   readPendingRegistration,
   sendLoginMagicLink,
   sendMagicLink,
   storeEmailForSignIn,
+  storePendingLoginIntent,
   storePendingRegistration,
 } from '@/services/auth/providers/email-link';
 export { signInWithPasswordAdmin } from '@/services/auth/providers/password-admin';

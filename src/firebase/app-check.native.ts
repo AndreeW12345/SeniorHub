@@ -6,6 +6,7 @@ import {
 } from '@react-native-firebase/app-check';
 import {
   CustomProvider,
+  getToken as getJsAppCheckToken,
   initializeAppCheck,
   type AppCheck,
 } from 'firebase/app-check';
@@ -15,6 +16,10 @@ import {
   buildNativeAppCheckProviderConfig,
   readNativeAppCheckDebugToken,
 } from '@/firebase/app-check-config';
+import {
+  configureNativeAppCheckDebugTokenGlobal,
+  isNativeAppCheckDevelopmentRuntime,
+} from '@/firebase/app-check-runtime';
 
 let appCheckInstance: AppCheck | null = null;
 let appCheckInitPromise: Promise<AppCheck | null> | null = null;
@@ -46,11 +51,22 @@ export function initializeFirebaseAppCheck(app: FirebaseApp): Promise<AppCheck |
   return appCheckInitPromise;
 }
 
+/** Verifies that App Check can return a token before protected requests run. */
+export async function verifyFirebaseAppCheckToken(): Promise<void> {
+  if (!appCheckInstance) {
+    throw new Error('App Check är inte initierat.');
+  }
+
+  await getJsAppCheckToken(appCheckInstance, false);
+}
+
 async function initializeNativeFirebaseAppCheck(app: FirebaseApp): Promise<AppCheck | null> {
+  configureNativeAppCheckDebugTokenGlobal();
+
   const rnfbProvider = new ReactNativeFirebaseAppCheckProvider();
   rnfbProvider.configure(
     buildNativeAppCheckProviderConfig({
-      isDev: __DEV__,
+      useDebugProvider: isNativeAppCheckDevelopmentRuntime(),
       debugToken: readNativeAppCheckDebugToken(),
     }),
   );
@@ -59,6 +75,16 @@ async function initializeNativeFirebaseAppCheck(app: FirebaseApp): Promise<AppCh
     provider: rnfbProvider,
     isTokenAutoRefreshEnabled: true,
   });
+  if (isNativeAppCheckDevelopmentRuntime()) {
+    try {
+      await getNativeAppCheckToken(nativeAppCheck, true);
+      console.info(
+        '[SeniorHub] App Check debug provider active. Register the debug token in Firebase Console if booking fails.',
+      );
+    } catch (error) {
+      console.warn('[SeniorHub] App Check debug token could not be fetched yet:', error);
+    }
+  }
 
   return initializeAppCheck(app, {
     provider: new CustomProvider({

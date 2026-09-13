@@ -1,4 +1,5 @@
 import {
+  getToken as getAppCheckToken,
   initializeAppCheck,
   ReCaptchaV3Provider,
   type AppCheck,
@@ -45,4 +46,13 @@ export function initializeFirebaseAppCheck(app: FirebaseApp): AppCheck | null {
   });
 
   return appCheckInstance;
+}
+
+/** Verifies that App Check can return a token before protected requests run. */
+export async function verifyFirebaseAppCheckToken(): Promise<void> {
+  if (!appCheckInstance) {
+    return;
+  }
+
+  await getAppCheckToken(appCheckInstance, false);
 }

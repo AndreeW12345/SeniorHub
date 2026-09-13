@@ -1,8 +1,7 @@
-import { FirebaseError } from 'firebase/app';
 import { httpsCallable } from 'firebase/functions';
 
-import { getFirebaseFunctions } from '@/firebase/functions-instance';
-import { ensureFirebaseAppCheckReady, isFirebaseConfigured } from '@/firebase/config';
+import { readCallableErrorMessage } from '@/firebase/callable-error-message';
+import { prepareCallableRequest } from '@/firebase/prepare-callable-request';
 import type { RegistrationStatus } from '@/constants/registrations';
 
 export type BookActivityRegistrationInput = {
@@ -24,21 +23,6 @@ type CallableResponse = {
   registrationId: string;
   status: Extract<RegistrationStatus, 'registered' | 'waitlist'>;
 };
-
-function readCallableErrorMessage(error: unknown): string {
-  if (error instanceof FirebaseError) {
-    const message = error.message?.trim();
-    if (message) {
-      return message;
-    }
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message.trim();
-  }
-
-  return 'Kunde inte spara anmälan. Försök igen.';
-}
 
 /**
  * Atomically books or waitlists the signed-in user via Cloud Functions.
@@ -64,19 +48,14 @@ export async function bookActivityRegistration(
     return { ok: false, errorMessage: 'Ange telefonnummer.' };
   }
 
-  if (!isFirebaseConfigured()) {
-    return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
-  }
-
-  const functions = getFirebaseFunctions();
-  if (!functions) {
-    return { ok: false, errorMessage: 'Cloud Functions kunde inte initieras.' };
+  const prepared = await prepareCallableRequest();
+  if (!prepared.ok) {
+    return { ok: false, errorMessage: prepared.errorMessage };
   }
 
   try {
-    await ensureFirebaseAppCheckReady();
     const callable = httpsCallable<CallableRequest, CallableResponse>(
-      functions,
+      prepared.functions,
       'bookActivityRegistration',
     );
 

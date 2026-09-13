@@ -29,7 +29,7 @@ export default function LoginScreen() {
   const showVerifiedMessage = readSearchParam(verified) === '1';
 
   useEffect(() => {
-    if (!isSignedIn) {
+    if (!isSignedIn || linkSent) {
       return;
     }
 
@@ -44,7 +44,7 @@ export default function LoginScreen() {
 
       router.replace('/profil' as Href);
     })();
-  }, [isSignedIn, router]);
+  }, [isSignedIn, linkSent, router]);
 
   const handleSendLink = async () => {
     const trimmedEmail = email.trim();

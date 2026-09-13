@@ -13,6 +13,7 @@ import type { AdminAccount } from '@/constants/admin-account';
 import type { PendingRegistration } from '@/constants/auth';
 import { ensureDefaultAdminAccount, fetchAdminAccount } from '@/services/admin';
 import {
+  clearPendingLoginIntent,
   sendLoginMagicLink,
   signInWithPasswordAdmin,
   signOutCurrentUser,
@@ -141,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const registerWithMagicLink = useCallback(async (input: PendingRegistration) => {
+    await clearPendingLoginIntent();
     await storePendingRegistration(input);
     return sendMagicLink(input.email);
   }, []);

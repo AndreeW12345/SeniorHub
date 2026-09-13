@@ -1,32 +1,36 @@
 import { getAuth } from 'firebase-admin/auth';
-import { FieldPath, FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
-import { COLLECTIONS } from '../notifications/types';
+import { COLLECTIONS, type ReminderKind } from '../notifications/types';
 import { europeWest1CallableOptions } from '../config/callable-options';
 import { assertRateLimit } from '../utils/rate-limit';
 
 const DELETE_COOLDOWN_MS = 60_000;
 const ANONYMIZED_NAME = 'Raderad användare';
+const REMINDER_DELIVERY_KINDS: ReminderKind[] = ['day_before', 'one_hour_before'];
 
 async function anonymizeUserRegistrations(uid: string): Promise<void> {
   const db = getFirestore();
-  const snapshot = await db
-    .collectionGroup(COLLECTIONS.registrations)
-    .where(FieldPath.documentId(), '==', uid)
-    .get();
-
-  if (snapshot.empty) {
-    return;
-  }
+  const activitiesSnapshot = await db.collection(COLLECTIONS.activities).get();
 
   let batch = db.batch();
   let batchSize = 0;
 
-  for (const registrationDoc of snapshot.docs) {
-    const status = typeof registrationDoc.data().status === 'string'
-      ? registrationDoc.data().status.trim()
+  for (const activityDoc of activitiesSnapshot.docs) {
+    const registrationDoc = await activityDoc.ref
+      .collection(COLLECTIONS.registrations)
+      .doc(uid)
+      .get();
+
+    if (!registrationDoc.exists) {
+      continue;
+    }
+
+    const registrationData = registrationDoc.data() ?? {};
+    const status = typeof registrationData.status === 'string'
+      ? registrationData.status.trim()
       : '';
 
     const updates: Record<string, unknown> = {
@@ -41,6 +45,70 @@ async function anonymizeUserRegistrations(uid: string): Promise<void> {
     }
 
     batch.update(registrationDoc.ref, updates);
+    batchSize += 1;
+
+    if (batchSize >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      batchSize = 0;
+    }
+  }
+
+  if (batchSize > 0) {
+    await batch.commit();
+  }
+}
+
+async function deleteUserReminderDeliveries(uid: string): Promise<void> {
+  const db = getFirestore();
+  const activitiesSnapshot = await db.collection(COLLECTIONS.activities).get();
+
+  let batch = db.batch();
+  let batchSize = 0;
+
+  for (const activityDoc of activitiesSnapshot.docs) {
+    const reminderDeliveriesRef = activityDoc.ref.collection(COLLECTIONS.reminderDeliveries);
+
+    for (const kind of REMINDER_DELIVERY_KINDS) {
+      const deliveryRef = reminderDeliveriesRef.doc(`${uid}_${kind}`);
+      const deliveryDoc = await deliveryRef.get();
+
+      if (!deliveryDoc.exists) {
+        continue;
+      }
+
+      batch.delete(deliveryRef);
+      batchSize += 1;
+
+      if (batchSize >= 400) {
+        await batch.commit();
+        batch = db.batch();
+        batchSize = 0;
+      }
+    }
+  }
+
+  if (batchSize > 0) {
+    await batch.commit();
+  }
+}
+
+async function deleteUserOrganizerApplications(uid: string): Promise<void> {
+  const db = getFirestore();
+  const snapshot = await db
+    .collection(COLLECTIONS.organizerApplications)
+    .where('applicantUid', '==', uid)
+    .get();
+
+  if (snapshot.empty) {
+    return;
+  }
+
+  let batch = db.batch();
+  let batchSize = 0;
+
+  for (const applicationDoc of snapshot.docs) {
+    batch.delete(applicationDoc.ref);
     batchSize += 1;
 
     if (batchSize >= 400) {
@@ -110,6 +178,8 @@ export const deleteUserAccount = onCall(europeWest1CallableOptions(), async (req
   const userRef = db.collection(COLLECTIONS.users).doc(uid);
 
   await anonymizeUserRegistrations(uid);
+  await deleteUserReminderDeliveries(uid);
+  await deleteUserOrganizerApplications(uid);
   await deleteUserNotifications(uid);
   await deleteProfileAvatar(uid);
   await userRef.delete();

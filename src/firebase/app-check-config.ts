@@ -17,27 +17,29 @@ export type NativeAppCheckProviderConfig = {
 };
 
 type BuildNativeAppCheckProviderConfigOptions = {
-  isDev: boolean;
+  useDebugProvider: boolean;
   debugToken?: string;
 };
 
 /**
  * Selects attestation providers for native App Check.
- * Development uses the debug provider when a token is configured.
+ * Development uses the debug provider (register the logged token in Firebase Console).
  */
 export function buildNativeAppCheckProviderConfig(
   options: BuildNativeAppCheckProviderConfigOptions,
 ): NativeAppCheckProviderConfig {
   const debugToken = options.debugToken?.trim();
-  const useDebugProvider = options.isDev && Boolean(debugToken);
+  const useDebugProvider = options.useDebugProvider;
 
   const platformConfig = <TProduction extends string>(
     productionProvider: TProduction,
-  ): { provider: 'debug'; debugToken: string | undefined } | { provider: TProduction } =>
+  ):
+    | { provider: 'debug'; debugToken?: string }
+    | { provider: TProduction } =>
     useDebugProvider
       ? {
           provider: 'debug' as const,
-          debugToken,
+          ...(debugToken ? { debugToken } : {}),
         }
       : {
           provider: productionProvider,
@@ -49,7 +51,4 @@ export function buildNativeAppCheckProviderConfig(
   };
 }
 
-/** Reads the runtime debug token used by native App Check in development. */
-export function readNativeAppCheckDebugToken(): string | undefined {
-  return process.env.EXPO_PUBLIC_FIREBASE_APP_CHECK_DEBUG_TOKEN?.trim() || undefined;
-}
+export { readNativeAppCheckDebugToken } from '@/firebase/app-check-runtime';

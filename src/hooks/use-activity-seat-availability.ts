@@ -31,13 +31,20 @@ type UseActivitySeatAvailabilityResult = {
   adjustBookedCount: (delta: number) => void;
 };
 
+type UseActivitySeatAvailabilityOptions = {
+  /** Admin/organizer views may listen to all registrations; regular users cannot. */
+  listenAllRegistrations?: boolean;
+};
+
 /**
  * Live registered + waitlist counts for an activity.
  * Booked count comes from activities/{id}.participants; waitlist from registrations.
  */
 export function useActivitySeatAvailability(
   activity: Activity | undefined,
+  options?: UseActivitySeatAvailabilityOptions,
 ): UseActivitySeatAvailabilityResult {
+  const listenAllRegistrations = options?.listenAllRegistrations ?? false;
   const needsLiveCount =
     !!activity &&
     (hasActivityParticipantLimit(activity) || isActivityRegistrationRequired(activity));
@@ -80,29 +87,37 @@ export function useActivitySeatAvailability(
       },
     );
 
-    const unsubscribeWaitlist = subscribeActivityRegistrations(
-      activity.id,
-      (registrations) => {
-        const waiting = sortWaitlistFifo(
-          registrations.filter((registration) => registration.status === 'waitlist'),
-        );
-        setWaitlist(waiting);
-        waitlistReady = true;
-        finishLoadingIfReady();
-      },
-      () => {
-        setWaitlist([]);
-        waitlistReady = true;
-        finishLoadingIfReady();
-      },
-      { includeStatuses: ['registered', 'waitlist'] },
-    );
+    let unsubscribeWaitlist: () => void = () => undefined;
+
+    if (listenAllRegistrations) {
+      unsubscribeWaitlist = subscribeActivityRegistrations(
+        activity.id,
+        (registrations) => {
+          const waiting = sortWaitlistFifo(
+            registrations.filter((registration) => registration.status === 'waitlist'),
+          );
+          setWaitlist(waiting);
+          waitlistReady = true;
+          finishLoadingIfReady();
+        },
+        () => {
+          setWaitlist([]);
+          waitlistReady = true;
+          finishLoadingIfReady();
+        },
+        { includeStatuses: ['registered', 'waitlist'] },
+      );
+    } else {
+      setWaitlist([]);
+      waitlistReady = true;
+      finishLoadingIfReady();
+    }
 
     return () => {
       unsubscribeBookedCount();
       unsubscribeWaitlist();
     };
-  }, [activity, fallbackBooked, needsLiveCount]);
+  }, [activity, fallbackBooked, listenAllRegistrations, needsLiveCount]);
 
   const refresh = useCallback(async () => {
     // Count is kept live via Firestore subscription.

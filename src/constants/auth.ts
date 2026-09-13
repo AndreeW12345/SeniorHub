@@ -18,6 +18,9 @@ export const EMAIL_FOR_SIGN_IN_STORAGE_KEY = '@seniorhub/emailForSignIn';
 /** AsyncStorage key for pending registration details until Magic Link is opened. */
 export const PENDING_REGISTRATION_STORAGE_KEY = '@seniorhub/pendingRegistration';
 
+/** AsyncStorage flag: magic link was requested from the login screen (not registration). */
+export const PENDING_LOGIN_INTENT_STORAGE_KEY = '@seniorhub/pendingLoginIntent';
+
 /** AsyncStorage key for an activity the guest tried to book before signing in. */
 export const PENDING_ACTIVITY_BOOKING_STORAGE_KEY = '@seniorhub/pendingActivityBooking';
 

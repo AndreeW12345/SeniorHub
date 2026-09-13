@@ -177,6 +177,12 @@
           return;
         }
 
+        // Native app handles sign-in for mobile universal/app links — never complete here too.
+        if (shouldTryOpenApp(window.location.href)) {
+          setStatus('Slutför inloggningen i SeniorHub-appen.', false);
+          return;
+        }
+
         setStatus('Loggar in …');
 
         try {
@@ -217,18 +223,18 @@
         } else {
           const storedEmail = readStoredEmail();
           if (storedEmail) {
-            intro.textContent = 'Slutför inloggningen';
             if (shouldTryOpenApp(href)) {
+              intro.textContent = 'Öppnar SeniorHub-appen …';
+              setStatus('Inloggningen slutförs i appen.');
               redirectToApp();
-              window.setTimeout(() => {
-                void completeSignInOnWeb(storedEmail);
-              }, 2000);
             } else {
+              intro.textContent = 'Slutför inloggningen';
               await completeSignInOnWeb(storedEmail);
             }
           } else if (shouldTryOpenApp(href)) {
+            intro.textContent = 'Öppnar SeniorHub-appen …';
+            setStatus('Om appen inte öppnas, installera SeniorHub och öppna länken igen.');
             redirectToApp();
-            showEmailPrompt('Ange samma e-postadress som du fick länken till.');
           } else {
             showEmailPrompt('Ange samma e-postadress som du fick länken till.');
           }

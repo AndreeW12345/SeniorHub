@@ -1,8 +1,10 @@
 import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { Firestore, getFirestore } from 'firebase/firestore';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
+import { Platform } from 'react-native';
 
-import { initializeFirebaseAppCheck } from '@/firebase/app-check';
+import { initializeFirebaseAppCheck, verifyFirebaseAppCheckToken } from '@/firebase/app-check';
+import { resolveFirebaseAppId } from '@/firebase/resolve-firebase-app-id';
 
 type FirebaseConfig = {
   apiKey: string;
@@ -19,13 +21,14 @@ const firebaseConfig: FirebaseConfig = {
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? '',
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',
+  appId: resolveFirebaseAppId(),
 };
 
 let firebaseApp: FirebaseApp | null = null;
 let firestoreDb: Firestore | null = null;
 let firebaseStorage: FirebaseStorage | null = null;
 let appCheckInitPromise: Promise<void> | null = null;
+let appCheckInitError: unknown = null;
 
 function startFirebaseAppCheckInit(app: FirebaseApp): void {
   if (appCheckInitPromise) {
@@ -37,7 +40,9 @@ function startFirebaseAppCheckInit(app: FirebaseApp): void {
     appCheckInitPromise = result
       .then(() => undefined)
       .catch((error) => {
+        appCheckInitError = error;
         console.warn('[Firebase] App Check initialization failed', error);
+        throw error;
       });
     return;
   }
@@ -47,12 +52,33 @@ function startFirebaseAppCheckInit(app: FirebaseApp): void {
 
 /** Waits until native/web App Check has finished initializing (no-op when unconfigured). */
 export async function ensureFirebaseAppCheckReady(): Promise<void> {
-  getFirebaseApp();
-  if (!appCheckInitPromise) {
+  const app = getFirebaseApp();
+  if (!app) {
     return;
   }
 
-  await appCheckInitPromise;
+  if (appCheckInitError) {
+    throw appCheckInitError;
+  }
+
+  if (appCheckInitPromise) {
+    await appCheckInitPromise;
+  }
+
+  if (appCheckInitError) {
+    throw appCheckInitError;
+  }
+
+  if (Platform.OS === 'web') {
+    return;
+  }
+
+  try {
+    await verifyFirebaseAppCheckToken();
+  } catch (error) {
+    appCheckInitError = error;
+    throw error;
+  }
 }
 
 /** Returns true when all required Firebase env vars are present. */

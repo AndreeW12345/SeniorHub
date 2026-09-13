@@ -12,6 +12,7 @@ import { useUserProfile } from '@/contexts/user-profile-context';
 import { useTheme } from '@/hooks/use-theme';
 import {
   clearEmailForSignIn,
+  clearPendingLoginIntent,
   clearPendingRegistration,
   deleteUserAccount,
 } from '@/services/auth';
@@ -44,6 +45,7 @@ export default function ProfileScreen() {
 
           await clearEmailForSignIn();
           await clearPendingRegistration();
+          await clearPendingLoginIntent();
           await clearLocalProfileCache();
           showSuccessAlert('Utloggad', 'Du har loggats ut.');
           router.replace('/login' as Href);
@@ -69,6 +71,7 @@ export default function ProfileScreen() {
 
           await clearEmailForSignIn();
           await clearPendingRegistration();
+          await clearPendingLoginIntent();
           await clearLocalProfileCache();
           router.replace('/login' as Href);
         })();
@@ -105,6 +108,7 @@ export default function ProfileScreen() {
             await signOut();
             await clearEmailForSignIn();
             await clearPendingRegistration();
+            await clearPendingLoginIntent();
             await clearLocalProfileCache();
           } else {
             const result = await deleteProfile();

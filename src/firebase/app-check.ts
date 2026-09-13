@@ -10,3 +10,8 @@ export function initializeFirebaseAppCheck(
 ): AppCheck | null | Promise<AppCheck | null> {
   throw new Error('Firebase App Check platform module was not resolved.');
 }
+
+/** Verifies that App Check can return a token before protected requests run. */
+export async function verifyFirebaseAppCheckToken(): Promise<void> {
+  return;
+}

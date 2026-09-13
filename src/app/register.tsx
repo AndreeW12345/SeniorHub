@@ -33,7 +33,7 @@ export default function RegisterScreen() {
   const [linkSent, setLinkSent] = useState(false);
 
   useEffect(() => {
-    if (!isSignedIn) {
+    if (!isSignedIn || linkSent) {
       return;
     }
 
@@ -48,7 +48,7 @@ export default function RegisterScreen() {
 
       router.replace('/profil' as Href);
     })();
-  }, [isSignedIn, router]);
+  }, [isSignedIn, linkSent, router]);
 
   const handleRegister = async () => {
     const trimmedFirst = firstName.trim();
@@ -116,22 +116,17 @@ export default function RegisterScreen() {
               Kolla din e-post
             </ThemedText>
             <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.successText}>
-              Vi har skickat en inloggningslänk till {email.trim()}. Öppna länken för att aktivera
-              ditt konto och logga in.
+              Vi har skickat en aktiveringslänk till {email.trim()}.
             </ThemedText>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Till inloggning"
-              onPress={() => router.replace('/login' as Href)}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                { backgroundColor: theme.primary },
-                pressed && styles.pressed,
-              ]}>
-              <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
-                Till inloggning
+            <ThemedText type="bodyLarge" themeColor="text" style={styles.successText}>
+              <ThemedText type="bodyLarge" themeColor="favorite" style={styles.successImportantLabel}>
+                Viktigt!
               </ThemedText>
-            </Pressable>
+              {' Öppna länken i e-postmeddelandet för att aktivera ditt konto.'}
+            </ThemedText>
+            <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.successText}>
+              När du har öppnat länken loggas du in automatiskt.
+            </ThemedText>
           </View>
         ) : (
           <>
@@ -374,6 +369,9 @@ const styles = StyleSheet.create({
   },
   successText: {
     lineHeight: 30,
+  },
+  successImportantLabel: {
+    fontWeight: '700',
   },
   pressed: {
     opacity: 0.9,

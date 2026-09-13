@@ -1,15 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-function buildNativeAppCheckProviderConfig({ isDev, debugToken }) {
+function buildNativeAppCheckProviderConfig({ useDebugProvider, debugToken }) {
   const normalizedDebugToken = debugToken?.trim();
-  const useDebugProvider = isDev && Boolean(normalizedDebugToken);
 
   const platformConfig = (productionProvider) =>
     useDebugProvider
       ? {
           provider: 'debug',
-          debugToken: normalizedDebugToken,
+          ...(normalizedDebugToken ? { debugToken: normalizedDebugToken } : {}),
         }
       : {
           provider: productionProvider,
@@ -24,7 +23,7 @@ function buildNativeAppCheckProviderConfig({ isDev, debugToken }) {
 describe('native App Check provider config', () => {
   it('uses production attestation providers in release builds', () => {
     assert.deepEqual(
-      buildNativeAppCheckProviderConfig({ isDev: false, debugToken: 'debug-token' }),
+      buildNativeAppCheckProviderConfig({ useDebugProvider: false, debugToken: 'debug-token' }),
       {
         android: { provider: 'playIntegrity' },
         apple: { provider: 'appAttestWithDeviceCheckFallback' },
@@ -34,7 +33,7 @@ describe('native App Check provider config', () => {
 
   it('uses debug provider in development when a debug token is configured', () => {
     assert.deepEqual(
-      buildNativeAppCheckProviderConfig({ isDev: true, debugToken: '  debug-token  ' }),
+      buildNativeAppCheckProviderConfig({ useDebugProvider: true, debugToken: '  debug-token  ' }),
       {
         android: { provider: 'debug', debugToken: 'debug-token' },
         apple: { provider: 'debug', debugToken: 'debug-token' },
@@ -42,12 +41,12 @@ describe('native App Check provider config', () => {
     );
   });
 
-  it('falls back to production providers in development without a debug token', () => {
+  it('uses debug provider in development without a preconfigured debug token', () => {
     assert.deepEqual(
-      buildNativeAppCheckProviderConfig({ isDev: true, debugToken: '' }),
+      buildNativeAppCheckProviderConfig({ useDebugProvider: true, debugToken: '' }),
       {
-        android: { provider: 'playIntegrity' },
-        apple: { provider: 'appAttestWithDeviceCheckFallback' },
+        android: { provider: 'debug' },
+        apple: { provider: 'debug' },
       },
     );
   });
