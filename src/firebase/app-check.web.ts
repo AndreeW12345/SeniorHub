@@ -1,7 +1,7 @@
 import {
   getToken as getAppCheckToken,
   initializeAppCheck,
-  ReCaptchaV3Provider,
+  ReCaptchaEnterpriseProvider,
   type AppCheck,
 } from 'firebase/app-check';
 import type { FirebaseApp } from 'firebase/app';
@@ -26,7 +26,8 @@ function configureDevelopmentDebugToken(): void {
 }
 
 /**
- * Initializes Firebase App Check for web using reCAPTCHA v3.
+ * Initializes Firebase App Check for web using reCAPTCHA Enterprise.
+ * Must match Firebase Console → App Check → Web app provider registration.
  */
 export function initializeFirebaseAppCheck(app: FirebaseApp): AppCheck | null {
   if (appCheckInstance) {
@@ -41,7 +42,7 @@ export function initializeFirebaseAppCheck(app: FirebaseApp): AppCheck | null {
   }
 
   appCheckInstance = initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(siteKey),
+    provider: new ReCaptchaEnterpriseProvider(siteKey),
     isTokenAutoRefreshEnabled: true,
   });
 
