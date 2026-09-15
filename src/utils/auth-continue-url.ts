@@ -72,11 +72,7 @@ function getWebAppBasePath(): string {
 }
 
 function getWebAuthCompletePath(): string {
-  if (isMobileWebBrowser()) {
-    return `${getWebAppBasePath()}${AUTH_COMPLETE_PATH}`;
-  }
-
-  return AUTH_COMPLETE_PATH;
+  return `${getWebAppBasePath()}${AUTH_COMPLETE_PATH}`;
 }
 
 /** Marks magic links sent from the web app so Hosting can stay in-browser on mobile. */
