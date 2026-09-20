@@ -1,36 +1,42 @@
+import type { ActionCodeSettings } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 
 import { readCallableErrorMessage } from '@/firebase/callable-error-message';
 import { preparePublicCallableRequest } from '@/firebase/prepare-public-callable-request';
 
-type CheckLoginEmailRequest = {
+type RequestLoginMagicLinkRequest = {
   email: string;
+  actionCodeSettings: ActionCodeSettings;
 };
 
-type CheckLoginEmailResponse = {
-  exists: boolean;
+type RequestLoginMagicLinkResponse = {
+  ok: true;
 };
 
-export type CheckLoginEmailExistsResult =
-  | { ok: true; exists: boolean }
+export type RequestLoginMagicLinkResult =
+  | { ok: true }
   | { ok: false; errorMessage: string };
 
-/** Server-side login pre-check (Admin SDK); works with email enumeration protection enabled. */
-export async function checkLoginEmailExists(
+/** Requests a login magic link without revealing whether the email is registered. */
+export async function requestLoginMagicLink(
   email: string,
-): Promise<CheckLoginEmailExistsResult> {
+  actionCodeSettings: ActionCodeSettings,
+): Promise<RequestLoginMagicLinkResult> {
   const prepared = await preparePublicCallableRequest();
   if (!prepared.ok) {
     return { ok: false, errorMessage: prepared.errorMessage };
   }
 
   try {
-    const callable = httpsCallable<CheckLoginEmailRequest, CheckLoginEmailResponse>(
-      prepared.functions,
-      'checkLoginEmail',
-    );
-    const response = await callable({ email: email.trim().toLowerCase() });
-    return { ok: true, exists: response.data.exists === true };
+    const callable = httpsCallable<
+      RequestLoginMagicLinkRequest,
+      RequestLoginMagicLinkResponse
+    >(prepared.functions, 'requestLoginMagicLink');
+    await callable({
+      email: email.trim().toLowerCase(),
+      actionCodeSettings,
+    });
+    return { ok: true };
   } catch (error) {
     return { ok: false, errorMessage: readCallableErrorMessage(error) };
   }

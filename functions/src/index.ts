@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase-admin/app';
 
 import { bookActivityRegistration } from './callable/book-activity-registration';
-import { checkLoginEmail } from './callable/check-login-email';
+import { requestLoginMagicLink } from './callable/check-login-email';
 import { checkRegistrationPhone } from './callable/check-registration-phone';
 import { deleteUserAccount } from './callable/delete-user-account';
 import { scheduledActivityReminders } from './scheduled/activity-reminders';
@@ -14,7 +14,7 @@ initializeApp();
 
 export {
   bookActivityRegistration,
-  checkLoginEmail,
+  requestLoginMagicLink,
   checkRegistrationPhone,
   deleteUserAccount,
   onRegistrationCreated,

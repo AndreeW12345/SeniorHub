@@ -20,7 +20,7 @@ import {
   type PendingLegalConsent,
 } from '@/constants/legal-consent';
 import { getFirebaseAuth } from '@/firebase';
-import { checkLoginEmailExists } from '@/services/auth/check-login-email-exists';
+import { requestLoginMagicLink } from '@/services/auth/check-login-email-exists';
 import { getAuthErrorCode, getSwedishAuthErrorMessage } from '@/services/auth/errors';
 import type { AuthActionResult, AuthProviderModule, AuthResult } from '@/services/auth/providers/types';
 import {
@@ -168,11 +168,8 @@ const LOGIN_ACCOUNT_NOT_FOUND_MESSAGE =
   'Det finns inget konto med den här e-postadressen. Skapa ett konto först.';
 
 /**
- * Sends a Magic Link for login.
- *
- * Does not call fetchSignInMethodsForEmail — with Firebase email enumeration protection
- * (enabled by default) that API returns an empty list even for existing accounts.
- * Uses the checkLoginEmail Cloud Function (Admin SDK) before sending the link.
+ * Sends a Magic Link for login via the requestLoginMagicLink Cloud Function.
+ * The server sends email only for existing accounts and always returns a neutral ok response.
  * signInWithEmailLink still auto-creates Auth users; completeMagicLinkSignIn rejects
  * login when Firebase reports a newly created user if the pre-check was bypassed.
  */
@@ -182,18 +179,15 @@ export async function sendLoginMagicLink(email: string): Promise<AuthActionResul
     return { ok: false, errorMessage: 'Ange en e-postadress.' };
   }
 
-  const lookup = await checkLoginEmailExists(trimmed);
-  if (!lookup.ok) {
-    return { ok: false, errorMessage: lookup.errorMessage };
-  }
-
-  if (!lookup.exists) {
-    return { ok: false, errorMessage: LOGIN_ACCOUNT_NOT_FOUND_MESSAGE };
+  const requestResult = await requestLoginMagicLink(trimmed, buildActionCodeSettings());
+  if (!requestResult.ok) {
+    return { ok: false, errorMessage: requestResult.errorMessage };
   }
 
   await clearPendingRegistration();
   await storePendingLoginIntent();
-  return sendMagicLink(trimmed);
+  await storeEmailForSignIn(trimmed);
+  return { ok: true };
 }
 
 /** Sends a Firebase Magic Link to the given email address. */

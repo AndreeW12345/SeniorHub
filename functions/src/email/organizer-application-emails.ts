@@ -78,6 +78,36 @@ export async function sendResendEmail(input: SendResendEmailInput): Promise<void
   }
 }
 
+export const LOGIN_MAGIC_LINK_SUBJECT = 'Din inloggningslänk till SeniorHub';
+
+export function buildLoginMagicLinkEmailText(link: string): string {
+  return [
+    'Hej!',
+    '',
+    'Klicka på länken nedan för att logga in på SeniorHub:',
+    link,
+    '',
+    'Om du inte har begärt detta kan du ignorera det här meddelandet.',
+    '',
+    'Med vänliga hälsningar',
+    'SeniorHub',
+  ].join('\n');
+}
+
+export async function sendLoginMagicLinkEmail(
+  apiKey: string,
+  to: string,
+  link: string,
+): Promise<void> {
+  await sendResendEmail({
+    apiKey,
+    from: ORGANIZER_APPLICATION_FROM_EMAIL,
+    to: [to],
+    subject: LOGIN_MAGIC_LINK_SUBJECT,
+    text: buildLoginMagicLinkEmailText(link),
+  });
+}
+
 export async function sendOrganizerApplicationEmails(
   apiKey: string,
   payload: OrganizerApplicationEmailPayload,
