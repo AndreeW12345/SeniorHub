@@ -84,34 +84,56 @@ export function subscribeUserNotifications(
   userId: string,
   onChange: (notifications: RemoteUserNotification[]) => void,
 ): Unsubscribe | null {
-  const db = getFirestoreDb();
   const trimmedId = userId.trim();
 
-  if (!db || !trimmedId) {
+  if (!trimmedId) {
     return null;
   }
 
-  const notificationsRef = collection(
-    db,
-    FIRESTORE_COLLECTIONS.users,
-    trimmedId,
-    FIRESTORE_COLLECTIONS.userNotifications,
-  );
+  let activeUnsub: Unsubscribe | null = null;
+  let cancelled = false;
 
-  const notificationsQuery = query(notificationsRef, orderBy('createdAt', 'desc'));
+  void getFirestoreDb()
+    .then((db) => {
+      if (cancelled || !db) {
+        return;
+      }
 
-  return onSnapshot(
-    notificationsQuery,
-    (snapshot) => {
-      const notifications = snapshot.docs
-        .map((document) => mapRemoteNotification(document.id, document.data()))
-        .filter((item): item is RemoteUserNotification => item !== null);
+      const notificationsRef = collection(
+        db,
+        FIRESTORE_COLLECTIONS.users,
+        trimmedId,
+        FIRESTORE_COLLECTIONS.userNotifications,
+      );
 
-      onChange(notifications);
-    },
-    (error) => {
+      const notificationsQuery = query(notificationsRef, orderBy('createdAt', 'desc'));
+
+      activeUnsub = onSnapshot(
+        notificationsQuery,
+        (snapshot) => {
+          const notifications = snapshot.docs
+            .map((document) => mapRemoteNotification(document.id, document.data()))
+            .filter((item): item is RemoteUserNotification => item !== null);
+
+          onChange(notifications);
+        },
+        (error) => {
+          console.warn('[SeniorHub] Kunde inte prenumerera på fjärrnotiser:', error);
+          onChange([]);
+        },
+      );
+    })
+    .catch((error) => {
+      if (cancelled) {
+        return;
+      }
+
       console.warn('[SeniorHub] Kunde inte prenumerera på fjärrnotiser:', error);
       onChange([]);
-    },
-  );
+    });
+
+  return () => {
+    cancelled = true;
+    activeUnsub?.();
+  };
 }

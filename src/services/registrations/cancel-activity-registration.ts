@@ -36,7 +36,7 @@ export async function cancelActivityRegistration(
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return { ok: false, errorMessage: 'Firestore kunde inte initieras.' };
   }

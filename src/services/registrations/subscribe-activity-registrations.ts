@@ -39,54 +39,70 @@ export function subscribeActivityRegistrations(
     return () => undefined;
   }
 
-  const db = getFirestoreDb();
-  if (!db) {
-    onUpdate([]);
-    return () => undefined;
-  }
-
-  const registrationsRef = collection(
-    db,
-    FIRESTORE_COLLECTIONS.activities,
-    trimmedActivityId,
-    FIRESTORE_COLLECTIONS.registrations,
-  );
-
   let activeUnsub: Unsubscribe | null = null;
+  let cancelled = false;
 
-  const subscribeUnordered = () => {
-    activeUnsub = onSnapshot(
-      registrationsRef,
-      (snapshot) => {
-        const mapped = mapRegistrationDocs(trimmedActivityId, snapshot.docs, includeStatuses).sort(
-          (a, b) => b.registeredAt.getTime() - a.registeredAt.getTime(),
-        );
-        onUpdate(mapped);
-      },
-      (fallbackError) => {
-        console.warn('[SeniorHub] Kunde inte lyssna på anmälningar:', fallbackError);
-        onError?.(fallbackError);
+  void getFirestoreDb()
+    .then((db) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (!db) {
         onUpdate([]);
-      },
-    );
-  };
+        return;
+      }
 
-  activeUnsub = onSnapshot(
-    query(registrationsRef, orderBy('registeredAt', 'desc')),
-    (snapshot) => {
-      onUpdate(mapRegistrationDocs(trimmedActivityId, snapshot.docs, includeStatuses));
-    },
-    (error) => {
-      console.warn(
-        '[SeniorHub] Live-hämtning med sortering misslyckades, faller tillbaka:',
-        error,
+      const registrationsRef = collection(
+        db,
+        FIRESTORE_COLLECTIONS.activities,
+        trimmedActivityId,
+        FIRESTORE_COLLECTIONS.registrations,
       );
-      activeUnsub?.();
-      subscribeUnordered();
-    },
-  );
+
+      const subscribeUnordered = () => {
+        activeUnsub = onSnapshot(
+          registrationsRef,
+          (snapshot) => {
+            const mapped = mapRegistrationDocs(trimmedActivityId, snapshot.docs, includeStatuses).sort(
+              (a, b) => b.registeredAt.getTime() - a.registeredAt.getTime(),
+            );
+            onUpdate(mapped);
+          },
+          (fallbackError) => {
+            console.warn('[SeniorHub] Kunde inte lyssna på anmälningar:', fallbackError);
+            onError?.(fallbackError);
+            onUpdate([]);
+          },
+        );
+      };
+
+      activeUnsub = onSnapshot(
+        query(registrationsRef, orderBy('registeredAt', 'desc')),
+        (snapshot) => {
+          onUpdate(mapRegistrationDocs(trimmedActivityId, snapshot.docs, includeStatuses));
+        },
+        (error) => {
+          console.warn(
+            '[SeniorHub] Live-hämtning med sortering misslyckades, faller tillbaka:',
+            error,
+          );
+          activeUnsub?.();
+          subscribeUnordered();
+        },
+      );
+    })
+    .catch((error) => {
+      if (cancelled) {
+        return;
+      }
+
+      onError?.(error instanceof Error ? error : new Error(String(error)));
+      onUpdate([]);
+    });
 
   return () => {
+    cancelled = true;
     activeUnsub?.();
   };
 }

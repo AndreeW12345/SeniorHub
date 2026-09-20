@@ -13,7 +13,7 @@ export async function fetchOrganizationByIdFromFirestore(
     return null;
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return null;
   }
@@ -31,7 +31,7 @@ export async function fetchOrganizationsFromFirestore(): Promise<Organization[]>
     return [];
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return [];
   }

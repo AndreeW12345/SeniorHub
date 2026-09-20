@@ -19,7 +19,7 @@ export async function fetchAdminAccount(uid: string): Promise<AdminAccount | nul
     return null;
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return null;
   }

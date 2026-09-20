@@ -11,7 +11,7 @@ export async function fetchOrganizersFromFirestore(): Promise<Organizer[]> {
     return [];
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return [];
   }

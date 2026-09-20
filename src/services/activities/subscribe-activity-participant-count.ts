@@ -29,25 +29,47 @@ export function subscribeActivityParticipantCount(
     return () => undefined;
   }
 
-  const db = getFirestoreDb();
-  if (!db) {
-    onUpdate(0);
-    return () => undefined;
-  }
+  let activeUnsub: Unsubscribe | null = null;
+  let cancelled = false;
 
-  return onSnapshot(
-    doc(db, FIRESTORE_COLLECTIONS.activities, trimmedActivityId),
-    (snapshot) => {
-      if (!snapshot.exists()) {
+  void getFirestoreDb()
+    .then((db) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (!db) {
         onUpdate(0);
         return;
       }
 
-      onUpdate(readParticipantCount(snapshot.data()));
-    },
-    (error) => {
-      console.warn('[SeniorHub] Kunde inte lyssna på deltagarantal:', error);
-      onError?.(error);
-    },
-  );
+      activeUnsub = onSnapshot(
+        doc(db, FIRESTORE_COLLECTIONS.activities, trimmedActivityId),
+        (snapshot) => {
+          if (!snapshot.exists()) {
+            onUpdate(0);
+            return;
+          }
+
+          onUpdate(readParticipantCount(snapshot.data()));
+        },
+        (error) => {
+          console.warn('[SeniorHub] Kunde inte lyssna på deltagarantal:', error);
+          onError?.(error);
+        },
+      );
+    })
+    .catch((error) => {
+      if (cancelled) {
+        return;
+      }
+
+      onError?.(error instanceof Error ? error : new Error(String(error)));
+      onUpdate(0);
+    });
+
+  return () => {
+    cancelled = true;
+    activeUnsub?.();
+  };
 }

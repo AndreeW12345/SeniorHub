@@ -42,7 +42,7 @@ export async function createActivityAnnouncement(
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return { ok: false, errorMessage: 'Kunde inte ansluta till databasen.' };
   }

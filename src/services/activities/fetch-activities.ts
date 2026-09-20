@@ -11,7 +11,7 @@ export async function fetchActivityByIdFromFirestore(id: string): Promise<Activi
     return null;
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return null;
   }
@@ -31,7 +31,7 @@ export async function fetchActivitiesFromFirestore(): Promise<Activity[]> {
     return [];
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return [];
   }
@@ -52,7 +52,7 @@ export async function fetchActivitiesBySeriesIdFromFirestore(
     return [];
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return [];
   }

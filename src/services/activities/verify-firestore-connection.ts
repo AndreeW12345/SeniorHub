@@ -21,7 +21,7 @@ export async function verifyFirestoreConnection(): Promise<FirestoreConnectionSt
     };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return {
       configured: true,

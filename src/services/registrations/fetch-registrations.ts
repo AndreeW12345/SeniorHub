@@ -16,8 +16,8 @@ export type RegistrationMutationResult =
   | { ok: true; id: string }
   | { ok: false; errorMessage: string };
 
-function getRegistrationsCollection(activityId: string) {
-  const db = getFirestoreDb();
+async function getRegistrationsCollection(activityId: string) {
+  const db = await getFirestoreDb();
   if (!db) {
     return null;
   }
@@ -39,7 +39,7 @@ export async function fetchActivityRegistrations(
     return [];
   }
 
-  const registrationsRef = getRegistrationsCollection(activityId.trim());
+  const registrationsRef = await getRegistrationsCollection(activityId.trim());
   if (!registrationsRef) {
     return [];
   }

@@ -33,7 +33,7 @@ export async function saveUserProfile(
     return { ok: false, errorMessage: 'Ingen inloggad användare.' };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }

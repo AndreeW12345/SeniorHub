@@ -33,7 +33,7 @@ export async function migrateDeviceProfileToUid(
 
   const authEmail = currentUser.email?.trim() ?? '';
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }

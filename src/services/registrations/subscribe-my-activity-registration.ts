@@ -39,27 +39,49 @@ export function subscribeMyActivityRegistration(
     return () => undefined;
   }
 
-  const db = getFirestoreDb();
-  if (!db) {
-    onUpdate(null);
-    return () => undefined;
-  }
+  let activeUnsub: Unsubscribe | null = null;
+  let cancelled = false;
 
-  return onSnapshot(
-    doc(
-      db,
-      FIRESTORE_COLLECTIONS.activities,
-      trimmedActivityId,
-      FIRESTORE_COLLECTIONS.registrations,
-      trimmedUid,
-    ),
-    (snapshot) => {
-      onUpdate(readMyRegistrationStatus(snapshot.data()));
-    },
-    (error) => {
-      console.warn('[SeniorHub] Kunde inte lyssna på egen anmälan:', error);
-      onError?.(error);
+  void getFirestoreDb()
+    .then((db) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (!db) {
+        onUpdate(null);
+        return;
+      }
+
+      activeUnsub = onSnapshot(
+        doc(
+          db,
+          FIRESTORE_COLLECTIONS.activities,
+          trimmedActivityId,
+          FIRESTORE_COLLECTIONS.registrations,
+          trimmedUid,
+        ),
+        (snapshot) => {
+          onUpdate(readMyRegistrationStatus(snapshot.data()));
+        },
+        (error) => {
+          console.warn('[SeniorHub] Kunde inte lyssna på egen anmälan:', error);
+          onError?.(error);
+          onUpdate(null);
+        },
+      );
+    })
+    .catch((error) => {
+      if (cancelled) {
+        return;
+      }
+
+      onError?.(error instanceof Error ? error : new Error(String(error)));
       onUpdate(null);
-    },
-  );
+    });
+
+  return () => {
+    cancelled = true;
+    activeUnsub?.();
+  };
 }

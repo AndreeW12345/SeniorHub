@@ -50,7 +50,7 @@ export async function fetchAdminStatistics(
     return EMPTY_ADMIN_STATISTICS;
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return EMPTY_ADMIN_STATISTICS;
   }

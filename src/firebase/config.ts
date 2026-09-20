@@ -26,6 +26,7 @@ const firebaseConfig: FirebaseConfig = {
 
 let firebaseApp: FirebaseApp | null = null;
 let firestoreDb: Firestore | null = null;
+let firestoreDbInitPromise: Promise<Firestore | null> | null = null;
 let firebaseStorage: FirebaseStorage | null = null;
 let appCheckInitPromise: Promise<void> | null = null;
 let appCheckInitError: unknown = null;
@@ -105,11 +106,14 @@ export function getFirebaseApp(): FirebaseApp | null {
   return firebaseApp;
 }
 
-/** Returns a shared Firestore instance, or null if Firebase is not configured. */
-export function getFirestoreDb(): Firestore | null {
+async function resolveFirestoreDb(): Promise<Firestore | null> {
   const app = getFirebaseApp();
   if (!app) {
     return null;
+  }
+
+  if (Platform.OS !== 'web') {
+    await ensureFirebaseAppCheckReady();
   }
 
   if (!firestoreDb) {
@@ -117,6 +121,35 @@ export function getFirestoreDb(): Firestore | null {
   }
 
   return firestoreDb;
+}
+
+/**
+ * Returns a shared Firestore instance, or null if Firebase is not configured.
+ * On native, waits for App Check initialization and a valid token before first use.
+ */
+export function getFirestoreDb(): Promise<Firestore | null> {
+  if (firestoreDb) {
+    return Promise.resolve(firestoreDb);
+  }
+
+  if (Platform.OS === 'web') {
+    const app = getFirebaseApp();
+    if (!app) {
+      return Promise.resolve(null);
+    }
+
+    if (!firestoreDb) {
+      firestoreDb = getFirestore(app);
+    }
+
+    return Promise.resolve(firestoreDb);
+  }
+
+  if (!firestoreDbInitPromise) {
+    firestoreDbInitPromise = resolveFirestoreDb();
+  }
+
+  return firestoreDbInitPromise;
 }
 
 /** Returns true when Firebase Storage is configured via storageBucket. */

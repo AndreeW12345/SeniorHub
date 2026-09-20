@@ -121,7 +121,7 @@ function buildPushTokenUpdatePayload(
 }
 
 async function writePushTokenDoc(params: SavePushTokenParams): Promise<boolean> {
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return false;
   }
@@ -176,7 +176,7 @@ export async function saveUserPushToken(params: {
     return { ok: true };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
@@ -208,7 +208,7 @@ export async function syncUserNotificationPreferences(params: {
     return;
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return;
   }

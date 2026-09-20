@@ -53,7 +53,7 @@ export async function submitOrganizerApplication(
     };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return { ok: false, errorMessage: 'Firestore kunde inte initieras.' };
   }

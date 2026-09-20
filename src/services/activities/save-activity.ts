@@ -59,7 +59,7 @@ export async function saveActivityToFirestore(
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return getFirestoreUnavailableResult();
   }
@@ -164,7 +164,7 @@ export async function updateActivityInFirestore(
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return getFirestoreUnavailableResult();
   }
@@ -251,7 +251,7 @@ export async function incrementActivityParticipants(
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return getFirestoreUnavailableResult();
   }
@@ -284,7 +284,7 @@ export async function decrementActivityParticipants(
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return getFirestoreUnavailableResult();
   }
@@ -318,7 +318,7 @@ export async function deleteActivityFromFirestore(
     return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
   }
 
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return getFirestoreUnavailableResult();
   }

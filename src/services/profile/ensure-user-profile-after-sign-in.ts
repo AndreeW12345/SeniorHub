@@ -23,7 +23,7 @@ export type EnsureUserProfileAfterSignInResult =
   | { ok: false; errorMessage: string; requiresRegistration: boolean };
 
 async function userProfileDocumentExists(uid: string): Promise<boolean> {
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return false;
   }

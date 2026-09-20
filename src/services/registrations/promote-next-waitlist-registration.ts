@@ -17,7 +17,7 @@ async function tryPromoteWaitlistRegistration(
   activityId: string,
   registrationId: string,
 ): Promise<boolean> {
-  const db = getFirestoreDb();
+  const db = await getFirestoreDb();
   if (!db) {
     return false;
   }
