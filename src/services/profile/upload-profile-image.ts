@@ -1,5 +1,5 @@
 import * as ImageManipulator from 'expo-image-manipulator';
-import { getDownloadURL, ref, uploadString } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { getFirebaseStorage, isFirebaseStorageConfigured } from '@/firebase';
 
@@ -10,7 +10,7 @@ export type UploadProfileImageResult =
   | { ok: true; downloadUrl: string }
   | { ok: false; errorMessage: string };
 
-async function compressProfileImage(uri: string): Promise<{ base64?: string }> {
+async function compressProfileImage(uri: string): Promise<{ uri: string; base64?: string }> {
   return ImageManipulator.manipulateAsync(
     uri,
     [{ resize: { width: AVATAR_SIZE } }],
@@ -20,6 +20,18 @@ async function compressProfileImage(uri: string): Promise<{ base64?: string }> {
       base64: true,
     },
   );
+}
+
+/** RN-compatible blob from a local file URI (uploadString base64 uses unsupported ArrayBuffer blobs). */
+function uriToBlob(uri: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = () => resolve(xhr.response);
+    xhr.onerror = () => reject(new TypeError('Network request failed'));
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
 }
 
 /** Uploads a square profile photo to Firebase Storage. */
@@ -46,13 +58,14 @@ export async function uploadProfileImage(
 
   try {
     const compressed = await compressProfileImage(localUri);
-    if (!compressed.base64) {
+    if (!compressed.uri) {
       return { ok: false, errorMessage: 'Kunde inte läsa den valda bilden.' };
     }
 
     const path = `profiles/${trimmedId}/avatar.jpg`;
     const storageRef = ref(storage, path);
-    await uploadString(storageRef, compressed.base64, 'base64', {
+    const blob = await uriToBlob(compressed.uri);
+    await uploadBytes(storageRef, blob, {
       contentType: 'image/jpeg',
     });
 
