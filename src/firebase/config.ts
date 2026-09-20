@@ -70,10 +70,6 @@ export async function ensureFirebaseAppCheckReady(): Promise<void> {
     throw appCheckInitError;
   }
 
-  if (Platform.OS === 'web') {
-    return;
-  }
-
   try {
     await verifyFirebaseAppCheckToken();
   } catch (error) {

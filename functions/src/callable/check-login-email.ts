@@ -178,12 +178,12 @@ export const requestLoginMagicLink = onCall(
     const clientIp = readClientIp(request);
 
     await assertRateLimit({
-      docPath: `security/requestLoginMagicLink/attempts/email/${email}`,
+      docPath: `security/requestLoginMagicLink/attempts/${encodeURIComponent(email)}`,
       cooldownMs: CHECK_LOGIN_EMAIL_COOLDOWN_MS,
     });
 
     await assertRateLimitWindow({
-      docPath: `security/requestLoginMagicLink/attempts/ip/${clientIp}`,
+      docPath: `security/requestLoginMagicLink/ip/${clientIp}`,
       windowMs: LOGIN_MAGIC_LINK_IP_WINDOW_MS,
       maxAttempts: LOGIN_MAGIC_LINK_IP_MAX_ATTEMPTS,
     });
