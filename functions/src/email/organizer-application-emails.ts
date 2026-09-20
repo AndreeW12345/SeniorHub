@@ -73,8 +73,8 @@ export async function sendResendEmail(input: SendResendEmailInput): Promise<void
   });
 
   if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Resend request failed (${response.status}): ${body}`);
+    await response.text().catch(() => undefined);
+    throw new Error(`Resend request failed (${response.status})`);
   }
 }
 

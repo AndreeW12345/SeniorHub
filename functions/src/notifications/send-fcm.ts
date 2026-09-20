@@ -114,7 +114,7 @@ async function sendPushToUser(payload: PushPayload): Promise<void> {
             );
         }
 
-        console.warn('[SeniorHub] FCM send failed:', payload.userId, error);
+        console.warn('[SeniorHub] FCM send failed:', code || 'unknown_error');
       }
     }),
   );

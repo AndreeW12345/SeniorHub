@@ -196,7 +196,14 @@ export const deleteUserAccount = onCall(europeWest1CallableOptions(), async (req
   try {
     await getAuth().deleteUser(uid);
   } catch (error) {
-    console.error('[deleteUserAccount] Auth deletion failed:', error);
+    const code =
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      typeof (error as { code: unknown }).code === 'string'
+        ? (error as { code: string }).code
+        : 'unknown_error';
+    console.error('[deleteUserAccount] Auth deletion failed.', code);
     throw new HttpsError(
       'internal',
       'Kunde inte ta bort inloggningen. Kontakta support om problemet kvarstår.',

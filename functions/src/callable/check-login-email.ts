@@ -203,18 +203,39 @@ export const requestLoginMagicLink = onCall(
         return { ok: true };
       }
 
-      console.error('[requestLoginMagicLink] Failed to look up Auth user:', error);
+      console.error(
+        '[requestLoginMagicLink] Failed to look up Auth user.',
+        code || 'unknown_error',
+      );
       throw new HttpsError(
         'internal',
         'Kunde inte skicka inloggningslänken just nu. Försök igen.',
       );
     }
 
+    let signInLink: string;
     try {
-      const signInLink = await getAuth().generateSignInWithEmailLink(email, actionCodeSettings);
+      signInLink = await getAuth().generateSignInWithEmailLink(email, actionCodeSettings);
+    } catch (error) {
+      const code =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        typeof (error as { code: unknown }).code === 'string'
+          ? (error as { code: string }).code
+          : 'unknown_error';
+      console.error('[requestLoginMagicLink] Failed to generate sign-in link.', code);
+      return { ok: true };
+    }
+
+    try {
       await sendLoginMagicLinkEmail(RESEND_API_KEY.value(), email, signInLink);
     } catch (error) {
-      console.error('[requestLoginMagicLink] Failed to send login magic link:', error);
+      const detail =
+        error instanceof Error && error.message.startsWith('Resend request failed')
+          ? error.message
+          : 'Resend request failed (unknown)';
+      console.error('[requestLoginMagicLink] Failed to send login magic link email.', detail);
       return { ok: true };
     }
 
