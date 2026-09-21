@@ -26,6 +26,7 @@ import { useResponsive } from '@/hooks/use-responsive';
 import { useSafeBack } from '@/hooks/use-safe-back';
 import { useTheme } from '@/hooks/use-theme';
 import { getEmailUrl, getPhoneUrl, normalizeWebsiteUrl } from '@/utils/organizer-links';
+import { listUpcomingActivities } from '@/utils/upcoming-activities';
 
 type ContactRowProps = {
   icon: SymbolViewProps['name'];
@@ -111,11 +112,12 @@ export default function OrganizerScreen() {
     ? resolveOrganizerName(organizers, activities, organizerSlug)
     : null;
   const profile = toProfileView(organization, legacyOrganizer, fallbackName);
-  const listedActivities = organization
+  const organizerActivities = organization
     ? getActivitiesForOrganization(activities, organization)
     : organizerSlug
       ? getActivitiesByOrganizerSlug(activities, organizerSlug)
       : [];
+  const listedActivities = listUpcomingActivities(organizerActivities);
   const isLoading = isLoadingActivities || isLoadingOrganizations || isLoadingOrganizers;
 
   if (!organizerSlug || (!isLoading && !profile)) {

@@ -7,11 +7,12 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { getActivitiesWithCoordinates } from '@/constants/activities';
 import { useActivities } from '@/contexts/activities-context';
+import { listUpcomingActivities } from '@/utils/upcoming-activities';
 
 export default function KartaScreen() {
   const insets = useSafeAreaInsets();
   const { activities } = useActivities();
-  const mapActivities = getActivitiesWithCoordinates(activities);
+  const mapActivities = getActivitiesWithCoordinates(listUpcomingActivities(activities));
   const subtitle =
     mapActivities.length === 1
       ? '1 aktivitet på kartan'

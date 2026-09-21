@@ -152,6 +152,16 @@ export function formatDateKey(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** True when the activity date is before the reference calendar day (same rules as app admin stats). */
+export function isActivityCompleted(activityDate: string, reference: Date = new Date()): boolean {
+  const parsed = parseDateValue(activityDate);
+  if (!parsed) {
+    return false;
+  }
+
+  return formatDateKey(parsed) < formatDateKey(reference);
+}
+
 export function addDays(date: Date, days: number): Date {
   const next = new Date(date);
   next.setDate(next.getDate() + days);

@@ -37,7 +37,7 @@ import { useUserProfile } from '@/contexts/user-profile-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import { browseActivities } from '@/utils/activity-browse';
-import { getUpcomingActivities } from '@/utils/upcoming-activities';
+import { getUpcomingActivities, listUpcomingActivities } from '@/utils/upcoming-activities';
 import { countUpcomingBookings } from '@/utils/upcoming-bookings-count';
 import { getUserFirstName } from '@/utils/user-display-name';
 
@@ -76,14 +76,19 @@ export default function AktiviteterScreen() {
 
   const firstName = useMemo(() => getUserFirstName(profile, user), [profile, user]);
 
+  const activitiesForBrowse = useMemo(
+    () => listUpcomingActivities(activities),
+    [activities],
+  );
+
   const filteredActivities = useMemo(
     () =>
-      browseActivities(activities, {
+      browseActivities(activitiesForBrowse, {
         query: searchQuery,
         category: selectedCategory,
         quickFilters,
       }),
-    [activities, searchQuery, selectedCategory, quickFilters],
+    [activitiesForBrowse, searchQuery, selectedCategory, quickFilters],
   );
 
   const upcomingActivities = useMemo(

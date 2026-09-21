@@ -5,10 +5,9 @@ function startOfLocalDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
 }
 
-/** Upcoming non-cancelled activities sorted by date, nearest first. */
-export function getUpcomingActivities(
+/** Upcoming non-cancelled activities sorted by date, nearest first (no limit). */
+export function listUpcomingActivities(
   activities: Activity[],
-  limit: number,
   referenceDate: Date = new Date(),
 ): Activity[] {
   const today = startOfLocalDay(referenceDate).getTime();
@@ -26,6 +25,14 @@ export function getUpcomingActivities(
       const dateA = parseDateValue(a.date)?.getTime() ?? Number.MAX_SAFE_INTEGER;
       const dateB = parseDateValue(b.date)?.getTime() ?? Number.MAX_SAFE_INTEGER;
       return dateA - dateB;
-    })
-    .slice(0, Math.max(0, limit));
+    });
+}
+
+/** Upcoming non-cancelled activities sorted by date, nearest first. */
+export function getUpcomingActivities(
+  activities: Activity[],
+  limit: number,
+  referenceDate: Date = new Date(),
+): Activity[] {
+  return listUpcomingActivities(activities, referenceDate).slice(0, Math.max(0, limit));
 }

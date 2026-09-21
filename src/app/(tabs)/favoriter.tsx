@@ -34,7 +34,7 @@ export default function FavoriterScreen() {
         <ActivityList>
           {favorites.map((activity) => (
             <ActivityListItem key={activity.id}>
-              <ActivityCard activity={activity} />
+              <ActivityCard activity={activity} showCompletedBadge />
             </ActivityListItem>
           ))}
         </ActivityList>

@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
+import { isActivityCompleted } from '../notifications/activity-fields';
 import { COLLECTIONS } from '../notifications/types';
 import { europeWest1CallableOptions } from '../config/callable-options';
 import { readRegistrationStatus } from '../triggers/sync-activity-participants';
@@ -115,6 +116,14 @@ export const bookActivityRegistration = onCall(
             'Du är redan anmäld till den här aktiviteten.',
           );
         }
+      }
+
+      const storedDate = typeof activityData.date === 'string' ? activityData.date : '';
+      if (isActivityCompleted(storedDate)) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Aktiviteten har passerat och går inte längre att boka.',
+        );
       }
 
       const registeredQuery = registrationRef.parent.where('status', '==', 'registered');

@@ -34,6 +34,7 @@ import {
   getActivityRegistrationAction,
   isActivityFullWithBookedCount,
 } from '@/utils/activity-registration';
+import { isActivityCompleted } from '@/utils/admin-statistics';
 import {
   createCancellationNotification,
   createRegistrationConfirmedNotification,
@@ -86,6 +87,7 @@ export function ActivityRegistrationButton({
   const registrationEnabled =
     activity.registrationRequired === true || activity.membershipRequired === true;
 
+  const isPastActivity = isActivityCompleted(activity.date);
   const action = registrationEnabled ? getActivityRegistrationAction(activity) : null;
   const full = isActivityFullWithBookedCount(activity, bookedCount);
   const registered = isRegistered(activity.id);
@@ -94,7 +96,9 @@ export function ActivityRegistrationButton({
   const formMode: ActivityRegistrationFormMode =
     full && usesSeniorHubForm ? 'waitlist' : 'registered';
   /** SeniorHub waitlist is allowed when full; external methods stay blocked when full. */
-  const canOpenRegistration = usesSeniorHubForm ? !registered && !onWaitlist : !full && !registered;
+  const canOpenRegistration =
+    !isPastActivity &&
+    (usesSeniorHubForm ? !registered && !onWaitlist : !full && !registered);
 
   useEffect(() => {
     if (!isSignedIn || !usesSeniorHubForm) {
@@ -415,6 +419,19 @@ export function ActivityRegistrationButton({
     );
   }
 
+  if (isPastActivity) {
+    return (
+      <View
+        style={[styles.completedBadge, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+        accessibilityRole="text"
+        accessibilityLabel="Genomförd">
+        <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.completedBadgeText}>
+          Genomförd
+        </ThemedText>
+      </View>
+    );
+  }
+
   const buttonDisabled = !canOpenRegistration || isSubmitting;
   const buttonLabel =
     !usesSeniorHubForm && full ? 'Fullbokad' : 'Anmäl mig';
@@ -489,6 +506,19 @@ const styles = StyleSheet.create({
   },
   registeredBadgeText: {
     color: '#1B7A4E',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  completedBadge: {
+    minHeight: 64,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+    marginBottom: Spacing.two,
+  },
+  completedBadgeText: {
     fontWeight: '700',
     textAlign: 'center',
   },

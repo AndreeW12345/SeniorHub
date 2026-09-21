@@ -12,18 +12,22 @@ import { getCategoryEmoji, getCategoryVisual } from '@/constants/category-visual
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
+import { isActivityCompleted } from '@/utils/admin-statistics';
 
 type ActivityCardProps = {
   activity: Activity;
+  /** When true, past activities show a "Genomförd" badge (Favoriter only). */
+  showCompletedBadge?: boolean;
 };
 
-export function ActivityCard({ activity }: ActivityCardProps) {
+export function ActivityCard({ activity, showCompletedBadge = false }: ActivityCardProps) {
   const theme = useTheme();
   const router = useRouter();
   const { imageHeight } = useResponsive();
   const categoryVisual = getCategoryVisual(activity.category);
   const categoryEmoji = getCategoryEmoji(activity.category);
   const placeName = getActivityPlaceName(activity);
+  const showCompletedState = showCompletedBadge && isActivityCompleted(activity.date);
 
   const openActivity = () => {
     router.push(`/activity/${activity.id}` as Href);
@@ -67,9 +71,23 @@ export function ActivityCard({ activity }: ActivityCardProps) {
           <View style={styles.metaGroup}>
             <ActivitySchedule date={activity.date} time={activity.time} />
             <ActivityCardMetaRow icon="📍" value={placeName} accessibilityPrefix="Plats" />
-            <ActivityCardAvailability activity={activity} />
+            {showCompletedState ? null : <ActivityCardAvailability activity={activity} />}
           </View>
         </Pressable>
+
+        {showCompletedState ? (
+          <View
+            style={[
+              styles.completedBadge,
+              { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+            ]}
+            accessibilityRole="text"
+            accessibilityLabel="Genomförd">
+            <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.completedBadgeText}>
+              Genomförd
+            </ThemedText>
+          </View>
+        ) : null}
 
         <Pressable
           onPress={openActivity}
@@ -156,5 +174,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 22,
     lineHeight: 28,
+  },
+  completedBadge: {
+    minHeight: 64,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+  },
+  completedBadgeText: {
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
