@@ -65,6 +65,7 @@ export const COLLECTIONS = {
   activities: 'activities',
   users: 'users',
   admins: 'admins',
+  organizations: 'organizations',
   registrations: 'registrations',
   userNotifications: 'notifications',
   reminderDeliveries: 'reminderDeliveries',

@@ -2,6 +2,9 @@ import { initializeApp } from 'firebase-admin/app';
 
 import { bookActivityRegistration } from './callable/book-activity-registration';
 import { requestLoginMagicLink } from './callable/check-login-email';
+import { createOrganization } from './callable/create-organization';
+import { inviteOrganizerAdmin } from './callable/invite-organizer-admin';
+import { listOrganizationAdmins } from './callable/list-organization-admins';
 import { checkRegistrationPhone } from './callable/check-registration-phone';
 import { deleteUserAccount } from './callable/delete-user-account';
 import { scheduledActivityReminders } from './scheduled/activity-reminders';
@@ -14,6 +17,9 @@ initializeApp();
 
 export {
   bookActivityRegistration,
+  createOrganization,
+  inviteOrganizerAdmin,
+  listOrganizationAdmins,
   requestLoginMagicLink,
   checkRegistrationPhone,
   deleteUserAccount,

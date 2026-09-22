@@ -143,6 +143,41 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="admin/platform/index"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="admin/platform/create-organization"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="admin/platform/organizations/index"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="admin/platform/organization/[organizationId]"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="admin/platform/organization/[organizationId]/admins"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
                                 name="profil/edit"
                                 options={{
                                   presentation: 'card',

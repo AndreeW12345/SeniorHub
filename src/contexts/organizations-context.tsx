@@ -14,6 +14,7 @@ import {
   findOrganizationBySlug,
 } from '@/constants/organizations';
 import { isFirebaseConfigured } from '@/firebase/config';
+import { REFRESH_ORGANIZATIONS_FETCH_OPTIONS } from '@/constants/organizations-refresh-fetch';
 import { fetchOrganizationsFromFirestore } from '@/services/organizations';
 
 type OrganizationsContextValue = {
@@ -37,7 +38,7 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const remote = await fetchOrganizationsFromFirestore();
+      const remote = await fetchOrganizationsFromFirestore(REFRESH_ORGANIZATIONS_FETCH_OPTIONS);
       setOrganizations(remote);
     } catch (error) {
       console.warn('Kunde inte uppdatera organisationer från Firestore:', error);

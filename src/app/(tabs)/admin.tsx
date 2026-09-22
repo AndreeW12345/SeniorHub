@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { filterActivitiesForAdminScope } from '@/utils/activity-organization';
 import { groupActivitiesForAdminList } from '@/utils/admin-activity-list';
+import { shouldShowSuperAdminPlatformLink } from '@/utils/super-admin-access';
 
 export default function AdminScreen() {
   return (
@@ -29,7 +30,7 @@ export default function AdminScreen() {
 function AdminScreenContent() {
   const router = useRouter();
   const theme = useTheme();
-  const { user, adminAccount, isSuperAdmin, signOut } = useAuth();
+  const { user, adminAccount, isAdmin, isSuperAdmin, signOut } = useAuth();
   const { refreshActivities } = useActivities();
   const { saved, updated } = useLocalSearchParams<{ saved?: string; updated?: string }>();
   const successMessage =
@@ -105,6 +106,7 @@ function AdminScreenContent() {
   }, [isSuperAdmin]);
 
   const listTitle = activityScope === 'all' && isSuperAdmin ? 'Alla aktiviteter' : 'Mina aktiviteter';
+  const showSuperAdminPlatformLink = shouldShowSuperAdminPlatformLink(isAdmin, adminAccount);
 
   return (
     <ScreenLayout title="Administratör" subtitle="Hantera aktiviteter i Firestore">
@@ -173,6 +175,22 @@ function AdminScreenContent() {
           Organisationsprofil
         </ThemedText>
       </Pressable>
+
+      {showSuperAdminPlatformLink ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="SeniorHub-administration"
+          onPress={() => router.push('/admin/platform' as Href)}
+          style={({ pressed }) => [
+            styles.statsButton,
+            { borderColor: theme.primary, backgroundColor: theme.background },
+            pressed && styles.addButtonPressed,
+          ]}>
+          <ThemedText type="bodyLarge" themeColor="primary" style={styles.statsButtonText}>
+            SeniorHub-administration
+          </ThemedText>
+        </Pressable>
+      ) : null}
 
       <View style={styles.listSection}>
         <ThemedText type="sectionTitle">{listTitle}</ThemedText>

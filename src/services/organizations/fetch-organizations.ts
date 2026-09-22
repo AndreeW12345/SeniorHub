@@ -1,6 +1,7 @@
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, getDocsFromServer } from 'firebase/firestore';
 
 import type { Organization } from '@/constants/organizations';
+import type { FetchOrganizationsOptions } from '@/constants/organizations-refresh-fetch';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
 import { mapOrganizationDocument } from '@/services/organizations/map-organization-document';
@@ -26,7 +27,9 @@ export async function fetchOrganizationByIdFromFirestore(
   return mapOrganizationDocument(snapshot.id, snapshot.data());
 }
 
-export async function fetchOrganizationsFromFirestore(): Promise<Organization[]> {
+export async function fetchOrganizationsFromFirestore(
+  options?: FetchOrganizationsOptions,
+): Promise<Organization[]> {
   if (!isFirebaseConfigured()) {
     return [];
   }
@@ -36,7 +39,11 @@ export async function fetchOrganizationsFromFirestore(): Promise<Organization[]>
     return [];
   }
 
-  const snapshot = await getDocs(collection(db, FIRESTORE_COLLECTIONS.organizations));
+  const organizationsRef = collection(db, FIRESTORE_COLLECTIONS.organizations);
+  const snapshot =
+    options?.source === 'server'
+      ? await getDocsFromServer(organizationsRef)
+      : await getDocs(organizationsRef);
 
   return snapshot.docs
     .map((document) => mapOrganizationDocument(document.id, document.data()))
