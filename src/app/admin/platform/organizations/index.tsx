@@ -1,4 +1,5 @@
-import { useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useCallback } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { SuperAdminGuard } from '@/components/super-admin-guard';
@@ -19,7 +20,13 @@ export default function SuperAdminOrganizationsScreen() {
 function SuperAdminOrganizationsScreenContent() {
   const theme = useTheme();
   const router = useRouter();
-  const { organizations, isLoading } = useOrganizations();
+  const { organizations, isLoading, refreshOrganizations } = useOrganizations();
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshOrganizations();
+    }, [refreshOrganizations]),
+  );
 
   return (
     <ScreenLayout

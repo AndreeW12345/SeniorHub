@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { OrganizationProfileForm } from '@/components/organization-profile-form';
 import { SuperAdminGuard } from '@/components/super-admin-guard';
@@ -37,35 +37,33 @@ function SuperAdminOrganizationProfileScreenContent() {
   }
 
   return (
-    <View style={styles.wrapper}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Hantera administratörer"
-        onPress={() =>
-          router.push(`/admin/platform/organization/${organizationId}/admins` as Href)
-        }
-        style={({ pressed }) => [styles.adminLink, pressed && styles.pressed]}>
-        <ThemedText type="linkPrimary">Hantera administratörer</ThemedText>
-      </Pressable>
-      <OrganizationProfileForm
-        organizationId={organizationId}
-        title="Organisationsprofil"
-        subtitle={`Redigerar ${organizationId}`}
-        onSaved={() => refreshOrganizations()}
-      />
-    </View>
+    <OrganizationProfileForm
+      organizationId={organizationId}
+      title="Organisationsprofil"
+      subtitle={`Redigerar ${organizationId}`}
+      onSaved={() => refreshOrganizations()}
+      topContent={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Hantera administratörer"
+          onPress={() =>
+            router.push(`/admin/platform/organization/${organizationId}/admins` as Href)
+          }
+          style={({ pressed }) => [styles.adminLink, pressed && styles.pressed]}>
+          <ThemedText type="linkPrimary">Hantera administratörer</ThemedText>
+        </Pressable>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    gap: Spacing.two,
-  },
   adminLink: {
-    alignItems: 'flex-end',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingVertical: Spacing.two,
   },
   pressed: {
     opacity: 0.9,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -20,6 +20,8 @@ export type OrganizationProfileFormProps = {
   title?: string;
   subtitle?: string;
   onSaved?: () => void | Promise<void>;
+  /** Rendered at the top of scroll content, directly under the screen header. */
+  topContent?: ReactNode;
 };
 
 export function OrganizationProfileForm({
@@ -27,6 +29,7 @@ export function OrganizationProfileForm({
   title = 'Organisationsprofil',
   subtitle = 'Det här ser deltagarna när de öppnar er organisation',
   onSaved,
+  topContent,
 }: OrganizationProfileFormProps) {
   const theme = useTheme();
   const trimmedOrganizationId = organizationId.trim();
@@ -251,6 +254,7 @@ export function OrganizationProfileForm({
           </Pressable>
         </>
       }>
+      {topContent ? <View style={styles.topContent}>{topContent}</View> : null}
       <View style={styles.form}>
         <AdminFormSection
           title="Organisation"
@@ -367,6 +371,9 @@ export function OrganizationProfileForm({
 }
 
 const styles = StyleSheet.create({
+  topContent: {
+    width: '100%',
+  },
   form: {
     gap: Spacing.five,
   },

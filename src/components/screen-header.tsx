@@ -24,7 +24,8 @@ export function ScreenHeader({
 }: ScreenHeaderProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { horizontalPadding, headerPaddingBottom } = useResponsive();
+  const { horizontalPadding, isCompact } = useResponsive();
+  const headerPaddingBottom = isCompact ? 14 : 18;
 
   return (
     <View
@@ -32,17 +33,17 @@ export function ScreenHeader({
         styles.header,
         {
           backgroundColor: theme.primary,
-          paddingTop: insets.top + Spacing.four,
+          paddingTop: insets.top + Spacing.two,
           paddingHorizontal: horizontalPadding,
           paddingBottom: headerPaddingBottom,
         },
       ]}>
       {showBackButton ? <BackButton /> : null}
-      <ThemedText type="title" style={styles.title}>
+      <ThemedText type="title" style={[styles.title, isCompact && styles.titleCompact]}>
         {title}
       </ThemedText>
       {subtitle && (
-        <ThemedText type="bodyLarge" style={styles.subtitle}>
+        <ThemedText type="bodyLarge" style={[styles.subtitle, isCompact && styles.subtitleCompact]}>
           {subtitle}
         </ThemedText>
       )}
@@ -53,13 +54,21 @@ export function ScreenHeader({
 
 const styles = StyleSheet.create({
   header: {
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
   title: {
     color: '#FFFFFF',
   },
+  titleCompact: {
+    fontSize: 32,
+    lineHeight: 38,
+  },
   subtitle: {
     color: '#C6DCF0',
     maxWidth: 640,
+  },
+  subtitleCompact: {
+    fontSize: 19,
+    lineHeight: 28,
   },
 });

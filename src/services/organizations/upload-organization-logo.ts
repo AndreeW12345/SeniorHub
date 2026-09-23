@@ -1,4 +1,4 @@
-import { getDownloadURL, ref, uploadString } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { getFirebaseStorage, isFirebaseStorageConfigured } from '@/firebase';
 import { compressActivityImage } from '@/services/storage/upload-activity-image';
@@ -6,6 +6,18 @@ import { compressActivityImage } from '@/services/storage/upload-activity-image'
 export type UploadOrganizationLogoResult =
   | { ok: true; downloadUrl: string }
   | { ok: false; errorMessage: string };
+
+/** RN-compatible blob from a local file URI (uploadString base64 uses unsupported ArrayBuffer blobs). */
+function uriToBlob(uri: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = () => resolve(xhr.response);
+    xhr.onerror = () => reject(new TypeError('Network request failed'));
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
+}
 
 /** Uploads an organization logo to Firebase Storage. */
 export async function uploadOrganizationLogo(
@@ -28,13 +40,14 @@ export async function uploadOrganizationLogo(
 
   try {
     const compressed = await compressActivityImage(localUri);
-    if (!compressed.base64) {
+    if (!compressed.uri) {
       return { ok: false, errorMessage: 'Kunde inte förbereda logotypen för uppladdning.' };
     }
 
     const path = `organizations/${trimmedOrgId}/logo.jpg`;
     const storageRef = ref(storage, path);
-    await uploadString(storageRef, compressed.base64, 'base64', {
+    const blob = await uriToBlob(compressed.uri);
+    await uploadBytes(storageRef, blob, {
       contentType: 'image/jpeg',
     });
     const downloadUrl = await getDownloadURL(storageRef);
