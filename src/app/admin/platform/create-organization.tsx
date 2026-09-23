@@ -39,6 +39,8 @@ function SuperAdminCreateOrganizationScreenContent() {
   const [createdOrganizationName, setCreatedOrganizationName] = useState<string | null>(null);
   const [createdOrganizationSlug, setCreatedOrganizationSlug] = useState<string | null>(null);
 
+  const isSuccess = createdOrganizationId !== null;
+
   const handleSubmit = async () => {
     const nextErrors = validateCreateOrganizationForm({ organizationId, name });
     setErrors(nextErrors);
@@ -74,106 +76,131 @@ function SuperAdminCreateOrganizationScreenContent() {
   return (
     <ScreenLayout
       title="Skapa organisation"
-      subtitle="Steg 1 – grunduppgifter för en ny förening"
+      subtitle={
+        isSuccess
+          ? 'Organisationen är skapad'
+          : 'Steg 1 – grunduppgifter för en ny förening'
+      }
       showBackButton
       omitTabInset
+      scrollable={!isSuccess}
+      contentStyle={isSuccess ? styles.successContent : undefined}
       footer={
-        <>
-          {submitError ? (
-            <View
-              style={[
-                styles.banner,
-                CardShadow,
-                { backgroundColor: '#FDF2F4', borderColor: theme.favorite },
-              ]}>
-              <ThemedText type="bodyLarge" themeColor="favorite" style={styles.bannerText}>
-                {submitError}
-              </ThemedText>
-            </View>
-          ) : null}
-          {createdOrganizationId ? (
-            <View
-              style={[
-                styles.banner,
-                CardShadow,
-                { backgroundColor: theme.primaryLight, borderColor: theme.primary },
-              ]}>
-              <ThemedText type="bodyLarge" themeColor="primary" style={styles.bannerText}>
-                Organisationen skapades.
-              </ThemedText>
-              <ThemedText type="bodyLarge" themeColor="primary" style={styles.bannerText}>
-                ID: {createdOrganizationId}
-              </ThemedText>
-              {createdOrganizationName ? (
-                <ThemedText type="bodyLarge" themeColor="primary" style={styles.bannerText}>
-                  Namn: {createdOrganizationName}
-                </ThemedText>
-              ) : null}
-              {createdOrganizationSlug ? (
-                <ThemedText type="bodyLarge" themeColor="primary" style={styles.bannerText}>
-                  Publik slug: {createdOrganizationSlug}
-                </ThemedText>
-              ) : null}
-            </View>
-          ) : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Skapa organisation"
-            disabled={isSaving}
-            onPress={() => void handleSubmit()}
-            style={({ pressed }) => [
-              styles.saveButton,
-              CardShadow,
-              { backgroundColor: theme.primary },
-              (pressed || isSaving) && styles.pressed,
-              isSaving && styles.disabled,
-            ]}>
-            {isSaving ? (
-              <View style={styles.saveBusyRow}>
-                <ActivityIndicator color="#FFFFFF" />
-                <ThemedText type="bodyLarge" style={styles.saveButtonText}>
-                  Skapar...
+        isSuccess ? undefined : (
+          <>
+            {submitError ? (
+              <View
+                style={[
+                  styles.banner,
+                  CardShadow,
+                  { backgroundColor: '#FDF2F4', borderColor: theme.favorite },
+                ]}>
+                <ThemedText type="bodyLarge" themeColor="favorite" style={styles.bannerText}>
+                  {submitError}
                 </ThemedText>
               </View>
-            ) : (
-              <ThemedText type="bodyLarge" style={styles.saveButtonText}>
-                Skapa organisation
-              </ThemedText>
-            )}
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Tillbaka till SeniorHub-administration"
-            onPress={() => router.replace('/admin/platform' as Href)}
-            style={({ pressed }) => [styles.secondaryLink, pressed && styles.pressed]}>
-            <ThemedText type="linkPrimary">Tillbaka till SeniorHub-administration</ThemedText>
-          </Pressable>
-        </>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Skapa organisation"
+              disabled={isSaving}
+              onPress={() => void handleSubmit()}
+              style={({ pressed }) => [
+                styles.saveButton,
+                CardShadow,
+                { backgroundColor: theme.primary },
+                (pressed || isSaving) && styles.pressed,
+                isSaving && styles.disabled,
+              ]}>
+              {isSaving ? (
+                <View style={styles.saveBusyRow}>
+                  <ActivityIndicator color="#FFFFFF" />
+                  <ThemedText type="bodyLarge" style={styles.saveButtonText}>
+                    Skapar...
+                  </ThemedText>
+                </View>
+              ) : (
+                <ThemedText type="bodyLarge" style={styles.saveButtonText}>
+                  Skapa organisation
+                </ThemedText>
+              )}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Tillbaka till SeniorHub-administration"
+              onPress={() => router.replace('/admin/platform' as Href)}
+              style={({ pressed }) => [styles.secondaryLink, pressed && styles.pressed]}>
+              <ThemedText type="linkPrimary">Tillbaka till SeniorHub-administration</ThemedText>
+            </Pressable>
+          </>
+        )
       }>
-      <View style={styles.form}>
-        <AdminFormSection
-          title="Grunduppgifter"
-          description="Organisations-id används internt. Namnet visas publikt och styr slug för organisationssidan.">
-          <FormField
-            label="Organisations-id *"
-            value={organizationId}
-            onChangeText={setOrganizationId}
-            error={errors.organizationId}
-            placeholder="spf-tyreso"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!isSaving}
-          />
-          <FormField
-            label="Organisationsnamn *"
-            value={name}
-            onChangeText={setName}
-            error={errors.name}
-            placeholder="Till exempel SPF Tyresö"
-            editable={!isSaving}
-          />
-        </AdminFormSection>
-      </View>
+      {isSuccess ? (
+        <View style={styles.successRoot}>
+          <View
+            style={[
+              styles.successCard,
+              CardShadow,
+              { backgroundColor: theme.primaryLight, borderColor: theme.primary },
+            ]}>
+            <ThemedText type="sectionTitle" themeColor="primary" style={styles.successTitle}>
+              Organisationen skapades
+            </ThemedText>
+            <ThemedText type="bodyLarge" themeColor="primary" style={styles.bannerText}>
+              ID: {createdOrganizationId}
+            </ThemedText>
+            {createdOrganizationName ? (
+              <ThemedText type="bodyLarge" themeColor="primary" style={styles.bannerText}>
+                Namn: {createdOrganizationName}
+              </ThemedText>
+            ) : null}
+            {createdOrganizationSlug ? (
+              <ThemedText type="bodyLarge" themeColor="primary" style={styles.bannerText}>
+                Publik slug: {createdOrganizationSlug}
+              </ThemedText>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Tillbaka till organisationer"
+              onPress={() => router.replace('/admin/platform/organizations' as Href)}
+              style={({ pressed }) => [
+                styles.saveButton,
+                CardShadow,
+                { backgroundColor: theme.primary },
+                pressed && styles.pressed,
+              ]}>
+              <ThemedText type="bodyLarge" style={styles.saveButtonText}>
+                Tillbaka till organisationer
+              </ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.form}>
+          <AdminFormSection
+            title="Grunduppgifter"
+            description="Organisations-id används internt. Namnet visas publikt och styr slug för organisationssidan.">
+            <FormField
+              label="Organisations-id *"
+              value={organizationId}
+              onChangeText={setOrganizationId}
+              error={errors.organizationId}
+              placeholder="spf-tyreso"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isSaving}
+            />
+            <FormField
+              label="Organisationsnamn *"
+              value={name}
+              onChangeText={setName}
+              error={errors.name}
+              placeholder="Till exempel SPF Tyresö"
+              editable={!isSaving}
+            />
+          </AdminFormSection>
+        </View>
+      )}
     </ScreenLayout>
   );
 }
@@ -181,6 +208,27 @@ function SuperAdminCreateOrganizationScreenContent() {
 const styles = StyleSheet.create({
   form: {
     gap: Spacing.five,
+  },
+  successContent: {
+    flex: 1,
+    paddingTop: Spacing.three,
+  },
+  successRoot: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  successCard: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.six,
+    gap: Spacing.four,
+    width: '100%',
+  },
+  successTitle: {
+    textAlign: 'center',
+    fontWeight: '700',
   },
   banner: {
     borderRadius: Radius.xl,
