@@ -20,13 +20,21 @@ export default function SuperAdminOrganizationsScreen() {
 function SuperAdminOrganizationsScreenContent() {
   const theme = useTheme();
   const router = useRouter();
-  const { organizations, isLoading, refreshOrganizations } = useOrganizations();
+  const { organizations, isLoading, loadError, refreshOrganizations } = useOrganizations();
 
   useFocusEffect(
     useCallback(() => {
       void refreshOrganizations();
     }, [refreshOrganizations]),
   );
+
+  const handleRetry = () => {
+    void refreshOrganizations();
+  };
+
+  const handleCreateOrganization = () => {
+    router.push('/admin/platform/create-organization' as Href);
+  };
 
   return (
     <ScreenLayout
@@ -38,14 +46,67 @@ function SuperAdminOrganizationsScreenContent() {
         <View style={styles.loadingState}>
           <ActivityIndicator size="large" color={theme.primary} />
         </View>
+      ) : loadError && organizations.length === 0 ? (
+        <View style={[styles.messageCard, CardShadow, { backgroundColor: theme.card }]}>
+          <ThemedText type="bodyLarge" themeColor="favorite" style={styles.messageText}>
+            {loadError}
+          </ThemedText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Försök igen"
+            onPress={handleRetry}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              CardShadow,
+              { backgroundColor: theme.primary },
+              pressed && styles.pressed,
+            ]}>
+            <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
+              Försök igen
+            </ThemedText>
+          </Pressable>
+        </View>
       ) : organizations.length === 0 ? (
-        <View style={[styles.emptyCard, CardShadow, { backgroundColor: theme.card }]}>
-          <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.emptyText}>
+        <View style={[styles.messageCard, CardShadow, { backgroundColor: theme.card }]}>
+          <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.messageText}>
             Inga organisationer hittades. Skapa en organisation först.
           </ThemedText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Skapa organisation"
+            onPress={handleCreateOrganization}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              CardShadow,
+              { backgroundColor: theme.primary },
+              pressed && styles.pressed,
+            ]}>
+            <ThemedText type="bodyLarge" style={styles.primaryButtonText}>
+              Skapa organisation
+            </ThemedText>
+          </Pressable>
         </View>
       ) : (
         <View style={styles.list}>
+          {loadError ? (
+            <View
+              style={[
+                styles.errorBanner,
+                CardShadow,
+                { backgroundColor: '#FDF2F4', borderColor: theme.favorite },
+              ]}>
+              <ThemedText type="bodyLarge" themeColor="favorite" style={styles.messageText}>
+                {loadError}
+              </ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Försök igen"
+                onPress={handleRetry}
+                style={({ pressed }) => [styles.retryLink, pressed && styles.pressed]}>
+                <ThemedText type="linkPrimary">Försök igen</ThemedText>
+              </Pressable>
+            </View>
+          ) : null}
           {organizations.map((organization) => (
             <Pressable
               key={organization.id}
@@ -92,13 +153,36 @@ const styles = StyleSheet.create({
   rowTitle: {
     fontWeight: '700',
   },
-  emptyCard: {
+  messageCard: {
     borderRadius: Radius.xl,
     padding: Spacing.five,
+    gap: Spacing.four,
   },
-  emptyText: {
+  messageText: {
     textAlign: 'center',
     lineHeight: 28,
+  },
+  errorBanner: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.five,
+    paddingVertical: Spacing.four,
+    gap: Spacing.three,
+  },
+  primaryButton: {
+    minHeight: 56,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  retryLink: {
+    alignItems: 'center',
+    paddingVertical: Spacing.one,
   },
   pressed: {
     opacity: 0.9,
