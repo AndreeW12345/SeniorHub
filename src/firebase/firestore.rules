@@ -260,7 +260,8 @@ service cloud.firestore {
     match /organizations/{organizationId} {
       allow read: if true;
       allow create: if isSuperAdmin();
-      allow update, delete: if adminCanAccessOrganization(organizationId);
+      allow update: if adminCanAccessOrganization(organizationId);
+      allow delete: if isSuperAdmin();
     }
 
     match /organizerApplications/{applicationId} {

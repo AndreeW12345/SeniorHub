@@ -3,8 +3,10 @@ import { initializeApp } from 'firebase-admin/app';
 import { bookActivityRegistration } from './callable/book-activity-registration';
 import { requestLoginMagicLink } from './callable/check-login-email';
 import { createOrganization } from './callable/create-organization';
+import { deleteOrganization } from './callable/delete-organization';
 import { inviteOrganizerAdmin } from './callable/invite-organizer-admin';
 import { listOrganizationAdmins } from './callable/list-organization-admins';
+import { revokeOrganizerAdmin } from './callable/revoke-organizer-admin';
 import { checkRegistrationPhone } from './callable/check-registration-phone';
 import { deleteUserAccount } from './callable/delete-user-account';
 import { scheduledActivityReminders } from './scheduled/activity-reminders';
@@ -18,8 +20,10 @@ initializeApp();
 export {
   bookActivityRegistration,
   createOrganization,
+  deleteOrganization,
   inviteOrganizerAdmin,
   listOrganizationAdmins,
+  revokeOrganizerAdmin,
   requestLoginMagicLink,
   checkRegistrationPhone,
   deleteUserAccount,

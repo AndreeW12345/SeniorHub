@@ -153,3 +153,44 @@ export function buildInviteOrganizerAdminCallablePayload(params: {
     ? { organizationId, email, displayName }
     : { organizationId, email };
 }
+
+const TARGET_ADMIN_UID_PATTERN = /^[a-zA-Z0-9]{10,128}$/;
+
+export function readTargetAdminUidInput(value: string): string | null {
+  const trimmed = value.trim();
+  if (!TARGET_ADMIN_UID_PATTERN.test(trimmed)) {
+    return null;
+  }
+
+  return trimmed;
+}
+
+/** Payload for revokeOrganizerAdmin — organizationId from locked route only. */
+export function buildRevokeOrganizerAdminCallablePayload(params: {
+  lockedOrganizationId: string;
+  targetAdminUid: string;
+}): { organizationId: string; targetAdminUid: string } | null {
+  const organizationId = normalizeOrganizationIdInput(params.lockedOrganizationId);
+  const targetAdminUid = readTargetAdminUidInput(params.targetAdminUid);
+
+  if (!organizationId || !targetAdminUid) {
+    return null;
+  }
+
+  return { organizationId, targetAdminUid };
+}
+
+/** Payload for deleteOrganization — confirmOrganizationId must match locked organizationId. */
+export function buildDeleteOrganizationCallablePayload(params: {
+  lockedOrganizationId: string;
+  confirmOrganizationId: string;
+}): { organizationId: string; confirmOrganizationId: string } | null {
+  const organizationId = normalizeOrganizationIdInput(params.lockedOrganizationId);
+  const confirmOrganizationId = normalizeOrganizationIdInput(params.confirmOrganizationId);
+
+  if (!organizationId || !confirmOrganizationId || organizationId !== confirmOrganizationId) {
+    return null;
+  }
+
+  return { organizationId, confirmOrganizationId };
+}

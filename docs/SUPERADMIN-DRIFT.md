@@ -23,7 +23,7 @@ Org-admin **A** kan inte via regler ändra aktiviteters `organizationId` till or
 4. **Skapa organisation:** `/admin/platform/create-organization` → callable **`createOrganization`**.
 5. **Lista organisationer:** `/admin/platform/organizations`.
 6. **Organisationsprofil:** `/admin/platform/organization/[organizationId]` — sparar via befintlig org-profil (Firestore direkt, superadmin tillåten i regler).
-7. **Administratörer:** `/admin/platform/organization/[organizationId]/admins` — lista + inbjudan.
+7. **Administratörer:** `/admin/platform/organization/[organizationId]/admins` — lista, inbjudan och ta bort org-admin.
 
 Alla callable-anrop går via **`prepareCallableRequest`** (App Check + Functions-instans).
 
@@ -34,8 +34,14 @@ Alla callable-anrop går via **`prepareCallableRequest`** (App Check + Functions
 | `createOrganization` | Skapa `organizations/{id}` + slug | `src/services/super-admin/create-organization.ts` |
 | `listOrganizationAdmins` | Lista `admins` med `organizationId` + `role == admin` | `src/services/super-admin/list-organization-admins.ts` |
 | `inviteOrganizerAdmin` | Skapa/återanvänd Auth, skriv `admins/{uid}`, skicka lösenordslänk (Resend) | `src/services/super-admin/invite-organizer-admin.ts` |
+| `revokeOrganizerAdmin` | Ta bort `admins/{uid}` för org-admin i angiven tenant (Auth-konto kvar) | `src/services/super-admin/revoke-organizer-admin.ts` |
+| `deleteOrganization` | Radera tenant: org-admins, aktiviteter (+ underdokument), `organizations/{id}` (Auth kvar) | `src/services/super-admin/delete-organization.ts` |
 
 **Säkerhetsgräns på servern:** `assertSuperAdmin` i varje callable ovan. Klienten skickar `organizationId` från **låst route**; manipulation av payload ska fortfarande nekas eller begränsas av servervalidering och org-existens.
+
+**Revoke:** `revokeOrganizerAdmin` kräver `organizationId` + `targetAdminUid`. Servern tillåter endast mål med `role: admin` och matchande `organizationId`. Superadmin-konton, self-revoke och fel org nekas. Endast `admins/{uid}` raderas — Firebase Auth påverkas inte.
+
+**Radera organisation:** `deleteOrganization` kräver `organizationId` + `confirmOrganizationId` (måste matcha exakt). `seniorhub` blockeras. Callable raderar org-admins (`role: admin`), alla aktiviteter för org (registrations, announcements, reminderDeliveries, sedan aktivitet), därefter `organizations/{id}`. Superadmin-`admins`-dokument rörs inte. Auth-konton rörs inte. Firestore-regler: `organizations` **delete** endast superadmin (produktflöde via callable).
 
 **Deploy:** Callables måste vara deployade till projektet (region enligt `europeWest1CallableOptions`) innan UI fungerar i produktion. Detta dokument inkluderar ingen deploy.
 
@@ -98,7 +104,7 @@ SuperAdmin-plattformens e-post behöver allowlist om den också ska använda adm
 
 ## Manuell checklista efter deploy (referens)
 
-1. SuperAdmin: skapa org → redigera profil → lista admins → bjud in admin.
+1. SuperAdmin: skapa org → redigera profil → lista admins → bjud in admin → (valfritt) ta bort org-admin med bekräftelse.
 2. Ny admin: allowlist i klient + Functions, lösenord via mail, login, skapa aktivitet.
 3. Andra admin samma org: separat invite, båda syns i `listOrganizationAdmins`.
 4. Publik sida: öppna `/organizer/{slug}` för org.
@@ -111,6 +117,8 @@ SuperAdmin-plattformens e-post behöver allowlist om den också ska använda adm
 |----------|---------|
 | Flera admins samma org, filtrering annan org | `tests/list-organization-admins.test.mjs` |
 | Ingen tyst flytt mellan org vid invite | `tests/invite-organizer-admin.test.mjs` |
+| Revoke org-admin (policy, payload, self/superadmin nekas) | `tests/revoke-organizer-admin.test.mjs` |
+| Radera organisation (policy, confirm, cascade-plan) | `tests/delete-organization.test.mjs` |
 | SuperAdmin guard / org-admin nekas plattform | `tests/super-admin-access.test.mjs`, `tests/super-admin-organization-admins.test.mjs` |
 | Org-admin kan inte byta aktivitetens org | `tests/firestore-rules.test.mjs` |
 | Bli arrangör (ansökan) | `tests/firestore-rules.test.mjs` (`organizerApplications`) |

@@ -22,6 +22,8 @@ export type OrganizationProfileFormProps = {
   onSaved?: () => void | Promise<void>;
   /** Rendered at the top of scroll content, directly under the screen header. */
   topContent?: ReactNode;
+  /** Rendered after form sections (e.g. SuperAdmin destructive actions). */
+  bottomContent?: ReactNode;
 };
 
 export function OrganizationProfileForm({
@@ -30,6 +32,7 @@ export function OrganizationProfileForm({
   subtitle = 'Det här ser deltagarna när de öppnar er organisation',
   onSaved,
   topContent,
+  bottomContent,
 }: OrganizationProfileFormProps) {
   const theme = useTheme();
   const trimmedOrganizationId = organizationId.trim();
@@ -366,12 +369,16 @@ export function OrganizationProfileForm({
           />
         </AdminFormSection>
       </View>
+      {bottomContent ? <View style={styles.bottomContent}>{bottomContent}</View> : null}
     </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   topContent: {
+    width: '100%',
+  },
+  bottomContent: {
     width: '100%',
   },
   form: {
