@@ -235,8 +235,6 @@ service cloud.firestore {
         && userLegalConsentUnchanged()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(userSelfUpdateAllowedKeys());
 
-      allow update: if isAdmin() && userAdminUpdateValid();
-
       allow delete: if isSuperAdmin();
 
       match /security/{docId} {

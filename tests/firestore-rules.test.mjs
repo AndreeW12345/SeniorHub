@@ -545,6 +545,55 @@ describe('users/{uid}/notifications – owner-only read', () => {
   });
 });
 
+describe('users – owner-only update', () => {
+  it('allows a user to update their own profile fields', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertSucceeds(
+      updateDoc(doc(user1Db, 'users', 'user1'), {
+        name: 'User One Updated',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies a user from updating another user profile', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertFails(
+      updateDoc(doc(user1Db, 'users', 'user2'), {
+        name: 'Hacked',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies an organization admin from updating another user PII', async () => {
+    const adminDb = authedDb('admin1', { email: 'admin@seniorhub.se' });
+
+    await assertFails(
+      updateDoc(doc(adminDb, 'users', 'user2'), {
+        name: 'Admin Changed Name',
+        phone: '0709999999',
+        email: 'hacked@example.com',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies an organization admin from changing another user role or organizerOrganizationId', async () => {
+    const adminDb = authedDb('admin1', { email: 'admin@seniorhub.se' });
+
+    await assertFails(
+      updateDoc(doc(adminDb, 'users', 'user2'), {
+        role: 'organizer',
+        organizerOrganizationId: 'spf-tyreso',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+});
+
 describe('legal consent', () => {
   const LEGAL_TERMS_VERSION = '2026-09-07';
 
