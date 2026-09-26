@@ -136,7 +136,7 @@ describe('activities/**', () => {
 
   it('allows admin write', async () => {
     const storage = authedStorage('admin1');
-    await assertSucceeds(storage.ref('activities/admin-act/cover.jpg').put(jpegBlob()));
+    await assertSucceeds(storage.ref('activities/act-tyreso/cover.jpg').put(jpegBlob()));
   });
 
   it('allows organizer write for own organization activity', async () => {
