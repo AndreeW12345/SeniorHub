@@ -90,6 +90,17 @@ async function seedBaseData() {
       updatedAt: new Date(),
     });
 
+    await setDoc(doc(db, 'users/org-nacka'), {
+      name: 'Organizer Nacka',
+      email: 'org@spf-nacka.se',
+      phone: '0704444444',
+      photoUrl: null,
+      role: 'organizer',
+      organizerOrganizationId: 'spf-nacka',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
     await setDoc(doc(db, 'organizations/spf-tyreso'), {
       name: 'SPF Tyreso',
       status: 'active',
@@ -423,6 +434,12 @@ describe('security hardening', () => {
     );
   });
 
+  it('allows a user to read their own profile', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertSucceeds(getDoc(doc(user1Db, 'users', 'user1')));
+  });
+
   it('denies a user from reading another user profile', async () => {
     const user1Db = authedDb('user1', { email: 'user1@example.com' });
 
@@ -437,6 +454,94 @@ describe('security hardening', () => {
         organizationId: 'spf-nacka',
       }),
     );
+  });
+});
+
+describe('users – owner-only read', () => {
+  it('denies an organization admin from reading another user profile', async () => {
+    const adminDb = authedDb('admin1', { email: 'admin@seniorhub.se' });
+
+    await assertFails(getDoc(doc(adminDb, 'users', 'user2')));
+  });
+
+  it('denies an organization admin from reading an organizer in another organization', async () => {
+    const adminDb = authedDb('admin1', { email: 'admin@seniorhub.se' });
+
+    await assertFails(getDoc(doc(adminDb, 'users', 'org-nacka')));
+  });
+
+  it('allows an organization admin to read their own users profile when it exists', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'users/admin1'), {
+        name: 'Admin One',
+        email: 'admin@seniorhub.se',
+        phone: '0705555555',
+        photoUrl: null,
+        role: 'user',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    });
+
+    const adminDb = authedDb('admin1', { email: 'admin@seniorhub.se' });
+
+    await assertSucceeds(getDoc(doc(adminDb, 'users', 'admin1')));
+  });
+
+  it('denies a superadmin from reading another user profile via client SDK', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'admins/super1'), {
+        email: 'super@seniorhub.se',
+        role: 'superadmin',
+        organizationId: 'seniorhub',
+      });
+    });
+
+    const superDb = authedDb('super1', { email: 'super@seniorhub.se' });
+
+    await assertFails(getDoc(doc(superDb, 'users', 'user2')));
+  });
+});
+
+describe('users/{uid}/notifications – owner-only read', () => {
+  async function seedUserNotifications() {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+
+      await setDoc(doc(db, 'users/user1/notifications/inbox1'), {
+        icon: 'bell',
+        title: 'Hej',
+        description: 'Meddelande',
+        type: 'activity_update',
+        read: false,
+        createdAt: new Date(),
+      });
+
+      await setDoc(doc(db, 'users/user2/notifications/inbox1'), {
+        icon: 'bell',
+        title: 'Hej',
+        description: 'Meddelande',
+        type: 'activity_update',
+        read: false,
+        createdAt: new Date(),
+      });
+    });
+  }
+
+  it('allows a user to read their own inbox notifications', async () => {
+    await seedUserNotifications();
+
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertSucceeds(getDoc(doc(user1Db, 'users', 'user1', 'notifications', 'inbox1')));
+  });
+
+  it('denies an organization admin from reading another user inbox notifications', async () => {
+    await seedUserNotifications();
+
+    const adminDb = authedDb('admin1', { email: 'admin@seniorhub.se' });
+
+    await assertFails(getDoc(doc(adminDb, 'users', 'user2', 'notifications', 'inbox1')));
   });
 });
 

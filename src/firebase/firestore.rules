@@ -215,7 +215,7 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
+      allow read: if isOwner(uid);
 
       allow create: if isOwner(uid)
         && request.resource.data.keys().hasAll([
@@ -244,7 +244,7 @@ service cloud.firestore {
       }
 
       match /notifications/{notificationId} {
-        allow read: if isOwner(uid) || isAdmin();
+        allow read: if isOwner(uid);
         allow create, update, delete: if false;
       }
     }
