@@ -114,6 +114,12 @@ function main() {
   console.log(`  ${configPath}`);
   console.log(`  ${firebasercPath}`);
 
+  console.log('\nGenerating public legal pages...\n');
+  run(process.platform === 'win32' ? 'npx' : 'npx', [
+    'tsx',
+    'scripts/generate-legal-hosting-pages.ts',
+  ], env);
+
   console.log(`\nExporting Expo web app for ${WEB_BASE_URL}...\n`);
   run(process.platform === 'win32' ? 'npx' : 'npx', ['expo', 'export', '--platform', 'web'], env);
   copyWebExportToHosting(hostingPublicDir);

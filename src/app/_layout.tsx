@@ -73,6 +73,27 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="integritet"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="villkor"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
+                                name="radera-konto"
+                                options={{
+                                  presentation: 'card',
+                                  animation: 'slide_from_right',
+                                }}
+                              />
+                              <Stack.Screen
                                 name="auth/complete"
                                 options={{
                                   presentation: 'card',

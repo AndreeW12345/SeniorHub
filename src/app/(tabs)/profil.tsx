@@ -89,11 +89,11 @@ export default function ProfileScreen() {
 
   const handleDeleteAccount = () => {
     confirmDestructiveAction(
-      'Ta bort konto',
+      'Radera konto',
       isSignedIn
         ? 'Detta tar bort ditt konto och dina sparade profiluppgifter. Åtgärden kan inte ångras.'
         : 'Detta tar bort dina sparade profiluppgifter (namn, telefon, e-post och bild). Åtgärden kan inte ångras.',
-      'Ta bort konto',
+      'Radera konto',
       () => {
         void (async () => {
           const wasSignedIn = isSignedIn;
@@ -175,9 +175,14 @@ export default function ProfileScreen() {
                 onPress={() => router.push('/notiser' as Href)}
               />
               <ProfileSettingsRow
-                title="Sekretess"
+                title="Integritetspolicy"
                 icon={{ ios: 'lock.fill', android: 'lock', web: 'lock' }}
-                onPress={() => router.push('/profil/sekretess' as Href)}
+                onPress={() => router.push('/integritet' as Href)}
+              />
+              <ProfileSettingsRow
+                title="Användarvillkor"
+                icon={{ ios: 'doc.text.fill', android: 'description', web: 'description' }}
+                onPress={() => router.push('/villkor' as Href)}
               />
               <ProfileSettingsRow
                 title="Hjälp & Support"
@@ -268,16 +273,26 @@ export default function ProfileScreen() {
             )}
 
             <Pressable
+              onPress={() => router.push('/radera-konto' as Href)}
+              accessibilityRole="link"
+              accessibilityLabel="Information om kontoradering"
+              style={({ pressed }) => [styles.deleteInfoLink, pressed && styles.pressed]}>
+              <ThemedText type="bodyLarge" themeColor="primary" style={styles.deleteInfoLinkText}>
+                Information om kontoradering
+              </ThemedText>
+            </Pressable>
+
+            <Pressable
               onPress={handleDeleteAccount}
               accessibilityRole="button"
-              accessibilityLabel="Ta bort konto"
+              accessibilityLabel="Radera konto"
               style={({ pressed }) => [
                 styles.secondaryButton,
                 { borderColor: theme.favorite, backgroundColor: theme.card },
                 pressed && styles.pressed,
               ]}>
               <ThemedText type="bodyLarge" themeColor="favorite" style={styles.secondaryButtonText}>
-                Ta bort konto
+                Radera konto
               </ThemedText>
             </Pressable>
           </ProfileSection>
@@ -329,6 +344,15 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     fontWeight: '700',
+  },
+  deleteInfoLink: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.two,
+  },
+  deleteInfoLinkText: {
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   pressed: {
     opacity: 0.9,

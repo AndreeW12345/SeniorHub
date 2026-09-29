@@ -246,7 +246,7 @@ export default function RegisterScreen() {
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel="Läs användarvillkor"
-                  onPress={() => router.push('/profil/villkor' as Href)}>
+                  onPress={() => router.push('/villkor' as Href)}>
                   <ThemedText type="bodyLarge" themeColor="primary" style={styles.legalConsentLink}>
                     användarvillkoren
                   </ThemedText>
@@ -258,7 +258,7 @@ export default function RegisterScreen() {
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel="Läs integritetspolicy"
-                  onPress={() => router.push('/profil/sekretess' as Href)}>
+                  onPress={() => router.push('/integritet' as Href)}>
                   <ThemedText type="bodyLarge" themeColor="primary" style={styles.legalConsentLink}>
                     integritetspolicyn
                   </ThemedText>
