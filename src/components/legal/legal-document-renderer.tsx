@@ -1,5 +1,5 @@
 import { useRouter, type Href } from 'expo-router';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { CardShadow, Radius, Spacing } from '@/constants/theme';
@@ -100,12 +100,26 @@ export function LegalDocumentRenderer({ document }: LegalDocumentRendererProps) 
         const key = `${block.type}-${index}`;
 
         switch (block.type) {
-          case 'docTitle':
+          case 'docTitle': {
+            const fitIntegritetTitleOnOneLine =
+              Platform.OS !== 'web' && block.text === 'INTEGRITETSPOLICY';
+
             return (
-              <ThemedText key={key} type="sectionTitle" style={styles.docTitle}>
+              <ThemedText
+                key={key}
+                type="sectionTitle"
+                style={[styles.docTitle, fitIntegritetTitleOnOneLine && styles.docTitleSingleLineNative]}
+                {...(fitIntegritetTitleOnOneLine
+                  ? {
+                      numberOfLines: 1,
+                      adjustsFontSizeToFit: true,
+                      minimumFontScale: 0.82,
+                    }
+                  : {})}>
                 {block.text}
               </ThemedText>
             );
+          }
           case 'lead':
             return <LegalInlineText key={key} segments={block.content} />;
           case 'meta':
@@ -187,6 +201,9 @@ const styles = StyleSheet.create({
   },
   docTitle: {
     letterSpacing: -0.2,
+  },
+  docTitleSingleLineNative: {
+    letterSpacing: -0.35,
   },
   meta: {
     lineHeight: 28,

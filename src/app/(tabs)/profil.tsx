@@ -176,11 +176,13 @@ export default function ProfileScreen() {
               />
               <ProfileSettingsRow
                 title="Integritetspolicy"
+                nativeTitle={'Integritets-\npolicy'}
                 icon={{ ios: 'lock.fill', android: 'lock', web: 'lock' }}
                 onPress={() => router.push('/integritet' as Href)}
               />
               <ProfileSettingsRow
                 title="Användarvillkor"
+                nativeTitle={'Användar-\nvillkor'}
                 icon={{ ios: 'doc.text.fill', android: 'description', web: 'description' }}
                 onPress={() => router.push('/villkor' as Href)}
               />
