@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-const CURRENT_LEGAL_TERMS_VERSION = '2026-09-07';
+const CURRENT_LEGAL_TERMS_VERSION = '2026-09-29';
 
 function isValidPendingLegalConsent(consent) {
   if (!consent) {

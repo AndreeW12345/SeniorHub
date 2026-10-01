@@ -178,7 +178,7 @@ service cloud.firestore {
     }
 
     function currentLegalTermsVersion() {
-      return '2026-09-07';
+      return '2026-09-29';
     }
 
     function legalConsentValidOnCreate() {

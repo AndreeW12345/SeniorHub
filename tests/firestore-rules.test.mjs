@@ -595,7 +595,7 @@ describe('users – owner-only update', () => {
 });
 
 describe('legal consent', () => {
-  const LEGAL_TERMS_VERSION = '2026-09-07';
+  const LEGAL_TERMS_VERSION = '2026-09-29';
 
   function userCreateWithConsent(email, overrides = {}) {
     return {

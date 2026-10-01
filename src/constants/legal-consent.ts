@@ -2,7 +2,7 @@
  * Bump when användarvillkor or integritetspolicy change materially.
  * Must match `currentLegalTermsVersion()` in src/firebase/firestore.rules.
  */
-export const CURRENT_LEGAL_TERMS_VERSION = '2026-09-07';
+export const CURRENT_LEGAL_TERMS_VERSION = '2026-09-29';
 
 export type PendingLegalConsent = {
   /** ISO-8601 timestamp captured client-side when the user checked the box. */
