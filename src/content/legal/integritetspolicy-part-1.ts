@@ -158,7 +158,9 @@ export const integritetspolicyPart1: LegalBlock[] = [
   { type: 'h2', text: '5. Favoriter och information som sparas på din enhet' },
   {
     type: 'p',
-    content: ['Vissa uppgifter sparas lokalt på din telefon eller annan enhet.'],
+    content: [
+      'Vissa uppgifter sparas lokalt på din telefon, i webbläsaren eller annan enhet.',
+    ],
   },
   { type: 'p', content: ['Det kan exempelvis vara:'] },
   {
@@ -174,6 +176,41 @@ export const integritetspolicyPart1: LegalBlock[] = [
     type: 'p',
     content: [
       'Favoriter sparas lokalt på enheten och synkroniseras inte till ditt SeniorHub-konto.',
+    ],
+  },
+  { type: 'h3', text: 'Webbversionen' },
+  {
+    type: 'p',
+    content: [
+      'När du använder SeniorHub via webbläsaren kan appen använda webbläsarens lokala lagring, exempelvis localStorage och IndexedDB.',
+    ],
+  },
+  {
+    type: 'p',
+    content: [
+      'Lagringen används i tekniskt syfte så att tjänsten ska fungera, till exempel för:',
+    ],
+  },
+  {
+    type: 'ul',
+    items: [
+      ['inloggning och session'],
+      ['favoriter'],
+      ['pågående inloggnings- eller registreringsflöden'],
+      ['bokningsrelaterad lokal information'],
+      ['notis- och inställningsdata där sådan funktion används i webbläsaren.'],
+    ],
+  },
+  {
+    type: 'p',
+    content: [
+      'Denna lagring används inte för marknadsföring eller beteendespårning.',
+    ],
+  },
+  {
+    type: 'p',
+    content: [
+      'Firebase Authentication kan på webben använda webbläsarlagring för att hantera din autentiserade session, till exempel så att du kan förbli inloggad mellan besök.',
     ],
   },
   { type: 'h2', text: '6. Pushnotiser' },

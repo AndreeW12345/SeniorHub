@@ -45,6 +45,44 @@ export const integritetspolicyPart2: LegalBlock[] = [
       'Dessa säkerhetsfunktioner används för att skydda SeniorHub och inte för att sälja dina personuppgifter eller använda dem för riktad reklam.',
     ],
   },
+  {
+    type: 'p',
+    content: [
+      'På webben använder SeniorHub Firebase App Check tillsammans med Google reCAPTCHA Enterprise för att kontrollera att förfrågningar kommer från en legitim klient och för att motverka missbruk och automatiserad bottrafik.',
+    ],
+  },
+  {
+    type: 'p',
+    content: [
+      'Säkerhetsfunktionerna kan aktiveras när webbappen börjar använda Firebase-tjänster, till exempel vid laddning av innehåll, och behöver därför inte vänta tills du har loggat in.',
+    ],
+  },
+  {
+    type: 'p',
+    content: [
+      'Detta kan innebära att webbläsaren kommunicerar med Googles servrar. Google kan behandla tekniska uppgifter och säkerhetsrelaterad riskinformation för detta säkerhetsändamål enligt Googles villkor och integritetsinformation.',
+    ],
+  },
+  {
+    type: 'p',
+    content: [
+      'Närmare information finns i ',
+      { link: 'Googles integritetspolicy', href: 'https://policies.google.com/privacy' },
+      '.',
+    ],
+  },
+  {
+    type: 'p',
+    content: [
+      'SeniorHub använder inte marknadsföringscookies eller analytics-cookies i den nuvarande webbimplementationen.',
+    ],
+  },
+  {
+    type: 'p',
+    content: [
+      'Tredjepartstjänster som Firebase App Check och Google reCAPTCHA Enterprise kan dock använda tekniker för lagring av eller åtkomst till information i webbläsaren, exempelvis cookies eller liknande lagring, för säkerhetsändamål.',
+    ],
+  },
   { type: 'h2', text: '9. Kartor, adresser och geografisk information' },
   {
     type: 'p',

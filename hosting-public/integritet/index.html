@@ -54,10 +54,16 @@
 <ul><li>namn</li><li>e-postadress</li><li>telefonnummer</li><li>organisation</li><li>beskrivning av verksamheten</li><li>webbplats</li><li>annan information som du lämnar i ansökan.</li></ul>
 <p>Vi använder uppgifterna för att behandla din ansökan och kunna kontakta dig angående ansökan.</p>
 <h2>5. Favoriter och information som sparas på din enhet</h2>
-<p>Vissa uppgifter sparas lokalt på din telefon eller annan enhet.</p>
+<p>Vissa uppgifter sparas lokalt på din telefon, i webbläsaren eller annan enhet.</p>
 <p>Det kan exempelvis vara:</p>
 <ul><li>aktiviteter som du markerat som favoriter</li><li>lokal information om bokningar</li><li>lokala notiser</li><li>tillfällig information som behövs vid registrering eller inloggning.</li></ul>
 <p>Favoriter sparas lokalt på enheten och synkroniseras inte till ditt SeniorHub-konto.</p>
+<h3>Webbversionen</h3>
+<p>När du använder SeniorHub via webbläsaren kan appen använda webbläsarens lokala lagring, exempelvis localStorage och IndexedDB.</p>
+<p>Lagringen används i tekniskt syfte så att tjänsten ska fungera, till exempel för:</p>
+<ul><li>inloggning och session</li><li>favoriter</li><li>pågående inloggnings- eller registreringsflöden</li><li>bokningsrelaterad lokal information</li><li>notis- och inställningsdata där sådan funktion används i webbläsaren.</li></ul>
+<p>Denna lagring används inte för marknadsföring eller beteendespårning.</p>
+<p>Firebase Authentication kan på webben använda webbläsarlagring för att hantera din autentiserade session, till exempel så att du kan förbli inloggad mellan besök.</p>
 <h2>6. Pushnotiser</h2>
 <p>Om du använder funktioner som kräver pushnotiser kan SeniorHub behandla teknisk information som behövs för att skicka notiser till din enhet, exempelvis push- och enhetstoken.</p>
 <p>Vi kan skicka notiser om exempelvis:</p>
@@ -72,6 +78,12 @@
 <p>SeniorHub använder säkerhetsfunktioner från Firebase för att kontrollera och skydda förfrågningar till tjänsten samt motverka missbruk.</p>
 <p>Beroende på vilken plattform du använder kan detta innebära behandling av teknisk information av Google/Firebase och deras tjänster.</p>
 <p>Dessa säkerhetsfunktioner används för att skydda SeniorHub och inte för att sälja dina personuppgifter eller använda dem för riktad reklam.</p>
+<p>På webben använder SeniorHub Firebase App Check tillsammans med Google reCAPTCHA Enterprise för att kontrollera att förfrågningar kommer från en legitim klient och för att motverka missbruk och automatiserad bottrafik.</p>
+<p>Säkerhetsfunktionerna kan aktiveras när webbappen börjar använda Firebase-tjänster, till exempel vid laddning av innehåll, och behöver därför inte vänta tills du har loggat in.</p>
+<p>Detta kan innebära att webbläsaren kommunicerar med Googles servrar. Google kan behandla tekniska uppgifter och säkerhetsrelaterad riskinformation för detta säkerhetsändamål enligt Googles villkor och integritetsinformation.</p>
+<p>Närmare information finns i <a href="https://policies.google.com/privacy">Googles integritetspolicy</a>.</p>
+<p>SeniorHub använder inte marknadsföringscookies eller analytics-cookies i den nuvarande webbimplementationen.</p>
+<p>Tredjepartstjänster som Firebase App Check och Google reCAPTCHA Enterprise kan dock använda tekniker för lagring av eller åtkomst till information i webbläsaren, exempelvis cookies eller liknande lagring, för säkerhetsändamål.</p>
 <h2>9. Kartor, adresser och geografisk information</h2>
 <p>När en arrangör skapar en aktivitet kan aktivitetens adress användas för att hitta aktivitetens geografiska position.</p>
 <p>SeniorHub kan använda externa geokodningstjänster för att omvandla en adress till geografiska koordinater. Resultatet kan sparas tillsammans med aktiviteten så att aktiviteten kan visas på karta.</p>
