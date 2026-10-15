@@ -62,6 +62,7 @@
     "generate:firebase-native-config": "node scripts/generate-firebase-native-config.mjs",
     "eas-build-pre-install": "node scripts/generate-firebase-native-config.mjs --platform $EAS_BUILD_PLATFORM",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node --test tests/firestore-rules.test.mjs\"",
+    "test:save-user-profile": "firebase emulators:exec --only firestore \"node --import ./tests/save-user-profile-integration-loader.mjs --test tests/save-user-profile.integration.test.mjs\"",
     "test:storage-rules": "firebase emulators:exec --project seniorhub-storage-rules-test --only firestore,storage \"node --test tests/storage-rules.test.mjs\"",
     "migrate:registration-ids": "node scripts/migrate-registration-ids.mjs",
     "migrate:registration-ids:dry-run": "node scripts/migrate-registration-ids.mjs --dry-run",

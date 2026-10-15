@@ -18,6 +18,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  runTransaction,
 } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -592,6 +593,42 @@ describe('users – owner-only update', () => {
       }),
     );
   });
+
+  it('allows a user to update their own phoneNormalized', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertSucceeds(
+      updateDoc(doc(user1Db, 'users', 'user1'), {
+        phone: '0701111111',
+        phoneNormalized: '0701111111',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies a user from changing role while updating phoneNormalized', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertFails(
+      updateDoc(doc(user1Db, 'users', 'user1'), {
+        phoneNormalized: '0701111111',
+        role: 'organizer',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies a user from changing organizerOrganizationId while updating phoneNormalized', async () => {
+    const organizerDb = authedDb('org-tyreso', { email: 'org@spf-tyreso.se' });
+
+    await assertFails(
+      updateDoc(doc(organizerDb, 'users', 'org-tyreso'), {
+        phoneNormalized: '0703333333',
+        organizerOrganizationId: 'spf-nacka',
+        updatedAt: new Date(),
+      }),
+    );
+  });
 });
 
 describe('legal consent', () => {
@@ -739,6 +776,133 @@ describe('phone index', () => {
       setDoc(doc(userDb, 'phoneIndex', '0708888888'), {
         uid: 'new-phone-user',
         createdAt: new Date(),
+      }),
+    );
+  });
+});
+
+/**
+ * Mirrors the existing-user phone sync transaction in save-user-profile.ts for rules testing.
+ */
+async function changePhoneWithIndexTransaction(db, userId, previousNormalized, nextNormalized, profileUpdate) {
+  await runTransaction(db, async (transaction) => {
+    const userRef = doc(db, 'users', userId);
+    await transaction.get(userRef);
+
+    const nextIndexRef = doc(db, 'phoneIndex', nextNormalized);
+    const nextIndexSnapshot = await transaction.get(nextIndexRef);
+
+    if (nextIndexSnapshot.exists()) {
+      const ownerUid = nextIndexSnapshot.data()?.uid;
+      if (ownerUid !== userId) {
+        throw new Error('PHONE_ALREADY_IN_USE');
+      }
+    }
+
+    if (previousNormalized && previousNormalized !== nextNormalized) {
+      const previousIndexRef = doc(db, 'phoneIndex', previousNormalized);
+      const previousIndexSnapshot = await transaction.get(previousIndexRef);
+      if (
+        previousIndexSnapshot.exists() &&
+        previousIndexSnapshot.data()?.uid === userId
+      ) {
+        transaction.delete(previousIndexRef);
+      }
+    }
+
+    if (!nextIndexSnapshot.exists()) {
+      transaction.set(nextIndexRef, {
+        uid: userId,
+        createdAt: new Date(),
+      });
+    }
+
+    transaction.update(userRef, {
+      ...profileUpdate,
+      phoneNormalized: nextNormalized,
+    });
+  });
+}
+
+describe('phone index – profile phone change transaction', () => {
+  it('allows swapping to a new number with delete old index, create new, and update user', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'phoneIndex/0701111111'), {
+        uid: 'user1',
+        createdAt: new Date(),
+      });
+    });
+
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertSucceeds(
+      changePhoneWithIndexTransaction(user1Db, 'user1', '0701111111', '0705555555', {
+        phone: '0705555555',
+        name: 'User One',
+        email: 'user1@example.com',
+        updatedAt: new Date(),
+      }),
+    );
+
+    const newIndexSnapshot = await getDoc(doc(user1Db, 'phoneIndex', '0705555555'));
+    assert.equal(newIndexSnapshot.exists(), true);
+    assert.equal(newIndexSnapshot.data()?.uid, 'user1');
+
+    const oldIndexSnapshot = await getDoc(doc(user1Db, 'phoneIndex', '0701111111'));
+    assert.equal(oldIndexSnapshot.exists(), false);
+
+    const userSnapshot = await getDoc(doc(user1Db, 'users', 'user1'));
+    assert.equal(userSnapshot.data()?.phoneNormalized, '0705555555');
+  });
+
+  it('denies taking a phone index slot already owned by another user', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'phoneIndex/0705555555'), {
+        uid: 'user2',
+        createdAt: new Date(),
+      });
+    });
+
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertFails(
+      changePhoneWithIndexTransaction(user1Db, 'user1', '0701111111', '0705555555', {
+        phone: '0705555555',
+        name: 'User One',
+        email: 'user1@example.com',
+        updatedAt: new Date(),
+      }),
+    );
+
+    const ownerDb = authedDb('user2', { email: 'user2@example.com' });
+    const indexSnapshot = await getDoc(doc(ownerDb, 'phoneIndex', '0705555555'));
+    assert.equal(indexSnapshot.data()?.uid, 'user2');
+  });
+
+  it('denies changing role in the same transaction as phoneNormalized update', async () => {
+    const user1Db = authedDb('user1', { email: 'user1@example.com' });
+
+    await assertFails(
+      changePhoneWithIndexTransaction(user1Db, 'user1', '0701111111', '0705555555', {
+        phone: '0705555555',
+        name: 'User One',
+        email: 'user1@example.com',
+        role: 'organizer',
+        updatedAt: new Date(),
+      }),
+    );
+  });
+
+  it('denies changing organizerOrganizationId in the same transaction as phoneNormalized update', async () => {
+    const organizerDb = authedDb('org-tyreso', { email: 'org@spf-tyreso.se' });
+
+    await assertFails(
+      changePhoneWithIndexTransaction(organizerDb, 'org-tyreso', '0703333333', '0706666666', {
+        phone: '0706666666',
+        name: 'Organizer Tyreso',
+        email: 'org@spf-tyreso.se',
+        organizerOrganizationId: 'spf-nacka',
+        updatedAt: new Date(),
       }),
     );
   });

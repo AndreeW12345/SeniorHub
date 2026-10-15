@@ -172,7 +172,7 @@ service cloud.firestore {
 
     function userSelfUpdateAllowedKeys() {
       return [
-        'name', 'phone', 'email', 'photoUrl', 'updatedAt', 'platform',
+        'name', 'phone', 'phoneNormalized', 'email', 'photoUrl', 'updatedAt', 'platform',
         'fcmToken', 'fcmTokens', 'expoPushToken', 'notificationPreferences'
       ];
     }
