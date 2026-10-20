@@ -23,7 +23,6 @@ import {
   type AuthActionResult,
   type AuthResult,
 } from '@/services/auth';
-import { checkRegistrationPhoneAvailable } from '@/services/auth/check-registration-phone';
 import { isValidSwedishPhone } from '@/utils/normalize-swedish-phone';
 
 type AuthContextValue = {
@@ -147,18 +146,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const trimmedPhone = input.phone.trim();
     if (!isValidSwedishPhone(trimmedPhone)) {
       return { ok: false as const, errorMessage: 'Ange ett giltigt svenskt telefonnummer.' };
-    }
-
-    const phoneCheck = await checkRegistrationPhoneAvailable(trimmedPhone);
-    if (!phoneCheck.ok) {
-      return { ok: false as const, errorMessage: phoneCheck.errorMessage };
-    }
-
-    if (!phoneCheck.available) {
-      return {
-        ok: false as const,
-        errorMessage: 'Telefonnumret används redan av ett konto.',
-      };
     }
 
     await clearPendingLoginIntent();

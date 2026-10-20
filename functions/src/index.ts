@@ -7,7 +7,6 @@ import { deleteOrganization } from './callable/delete-organization';
 import { inviteOrganizerAdmin } from './callable/invite-organizer-admin';
 import { listOrganizationAdmins } from './callable/list-organization-admins';
 import { revokeOrganizerAdmin } from './callable/revoke-organizer-admin';
-import { checkRegistrationPhone } from './callable/check-registration-phone';
 import { deleteUserAccount } from './callable/delete-user-account';
 import { scheduledActivityReminders } from './scheduled/activity-reminders';
 import { onActivityUpdated } from './triggers/on-activity-updated';
@@ -25,7 +24,6 @@ export {
   listOrganizationAdmins,
   revokeOrganizerAdmin,
   requestLoginMagicLink,
-  checkRegistrationPhone,
   deleteUserAccount,
   onRegistrationCreated,
   onRegistrationUpdated,
