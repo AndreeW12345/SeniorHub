@@ -502,6 +502,20 @@ describe('users – owner-only read', () => {
 
     await assertFails(getDoc(doc(superDb, 'users', 'user2')));
   });
+
+  it('denies a superadmin from deleting another user profile via client SDK', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'admins/super1'), {
+        email: 'super@seniorhub.se',
+        role: 'superadmin',
+        organizationId: 'seniorhub',
+      });
+    });
+
+    const superDb = authedDb('super1', { email: 'super@seniorhub.se' });
+
+    await assertFails(deleteDoc(doc(superDb, 'users', 'user2')));
+  });
 });
 
 describe('users/{uid}/notifications – owner-only read', () => {
