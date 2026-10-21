@@ -192,19 +192,17 @@ export type AccountDeletionFinalization = {
 };
 
 /**
- * Auth removal, user profile delete, self admin doc delete, then verify profile is gone.
+ * Firestore profile removal and verification, self admin doc delete, then Auth removal.
  */
 export async function finalizeAccountDeletion(
   uid: string,
   finalization: AccountDeletionFinalization,
 ): Promise<{ ok: true }> {
-  await finalization.deleteAuthUser(uid);
-
   try {
     await finalization.deleteUserDocument();
   } catch (error) {
     console.error(
-      '[deleteUserAccount] Firestore user profile deletion failed after Auth removal.',
+      '[deleteUserAccount] Firestore user profile deletion failed.',
       readAuthErrorCode(error),
     );
     throw new HttpsError(
@@ -213,13 +211,23 @@ export async function finalizeAccountDeletion(
     );
   }
 
-  await finalization.deleteSelfAdminDocument(uid);
-
   if (await finalization.userDocumentExists()) {
     console.error('[deleteUserAccount] User profile still exists after deletion.', uid);
     throw new HttpsError(
       'internal',
       'Kontot kunde inte tas bort helt. Kontakta support om problemet kvarstår.',
+    );
+  }
+
+  await finalization.deleteSelfAdminDocument(uid);
+
+  try {
+    await finalization.deleteAuthUser(uid);
+  } catch (error) {
+    console.error('[deleteUserAccount] Auth deletion failed after profile removal.', readAuthErrorCode(error));
+    throw new HttpsError(
+      'internal',
+      'Profilen togs bort men inloggningen kunde inte avslutas. Kontakta support om problemet kvarstår.',
     );
   }
 
@@ -278,7 +286,7 @@ export const deleteUserAccount = onCall(europeWest1CallableOptions(), async (req
     await db.collection('phoneIndex').doc(phoneNormalized).delete();
   }
 
-  // Auth before users/{uid} so Auth failure leaves the profile intact and the user can retry.
+  // Profile removal before Auth so Firestore failures leave the account sign-in intact for retry.
   return finalizeAccountDeletion(uid, {
     deleteAuthUser,
     deleteUserDocument: async () => {
