@@ -98,7 +98,8 @@
             "buildReactNativeFromSource": true
           }
         }
-      ]
+      ],
+      "./plugins/withStripAppPrivacy0A2A1"
     ],
     "experiments": {
       "typedRoutes": true,
