@@ -22,7 +22,7 @@ const RUBY = `
 
   user_project = PrivacyManifestUtils.get_user_project_from(installer)
   targets = PrivacyManifestUtils.get_application_targets(user_project)
-  file_path = PrivacyManifestUtils.get_privacyinfo_file_path(user_project, targets)
+  file_path = PrivacyManifestUtils.get_privacyinfo_file_path(user_project, targets).to_s
 
   if file_path.include?('/Pods/') || file_path.include?('\\\\Pods\\\\')
     raise '[SeniorHub Privacy] Refusing to modify PrivacyInfo under Pods/'
