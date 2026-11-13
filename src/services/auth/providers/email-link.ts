@@ -22,6 +22,7 @@ import {
 import { getFirebaseAuth } from '@/firebase';
 import { requestLoginMagicLink } from '@/services/auth/check-login-email-exists';
 import { getAuthErrorCode, getSwedishAuthErrorMessage } from '@/services/auth/errors';
+import { signOutCurrentUser } from '@/services/auth/session';
 import type { AuthActionResult, AuthProviderModule, AuthResult } from '@/services/auth/providers/types';
 import {
   getAppBundleId,
@@ -162,6 +163,13 @@ export async function readPendingLoginIntent(): Promise<boolean> {
 
 export async function clearPendingLoginIntent(): Promise<void> {
   await AsyncStorage.removeItem(PENDING_LOGIN_INTENT_STORAGE_KEY);
+}
+
+/** Clears an unfinished magic-link flow and signs out so another account cannot hijack navigation. */
+export async function abandonMagicLinkSignInFlow(): Promise<void> {
+  await clearEmailForSignIn();
+  await clearPendingLoginIntent();
+  await signOutCurrentUser();
 }
 
 const LOGIN_ACCOUNT_NOT_FOUND_MESSAGE =

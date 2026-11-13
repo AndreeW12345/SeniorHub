@@ -1,3 +1,4 @@
+import { FirebaseError } from 'firebase/app';
 import {
   deleteField,
   doc,
@@ -8,11 +9,18 @@ import {
   updateDoc,
   type Firestore,
 } from 'firebase/firestore';
+import { Platform } from 'react-native';
 
 import type { UserProfile, UserProfileUpdate } from '@/constants/user-profile';
 import { CURRENT_LEGAL_TERMS_VERSION } from '@/constants/legal-consent';
 import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { normalizeSwedishPhone } from '@/utils/normalize-swedish-phone';
+
+import { assertPhoneAvailableForProfile } from './assert-phone-available-for-profile';
+import {
+  isProfilePhoneChange,
+  readStoredPhoneNormalized,
+} from './profile-phone-change';
 
 const PHONE_ALREADY_IN_USE = 'PHONE_ALREADY_IN_USE';
 
@@ -24,6 +32,10 @@ export type SaveUserProfileOptions = {
   firestore?: Firestore;
   /** Overrides `Platform.OS` in profile writes (integration tests only). */
   platform?: string;
+  /**
+   * Mirrors `assertPhoneAvailableForProfile` without Cloud Functions (Firestore rules tests only).
+   */
+  assertPhoneAvailable?: (userId: string, phoneNormalized: string) => Promise<void>;
 };
 
 async function resolveFirestoreDb(injected?: Firestore): Promise<Firestore | null> {
@@ -40,7 +52,6 @@ async function resolvePlatform(override?: string): Promise<string> {
     return override;
   }
 
-  const { Platform } = await import('react-native');
   return Platform.OS;
 }
 
@@ -49,27 +60,44 @@ function readIndexOwnerUid(data: Record<string, unknown> | undefined): string | 
   return typeof uid === 'string' && uid.trim().length > 0 ? uid.trim() : null;
 }
 
-/** Best-effort normalized phone from stored user fields (legacy profiles may lack phoneNormalized). */
-function readStoredPhoneNormalized(data: Record<string, unknown> | undefined): string | null {
-  if (!data) {
-    return null;
-  }
-
-  const fromField =
-    typeof data.phoneNormalized === 'string' ? data.phoneNormalized.trim() : '';
-  if (fromField) {
-    return fromField;
-  }
-
-  const phone = typeof data.phone === 'string' ? data.phone.trim() : '';
-  return phone ? normalizeSwedishPhone(phone) : null;
-}
-
 function phoneAlreadyInUseResult(): { ok: false; errorMessage: string } {
   return {
     ok: false,
     errorMessage: 'Telefonnumret används redan av ett konto.',
   };
+}
+
+function isFirestorePermissionDenied(error: unknown): boolean {
+  return error instanceof FirebaseError && error.code === 'permission-denied';
+}
+
+async function ensurePhoneAvailableForProfile(
+  userId: string,
+  phoneNormalized: string,
+  options: SaveUserProfileOptions,
+): Promise<{ ok: true } | { ok: false; errorMessage: string }> {
+  if (options.assertPhoneAvailable) {
+    try {
+      await options.assertPhoneAvailable(userId, phoneNormalized);
+      return { ok: true };
+    } catch (error) {
+      if (error instanceof Error && error.message === PHONE_ALREADY_IN_USE) {
+        return phoneAlreadyInUseResult();
+      }
+      throw error;
+    }
+  }
+
+  const assertion = await assertPhoneAvailableForProfile(phoneNormalized);
+  if (!assertion.ok) {
+    if (assertion.phoneAlreadyInUse) {
+      return phoneAlreadyInUseResult();
+    }
+
+    return { ok: false, errorMessage: assertion.errorMessage };
+  }
+
+  return { ok: true };
 }
 
 async function syncPhoneIndexForExistingUser(params: {
@@ -93,13 +121,6 @@ async function syncPhoneIndexForExistingUser(params: {
     if (phoneNormalized) {
       const nextIndexRef = doc(db, FIRESTORE_COLLECTIONS.phoneIndex, phoneNormalized);
       const nextIndexSnapshot = await transaction.get(nextIndexRef);
-
-      if (nextIndexSnapshot.exists()) {
-        const ownerUid = readIndexOwnerUid(nextIndexSnapshot.data());
-        if (ownerUid !== userId) {
-          throw new Error(PHONE_ALREADY_IN_USE);
-        }
-      }
 
       if (previousNormalized && previousNormalized !== phoneNormalized) {
         const previousIndexRef = doc(db, FIRESTORE_COLLECTIONS.phoneIndex, previousNormalized);
@@ -190,6 +211,7 @@ export async function saveUserProfile(
     const existing = await getDocFromServer(userRef);
 
     if (existing.exists()) {
+      const currentData = existing.data() as Record<string, unknown>;
       const phoneNormalized = phone ? normalizeSwedishPhone(phone) : null;
       if (phone && !phoneNormalized) {
         return {
@@ -198,20 +220,43 @@ export async function saveUserProfile(
         };
       }
 
-      try {
-        await syncPhoneIndexForExistingUser({
-          db,
-          userId: trimmedId,
-          userRef,
-          updatePayload,
-          phoneNormalized,
-        });
-      } catch (updateError) {
-        if (updateError instanceof Error && updateError.message === PHONE_ALREADY_IN_USE) {
-          return phoneAlreadyInUseResult();
+      const phoneIsChanging = isProfilePhoneChange(currentData, phone);
+
+      if (!phoneIsChanging) {
+        const refreshPayload: Record<string, unknown> = { ...updatePayload };
+        const storedPhoneNormalized = readStoredPhoneNormalized(currentData);
+        if (storedPhoneNormalized) {
+          refreshPayload.phoneNormalized = storedPhoneNormalized;
         }
 
-        throw updateError;
+        await updateDoc(userRef, refreshPayload);
+      } else {
+        if (phoneNormalized) {
+          const availability = await ensurePhoneAvailableForProfile(trimmedId, phoneNormalized, options);
+          if (!availability.ok) {
+            return availability;
+          }
+        }
+
+        try {
+          await syncPhoneIndexForExistingUser({
+            db,
+            userId: trimmedId,
+            userRef,
+            updatePayload,
+            phoneNormalized,
+          });
+        } catch (updateError) {
+          if (updateError instanceof Error && updateError.message === PHONE_ALREADY_IN_USE) {
+            return phoneAlreadyInUseResult();
+          }
+
+          if (isFirestorePermissionDenied(updateError)) {
+            return phoneAlreadyInUseResult();
+          }
+
+          throw updateError;
+        }
       }
     } else {
       const legalConsent = options.legalConsent;
@@ -246,12 +291,13 @@ export async function saveUserProfile(
 
       try {
         if (phoneNormalized) {
+          const availability = await ensurePhoneAvailableForProfile(trimmedId, phoneNormalized, options);
+          if (!availability.ok) {
+            return availability;
+          }
+
           await runTransaction(db, async (transaction) => {
             const phoneIndexRef = doc(db, FIRESTORE_COLLECTIONS.phoneIndex, phoneNormalized);
-            const phoneIndexSnapshot = await transaction.get(phoneIndexRef);
-            if (phoneIndexSnapshot.exists()) {
-              throw new Error(PHONE_ALREADY_IN_USE);
-            }
 
             transaction.set(phoneIndexRef, {
               uid: trimmedId,
@@ -264,6 +310,10 @@ export async function saveUserProfile(
         }
       } catch (createError) {
         if (createError instanceof Error && createError.message === PHONE_ALREADY_IN_USE) {
+          return phoneAlreadyInUseResult();
+        }
+
+        if (isFirestorePermissionDenied(createError)) {
           return phoneAlreadyInUseResult();
         }
 

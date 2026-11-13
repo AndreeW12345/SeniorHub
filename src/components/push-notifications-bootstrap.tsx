@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { useAuth } from '@/contexts/auth-context';
+import { subscribeFcmTokenRefresh } from '@/firebase/messaging';
 import { useNotificationPreferences } from '@/contexts/notification-preferences-context';
 import { useUserProfile } from '@/contexts/user-profile-context';
 import {
@@ -25,6 +25,14 @@ export function PushNotificationsBootstrap() {
   const lastPersistedProfileUserRef = useRef<string | null>(null);
   const lastSyncedPrefsRef = useRef<string | null>(null);
   const userId = user?.uid ?? null;
+
+  useEffect(() => {
+    if (!userId) {
+      hasRegisteredRef.current = false;
+      lastRegisteredUserIdRef.current = null;
+      lastPersistedProfileUserRef.current = null;
+    }
+  }, [userId]);
 
   const isBootstrapReady =
     !isAuthInitializing && !isProfileLoading && !isPreferencesLoading && Platform.OS !== 'web';
@@ -80,18 +88,9 @@ export function PushNotificationsBootstrap() {
       return;
     }
 
-    const subscription = Notifications.addPushTokenListener((token) => {
-      const fcmToken = token.data?.trim();
-      if (!fcmToken) {
-        return;
-      }
-
+    return subscribeFcmTokenRefresh((fcmToken) => {
       void persistRefreshedPushToken({ fcmToken, userId, preferences });
     });
-
-    return () => {
-      subscription.remove();
-    };
   }, [canPersistToFirestore, userId, preferences]);
 
   return null;

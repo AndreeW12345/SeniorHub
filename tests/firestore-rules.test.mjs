@@ -806,13 +806,6 @@ async function changePhoneWithIndexTransaction(db, userId, previousNormalized, n
     const nextIndexRef = doc(db, 'phoneIndex', nextNormalized);
     const nextIndexSnapshot = await transaction.get(nextIndexRef);
 
-    if (nextIndexSnapshot.exists()) {
-      const ownerUid = nextIndexSnapshot.data()?.uid;
-      if (ownerUid !== userId) {
-        throw new Error('PHONE_ALREADY_IN_USE');
-      }
-    }
-
     if (previousNormalized && previousNormalized !== nextNormalized) {
       const previousIndexRef = doc(db, 'phoneIndex', previousNormalized);
       const previousIndexSnapshot = await transaction.get(previousIndexRef);

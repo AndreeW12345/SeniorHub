@@ -43,6 +43,21 @@ function withExpoRouterOrigin(
   });
 }
 
+/** APNs entitlement for iOS push — aligned with EAS build profile (see eas.json). */
+function resolveApsEnvironment(): 'development' | 'production' {
+  const profile = process.env.EAS_BUILD_PROFILE;
+
+  if (profile === 'development') {
+    return 'development';
+  }
+
+  if (profile === 'preview' || profile === 'production') {
+    return 'production';
+  }
+
+  return 'development';
+}
+
 /** Web hosting export only — set by scripts/build-hosting.mjs. Native builds omit this. */
 function getWebBaseUrl(): string | undefined {
   const configured = process.env.EXPO_PUBLIC_WEB_BASE_URL?.trim();
@@ -83,6 +98,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             associatedDomains: [`applinks:${hostingDomain}`],
           }
         : {}),
+      entitlements: {
+        ...config.ios?.entitlements,
+        'aps-environment': resolveApsEnvironment(),
+      },
     },
     android: {
       ...config.android,

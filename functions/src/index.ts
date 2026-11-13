@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase-admin/app';
 
+import { assertPhoneAvailableForProfile } from './callable/assert-phone-available-for-profile';
 import { bookActivityRegistration } from './callable/book-activity-registration';
 import { requestLoginMagicLink } from './callable/check-login-email';
 import { createOrganization } from './callable/create-organization';
@@ -17,6 +18,7 @@ import { onRegistrationCreated } from './triggers/on-registration-created';
 initializeApp();
 
 export {
+  assertPhoneAvailableForProfile,
   bookActivityRegistration,
   createOrganization,
   deleteOrganization,

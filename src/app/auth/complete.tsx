@@ -10,6 +10,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useUserProfile } from '@/contexts/user-profile-context';
 import { useTheme } from '@/hooks/use-theme';
 import {
+  abandonMagicLinkSignInFlow,
   clearPendingRegistration,
   completeMagicLinkSignIn,
   readEmailForSignIn,
@@ -123,6 +124,13 @@ export default function AuthCompleteScreen() {
     })();
   }, [finishSignIn, params]);
 
+  const returnToLogin = useCallback(() => {
+    void (async () => {
+      await abandonMagicLinkSignInFlow();
+      router.replace('/login' as Href);
+    })();
+  }, [router]);
+
   const handleConfirmEmail = () => {
     const trimmed = email.trim();
     if (!trimmed) {
@@ -140,7 +148,11 @@ export default function AuthCompleteScreen() {
   };
 
   return (
-    <ScreenLayout title="Logga in" subtitle="Slutför inloggningen" showBackButton>
+    <ScreenLayout
+      title="Logga in"
+      subtitle="Slutför inloggningen"
+      showBackButton
+      onBackPress={returnToLogin}>
       <View style={styles.body}>
         {status === 'working' ? (
           <>
@@ -206,7 +218,7 @@ export default function AuthCompleteScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Till inloggning"
-              onPress={() => router.replace('/login' as Href)}
+              onPress={returnToLogin}
               style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}>
               <ThemedText type="linkPrimary">Till inloggning</ThemedText>
             </Pressable>

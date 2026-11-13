@@ -21,6 +21,7 @@ export function getAvailableAuthProviders(): AuthProviderModule[] {
 }
 
 export {
+  abandonMagicLinkSignInFlow,
   completeMagicLinkSignIn,
   clearEmailForSignIn,
   clearPendingLoginIntent,

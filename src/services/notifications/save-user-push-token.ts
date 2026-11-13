@@ -1,4 +1,11 @@
-import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import {
+  arrayRemove,
+  deleteField,
+  doc,
+  getDoc,
+  serverTimestamp,
+  updateDoc,
+} from 'firebase/firestore';
 import { Platform } from 'react-native';
 
 import type { NotificationPreferences } from '@/constants/notification-preferences';
@@ -7,10 +14,10 @@ import { FIRESTORE_COLLECTIONS } from '@/firebase/collections';
 import { getFirestoreDb } from '@/firebase/config';
 
 export type UserPushTokenDocument = {
-  /** Native FCM token (Android) or APNs token (iOS) for Firebase Admin push. */
+  /** FCM registration token for Firebase Admin push (Android and iOS). */
   fcmToken?: string;
   fcmTokens?: string[];
-  /** Legacy Expo push token – kept for compatibility. */
+  /** Legacy Expo push token – kept for compatibility with existing Firestore data. */
   expoPushToken?: string;
   platform: string;
   updatedAt: ReturnType<typeof serverTimestamp>;
@@ -21,7 +28,6 @@ type SavePushTokenParams = {
   /** Firebase Auth uid (`users/{uid}`). */
   userDocId: string;
   fcmToken?: string | null;
-  expoPushToken?: string | null;
   preferences?: NotificationPreferences;
 };
 
@@ -40,6 +46,7 @@ const USER_SELF_UPDATE_ALLOWED_KEYS = new Set([
 ]);
 
 let pushTokenWriteChain: Promise<unknown> = Promise.resolve();
+let pushTokenWritesSuspendedForUserId: string | null = null;
 
 async function withPushTokenWriteLock<T>(operation: () => Promise<T>): Promise<T> {
   const run = pushTokenWriteChain.then(operation, operation);
@@ -48,6 +55,28 @@ async function withPushTokenWriteLock<T>(operation: () => Promise<T>): Promise<T
     () => undefined,
   );
   return run;
+}
+
+/** Waits until in-flight push-token Firestore writes have finished. */
+export async function waitForPushTokenWritesIdle(): Promise<void> {
+  await pushTokenWriteChain;
+}
+
+/** Blocks new push-token writes for a user while they are logging out. */
+export function suspendPushTokenWritesForUser(userId: string): void {
+  pushTokenWritesSuspendedForUserId = userId.trim() || null;
+}
+
+/** Allows push-token writes again after logout completes. */
+export function resumePushTokenWritesAfterLogout(): void {
+  pushTokenWritesSuspendedForUserId = null;
+}
+
+function isPushTokenWriteSuspended(userDocId: string): boolean {
+  return (
+    pushTokenWritesSuspendedForUserId !== null &&
+    pushTokenWritesSuspendedForUserId === userDocId.trim()
+  );
 }
 
 function readStoredTokenArray(value: unknown): string[] {
@@ -101,11 +130,6 @@ function buildPushTokenUpdatePayload(
     }
   }
 
-  const trimmedExpoToken = params.expoPushToken?.trim();
-  if (trimmedExpoToken && existingData.expoPushToken !== trimmedExpoToken) {
-    payload.expoPushToken = trimmedExpoToken;
-  }
-
   if (
     params.preferences &&
     !notificationPreferencesEqual(params.preferences, existingData.notificationPreferences)
@@ -128,6 +152,10 @@ async function writePushTokenDoc(params: SavePushTokenParams): Promise<boolean> 
 
   const trimmedId = params.userDocId.trim();
   if (!trimmedId) {
+    return false;
+  }
+
+  if (isPushTokenWriteSuspended(trimmedId)) {
     return false;
   }
 
@@ -164,15 +192,18 @@ async function writePushTokenDoc(params: SavePushTokenParams): Promise<boolean> 
   return true;
 }
 
-/** Saves FCM / Expo push tokens (and optional prefs) under users/{auth.uid}. */
+/** Saves FCM push token (and optional prefs) under users/{auth.uid}. */
 export async function saveUserPushToken(params: {
   userId?: string | null;
   fcmToken?: string | null;
-  expoPushToken?: string | null;
   preferences?: NotificationPreferences;
 }): Promise<{ ok: true } | { ok: false; errorMessage: string }> {
   const userId = params.userId?.trim();
   if (!userId) {
+    return { ok: true };
+  }
+
+  if (isPushTokenWriteSuspended(userId)) {
     return { ok: true };
   }
 
@@ -182,11 +213,14 @@ export async function saveUserPushToken(params: {
   }
 
   return withPushTokenWriteLock(async () => {
+    if (isPushTokenWriteSuspended(userId)) {
+      return { ok: true };
+    }
+
     try {
       await writePushTokenDoc({
         userDocId: userId,
         fcmToken: params.fcmToken,
-        expoPushToken: params.expoPushToken,
         preferences: params.preferences,
       });
 
@@ -198,6 +232,75 @@ export async function saveUserPushToken(params: {
   });
 }
 
+export type RemoveDevicePushTokenResult =
+  | { ok: true; removed: boolean }
+  | { ok: false; errorMessage: string };
+
+/**
+ * Removes this device's FCM token from the signed-in user's Firestore document.
+ * Safe for multi-device: only clears `fcmToken` when it matches this device.
+ */
+export async function removeCurrentDevicePushToken(params: {
+  userDocId: string;
+  fcmToken?: string | null;
+}): Promise<RemoveDevicePushTokenResult> {
+  const trimmedId = params.userDocId.trim();
+  const trimmedToken = params.fcmToken?.trim();
+  if (!trimmedId || !trimmedToken) {
+    return { ok: true, removed: false };
+  }
+
+  const db = await getFirestoreDb();
+  if (!db) {
+    return { ok: false, errorMessage: 'Firebase är inte konfigurerat.' };
+  }
+
+  const currentUser = getFirebaseAuth()?.currentUser ?? null;
+  if (!currentUser || currentUser.uid !== trimmedId) {
+    return { ok: false, errorMessage: 'Inte inloggad som rätt användare.' };
+  }
+
+  return withPushTokenWriteLock(async () => {
+    try {
+      const userRef = doc(db, FIRESTORE_COLLECTIONS.users, trimmedId);
+      const snapshot = await getDoc(userRef);
+      if (!snapshot.exists()) {
+        return { ok: true, removed: false };
+      }
+
+      const existingData = snapshot.data() as Record<string, unknown>;
+      const existingTokens = readStoredTokenArray(existingData.fcmTokens);
+      const existingSingle =
+        typeof existingData.fcmToken === 'string' ? existingData.fcmToken.trim() : '';
+
+      const tokenInArray = existingTokens.includes(trimmedToken);
+      const singleMatches = existingSingle === trimmedToken;
+
+      if (!tokenInArray && !singleMatches) {
+        return { ok: true, removed: false };
+      }
+
+      const payload: Record<string, unknown> = {
+        updatedAt: serverTimestamp(),
+      };
+
+      if (tokenInArray) {
+        payload.fcmTokens = arrayRemove(trimmedToken);
+      }
+
+      if (singleMatches) {
+        payload.fcmToken = deleteField();
+      }
+
+      await updateDoc(userRef, payload);
+      return { ok: true, removed: true };
+    } catch (error) {
+      console.warn('[SeniorHub] Kunde inte rensa push-token vid utloggning:', error);
+      return { ok: false, errorMessage: 'Kunde inte rensa push-token just nu.' };
+    }
+  });
+}
+
 /** Syncs local notification preferences to Firestore for server-side push. */
 export async function syncUserNotificationPreferences(params: {
   userId?: string | null;
@@ -205,6 +308,10 @@ export async function syncUserNotificationPreferences(params: {
 }): Promise<void> {
   const userId = params.userId?.trim();
   if (!userId) {
+    return;
+  }
+
+  if (isPushTokenWriteSuspended(userId)) {
     return;
   }
 
@@ -220,6 +327,10 @@ export async function syncUserNotificationPreferences(params: {
   };
 
   await withPushTokenWriteLock(async () => {
+    if (isPushTokenWriteSuspended(userId)) {
+      return;
+    }
+
     try {
       const userRef = doc(db, FIRESTORE_COLLECTIONS.users, userId);
       const snapshot = await getDoc(userRef);

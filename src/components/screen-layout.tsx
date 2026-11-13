@@ -19,6 +19,7 @@ type ScreenLayoutProps = {
   omitTabInset?: boolean;
   /** Shows the shared top-left back control (stack/sub pages only). */
   showBackButton?: boolean;
+  onBackPress?: () => void;
 };
 
 const FooterShadow = Platform.select({
@@ -46,6 +47,7 @@ export function ScreenLayout({
   contentStyle,
   omitTabInset = false,
   showBackButton = false,
+  onBackPress,
 }: ScreenLayoutProps) {
   const insets = useSafeAreaInsets();
   const { horizontalPadding, sectionGap, contentWidth, isCompact } = useResponsive();
@@ -80,7 +82,12 @@ export function ScreenLayout({
   if (!scrollable) {
     return (
       <ThemedView style={styles.container}>
-        <ScreenHeader title={title} subtitle={subtitle} showBackButton={showBackButton} />
+        <ScreenHeader
+          title={title}
+          subtitle={subtitle}
+          showBackButton={showBackButton}
+          onBackPress={onBackPress}
+        />
         <View style={[styles.staticContent, { paddingBottom }, ...contentStyles]}>{children}</View>
         {footerBar}
       </ThemedView>
@@ -89,7 +96,12 @@ export function ScreenLayout({
 
   return (
     <ThemedView style={styles.container}>
-      <ScreenHeader title={title} subtitle={subtitle} showBackButton={showBackButton} />
+      <ScreenHeader
+        title={title}
+        subtitle={subtitle}
+        showBackButton={showBackButton}
+        onBackPress={onBackPress}
+      />
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,

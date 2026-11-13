@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
+import { CURRENT_LEGAL_TERMS_VERSION } from '../src/constants/legal-consent.ts';
 import { saveUserProfile } from '../src/services/profile/save-user-profile.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -78,6 +79,32 @@ function profileUpdateForUser1(phone) {
   };
 }
 
+const PHONE_ALREADY_IN_USE = 'PHONE_ALREADY_IN_USE';
+
+function emulatorAssertPhoneAvailable(testEnv) {
+  return async (userId, phoneNormalized) => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const snapshot = await getDoc(doc(context.firestore(), 'phoneIndex', phoneNormalized));
+      if (!snapshot.exists()) {
+        return;
+      }
+
+      const ownerUid = typeof snapshot.data()?.uid === 'string' ? snapshot.data().uid.trim() : '';
+      if (ownerUid && ownerUid !== userId) {
+        throw new Error(PHONE_ALREADY_IN_USE);
+      }
+    });
+  };
+}
+
+function integrationSaveOptions(testEnv, db) {
+  return {
+    firestore: db,
+    platform: 'integration-test',
+    assertPhoneAvailable: emulatorAssertPhoneAvailable(testEnv),
+  };
+}
+
 describe('saveUserProfile integration (Firestore emulator)', () => {
   it('changes phone on an existing profile and moves phoneIndex atomically', async () => {
     await seedUser('user1', {
@@ -92,10 +119,11 @@ describe('saveUserProfile integration (Firestore emulator)', () => {
     await seedPhoneIndex('0701111111', 'user1');
 
     const db = authedDb('user1', { email: 'user1@example.com' });
-    const result = await saveUserProfile('user1', profileUpdateForUser1('0705555555'), {
-      firestore: db,
-      platform: 'integration-test',
-    });
+    const result = await saveUserProfile(
+      'user1',
+      profileUpdateForUser1('0705555555'),
+      integrationSaveOptions(testEnv, db),
+    );
 
     assert.equal(result.ok, true);
 
@@ -124,10 +152,11 @@ describe('saveUserProfile integration (Firestore emulator)', () => {
     await seedPhoneIndex('0705555555', 'user2');
 
     const db = authedDb('user1', { email: 'user1@example.com' });
-    const result = await saveUserProfile('user1', profileUpdateForUser1('0705555555'), {
-      firestore: db,
-      platform: 'integration-test',
-    });
+    const result = await saveUserProfile(
+      'user1',
+      profileUpdateForUser1('0705555555'),
+      integrationSaveOptions(testEnv, db),
+    );
 
     assert.equal(result.ok, false);
 
@@ -161,10 +190,11 @@ describe('saveUserProfile integration (Firestore emulator)', () => {
       '0705555555',
     );
 
-    const result = await saveUserProfile('user1', profileUpdateForUser1('0705555555'), {
-      firestore: db,
-      platform: 'integration-test',
-    });
+    const result = await saveUserProfile(
+      'user1',
+      profileUpdateForUser1('0705555555'),
+      integrationSaveOptions(testEnv, db),
+    );
 
     assert.equal(result.ok, false);
 
@@ -181,7 +211,7 @@ describe('saveUserProfile integration (Firestore emulator)', () => {
     assert.deepEqual(afterTargetIndex, beforeTargetIndex);
   });
 
-  it('creates phoneIndex when a legacy profile saves the same phone without an index', async () => {
+  it('does not claim phoneIndex when refreshing the same phone (login sync)', async () => {
     await seedUser('user1', {
       name: 'User One',
       email: 'user1@example.com',
@@ -193,18 +223,83 @@ describe('saveUserProfile integration (Firestore emulator)', () => {
     });
 
     const db = authedDb('user1', { email: 'user1@example.com' });
-    const result = await saveUserProfile('user1', profileUpdateForUser1('070-111 11 11'), {
-      firestore: db,
-      platform: 'integration-test',
-    });
+    const result = await saveUserProfile(
+      'user1',
+      profileUpdateForUser1('070-111 11 11'),
+      integrationSaveOptions(testEnv, db),
+    );
 
     assert.equal(result.ok, true);
 
     const index = await readPhoneIndex(db, '0701111111');
-    assert.ok(index);
-    assert.equal(index.uid, 'user1');
+    assert.equal(index, null);
+  });
 
-    const user = await readUser(db, 'user1');
-    assert.equal(user.phoneNormalized, '0701111111');
+  it('allows login sync when phoneIndex is owned by another uid but phone is unchanged', async () => {
+    await seedUser('user1', {
+      name: 'User One',
+      email: 'user1@example.com',
+      phone: '0737569232',
+      phoneNormalized: '0737569232',
+      photoUrl: null,
+      role: 'user',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await seedPhoneIndex('0737569232', 'user2');
+
+    const db = authedDb('user1', { email: 'user1@example.com' });
+    const result = await saveUserProfile(
+      'user1',
+      profileUpdateForUser1('0737569232'),
+      integrationSaveOptions(testEnv, db),
+    );
+
+    assert.equal(result.ok, true);
+
+    const ownerDb = authedDb('user2', { email: 'user2@example.com' });
+    const index = await readPhoneIndex(ownerDb, '0737569232');
+    assert.equal(index.uid, 'user2');
+  });
+
+  it('denies new registration when the phone index is already taken', async () => {
+    await seedPhoneIndex('0709999999', 'existing-user');
+
+    const db = authedDb('new-user', { email: 'new@example.com' });
+    const result = await saveUserProfile(
+      'new-user',
+      {
+        name: 'New User',
+        phone: '0709999999',
+        email: 'new@example.com',
+      },
+      {
+        ...integrationSaveOptions(testEnv, db),
+        legalConsent: { version: CURRENT_LEGAL_TERMS_VERSION },
+      },
+    );
+
+    assert.equal(result.ok, false);
+  });
+
+  it('creates profile and phoneIndex for new registration with a free phone', async () => {
+    const db = authedDb('new-user', { email: 'new@example.com' });
+    const result = await saveUserProfile(
+      'new-user',
+      {
+        name: 'New User',
+        phone: '0708888888',
+        email: 'new@example.com',
+      },
+      {
+        ...integrationSaveOptions(testEnv, db),
+        legalConsent: { version: CURRENT_LEGAL_TERMS_VERSION },
+      },
+    );
+
+    assert.equal(result.ok, true);
+
+    const index = await readPhoneIndex(db, '0708888888');
+    assert.equal(index.uid, 'new-user');
   });
 });

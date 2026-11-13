@@ -1,6 +1,7 @@
 export {
   getAvailableAuthProviders,
   AUTH_PROVIDERS,
+  abandonMagicLinkSignInFlow,
   completeMagicLinkSignIn,
   clearEmailForSignIn,
   clearPendingLoginIntent,

@@ -8,8 +8,10 @@ import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
+import { abandonMagicLinkSignInFlow, readEmailForSignIn } from '@/services/auth';
 import { readPendingActivityBooking } from '@/services/auth/pending-activity-booking';
 import { readSearchParam } from '@/utils/resolve-auth-email-link';
+import { shouldAutoRedirectSignedInLogin } from '@/utils/should-auto-redirect-signed-in-login';
 
 /**
  * Regular user login via Firebase Magic Link.
@@ -18,7 +20,7 @@ import { readSearchParam } from '@/utils/resolve-auth-email-link';
 export default function LoginScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { sendSignInLink, isSignedIn } = useAuth();
+  const { sendSignInLink, isSignedIn, user } = useAuth();
   const { verified } = useLocalSearchParams<{ verified?: string }>();
 
   const [email, setEmail] = useState('');
@@ -26,10 +28,23 @@ export default function LoginScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
+  const [hasStoredMagicLinkEmail, setHasStoredMagicLinkEmail] = useState(false);
   const showVerifiedMessage = readSearchParam(verified) === '1';
 
   useEffect(() => {
-    if (!isSignedIn || linkSent) {
+    void readEmailForSignIn().then((storedEmail) => {
+      setHasStoredMagicLinkEmail(Boolean(storedEmail));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (
+      !shouldAutoRedirectSignedInLogin({
+        isSignedIn,
+        linkSent,
+        hasStoredMagicLinkEmail,
+      })
+    ) {
       return;
     }
 
@@ -44,7 +59,7 @@ export default function LoginScreen() {
 
       router.replace('/profil' as Href);
     })();
-  }, [isSignedIn, linkSent, router]);
+  }, [hasStoredMagicLinkEmail, isSignedIn, linkSent, router]);
 
   const handleSendLink = async () => {
     const trimmedEmail = email.trim();
@@ -72,7 +87,13 @@ export default function LoginScreen() {
     }
   };
 
-  if (isSignedIn) {
+  if (
+    shouldAutoRedirectSignedInLogin({
+      isSignedIn,
+      linkSent,
+      hasStoredMagicLinkEmail,
+    })
+  ) {
     return (
       <ScreenLayout title="Logga in" subtitle="Du är redan inloggad" showBackButton>
         <View style={styles.form}>
@@ -85,9 +106,31 @@ export default function LoginScreen() {
     );
   }
 
+  const showSignedInWhileMagicLinkPending = isSignedIn && hasStoredMagicLinkEmail;
+
   return (
     <ScreenLayout title="Logga in" subtitle="Inget lösenord behövs" showBackButton>
       <View style={styles.form}>
+        {showSignedInWhileMagicLinkPending ? (
+          <View style={[styles.successCard, { backgroundColor: theme.primaryLight }]}>
+            <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.successText}>
+              Du är inloggad som {user?.email ?? 'ett annat konto'} medan en inloggningslänk väntar.
+              Logga ut för att slutföra e-postinloggningen eller byta konto.
+            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Logga ut"
+              onPress={() => {
+                void abandonMagicLinkSignInFlow().then(() => {
+                  setHasStoredMagicLinkEmail(false);
+                });
+              }}
+              style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}>
+              <ThemedText type="linkPrimary">Logga ut</ThemedText>
+            </Pressable>
+          </View>
+        ) : null}
+
         {showVerifiedMessage ? (
           <View style={[styles.successCard, { backgroundColor: theme.primaryLight }]}>
             <ThemedText type="bodyLarge" themeColor="textSecondary" style={styles.successText}>

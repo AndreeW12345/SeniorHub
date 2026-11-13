@@ -1,8 +1,8 @@
-import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import type { NotificationPreferences } from '@/constants/notification-preferences';
+import { fetchFcmRegistrationToken } from '@/firebase/messaging';
 import {
   configureNotificationHandler,
   ensureAndroidNotificationChannel,
@@ -10,47 +10,19 @@ import {
 import { saveUserPushToken } from './save-user-push-token';
 
 export type RegisterPushNotificationsResult =
-  | { ok: true; fcmToken: string | null; expoPushToken: string | null; permissionGranted: boolean }
+  | { ok: true; fcmToken: string | null; permissionGranted: boolean }
   | { ok: false; errorMessage: string };
-
-function getEasProjectId(): string | null {
-  return (
-    Constants.expoConfig?.extra?.eas?.projectId ??
-    Constants.easConfig?.projectId ??
-    null
-  );
-}
-
-async function fetchNativePushToken(): Promise<string | null> {
-  try {
-    const tokenResponse = await Notifications.getDevicePushTokenAsync();
-    return tokenResponse.data?.trim() || null;
-  } catch (error) {
-    console.warn('[SeniorHub] Kunde inte hämta FCM/APNs-token:', error);
-    return null;
-  }
-}
-
-async function fetchExpoPushToken(projectId: string): Promise<string | null> {
-  try {
-    const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
-    return tokenResponse.data?.trim() || null;
-  } catch (error) {
-    console.warn('[SeniorHub] Kunde inte hämta Expo push token:', error);
-    return null;
-  }
-}
 
 /**
  * Asks for notification permission (first launch / when needed),
- * fetches FCM + Expo push tokens when possible, and stores them in Firestore.
+ * fetches FCM push token when possible, and stores it in Firestore.
  */
 export async function registerPushNotifications(options?: {
   preferences?: NotificationPreferences;
   userId?: string | null;
 }): Promise<RegisterPushNotificationsResult> {
   if (Platform.OS === 'web') {
-    return { ok: true, fcmToken: null, expoPushToken: null, permissionGranted: false };
+    return { ok: true, fcmToken: null, permissionGranted: false };
   }
 
   try {
@@ -66,29 +38,20 @@ export async function registerPushNotifications(options?: {
     }
 
     if (status !== 'granted') {
-      return { ok: true, fcmToken: null, expoPushToken: null, permissionGranted: false };
+      return { ok: true, fcmToken: null, permissionGranted: false };
     }
 
-    const fcmToken = await fetchNativePushToken();
+    const fcmToken = await fetchFcmRegistrationToken();
 
-    let expoPushToken: string | null = null;
-    const projectId = getEasProjectId();
-    if (projectId) {
-      expoPushToken = await fetchExpoPushToken(projectId);
-    } else {
-      console.warn('[SeniorHub] EAS projectId saknas – hoppar över Expo push token.');
-    }
-
-    if (fcmToken || expoPushToken) {
+    if (fcmToken) {
       await saveUserPushToken({
         userId: options?.userId,
         fcmToken,
-        expoPushToken,
         preferences: options?.preferences,
       });
     }
 
-    return { ok: true, fcmToken, expoPushToken, permissionGranted: true };
+    return { ok: true, fcmToken, permissionGranted: true };
   } catch (error) {
     console.error('[SeniorHub] Misslyckades med push-registrering:', error);
     return {

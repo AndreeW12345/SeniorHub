@@ -14,6 +14,7 @@ type ScreenHeaderProps = {
   footer?: ReactNode;
   /** Shows the shared top-left back control (stack/sub pages only). */
   showBackButton?: boolean;
+  onBackPress?: () => void;
 };
 
 export function ScreenHeader({
@@ -21,6 +22,7 @@ export function ScreenHeader({
   subtitle,
   footer,
   showBackButton = false,
+  onBackPress,
 }: ScreenHeaderProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -38,7 +40,7 @@ export function ScreenHeader({
           paddingBottom: headerPaddingBottom,
         },
       ]}>
-      {showBackButton ? <BackButton /> : null}
+      {showBackButton ? <BackButton onPress={onBackPress} /> : null}
       <ThemedText type="title" style={[styles.title, isCompact && styles.titleCompact]}>
         {title}
       </ThemedText>

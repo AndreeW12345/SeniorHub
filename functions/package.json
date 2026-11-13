@@ -3,7 +3,7 @@
   "private": true,
   "main": "lib/index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "build": "tsc",
@@ -11,7 +11,7 @@
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
     "lint": "tsc --noEmit",
-    "test": "npm run build && node --test test/delete-user-account.test.mjs"
+    "test": "npm run build && node --test test/delete-user-account.test.mjs test/assert-phone-available-for-profile.test.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.6.0",

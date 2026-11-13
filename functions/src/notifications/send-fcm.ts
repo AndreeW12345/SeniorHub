@@ -102,16 +102,14 @@ async function sendPushToUser(payload: PushPayload): Promise<void> {
             : '';
 
         if (code.includes('registration-token-not-registered')) {
-          await db
-            .collection(COLLECTIONS.users)
-            .doc(payload.userId)
-            .set(
-              {
-                fcmToken: FieldValue.delete(),
-                fcmTokens: FieldValue.arrayRemove(token),
-              },
-              { merge: true },
-            );
+          const staleFcmToken = readString(userDoc.data()?.fcmToken);
+          const cleanup: Record<string, unknown> = {
+            fcmTokens: FieldValue.arrayRemove(token),
+          };
+          if (staleFcmToken === token) {
+            cleanup.fcmToken = FieldValue.delete();
+          }
+          await db.collection(COLLECTIONS.users).doc(payload.userId).set(cleanup, { merge: true });
         }
 
         console.warn('[SeniorHub] FCM send failed:', code || 'unknown_error');

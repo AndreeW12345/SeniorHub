@@ -225,7 +225,10 @@ export const requestLoginMagicLink = onCall(
           ? (error as { code: string }).code
           : 'unknown_error';
       console.error('[requestLoginMagicLink] Failed to generate sign-in link.', code);
-      return { ok: true };
+      throw new HttpsError(
+        'internal',
+        'Kunde inte skicka inloggningslänken just nu. Försök igen.',
+      );
     }
 
     try {
@@ -236,7 +239,10 @@ export const requestLoginMagicLink = onCall(
           ? error.message
           : 'Resend request failed (unknown)';
       console.error('[requestLoginMagicLink] Failed to send login magic link email.', detail);
-      return { ok: true };
+      throw new HttpsError(
+        'internal',
+        'Kunde inte skicka inloggningslänken just nu. Försök igen.',
+      );
     }
 
     return { ok: true };

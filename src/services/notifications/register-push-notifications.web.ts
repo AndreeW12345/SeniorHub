@@ -3,7 +3,7 @@ import type { RegisterPushNotificationsResult } from './register-push-notificati
 export type { RegisterPushNotificationsResult };
 
 export async function registerPushNotifications(): Promise<RegisterPushNotificationsResult> {
-  return { ok: true, fcmToken: null, expoPushToken: null, permissionGranted: false };
+  return { ok: true, fcmToken: null, permissionGranted: false };
 }
 
 export async function persistRefreshedPushToken(): Promise<void> {

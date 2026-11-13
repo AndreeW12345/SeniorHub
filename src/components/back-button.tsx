@@ -8,16 +8,17 @@ import { useTheme } from '@/hooks/use-theme';
 
 type BackButtonProps = {
   style?: StyleProp<ViewStyle>;
+  onPress?: () => void;
 };
 
 /** Shared top-left back control for stack/sub pages. */
-export function BackButton({ style }: BackButtonProps) {
+export function BackButton({ style, onPress }: BackButtonProps) {
   const goBack = useSafeBack();
   const theme = useTheme();
 
   return (
     <Pressable
-      onPress={goBack}
+      onPress={onPress ?? goBack}
       accessibilityRole="button"
       accessibilityLabel="Gå tillbaka"
       style={({ pressed }) => [styles.button, pressed && styles.pressed, style]}>
