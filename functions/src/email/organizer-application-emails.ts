@@ -84,12 +84,13 @@ export function buildLoginMagicLinkEmailText(link: string): string {
   return [
     'Hej!',
     '',
-    'Klicka på länken nedan för att logga in på SeniorHub:',
+    'Du har begärt en inloggningslänk till SeniorHub.',
+    'Klicka på länken nedan för att logga in:',
     link,
     '',
-    'Om du inte har begärt detta kan du ignorera det här meddelandet.',
+    'Om du inte har begärt detta mejl kan du ignorera det.',
     '',
-    'Med vänliga hälsningar',
+    'Med vänliga hälsningar,',
     'SeniorHub',
   ].join('\n');
 }
