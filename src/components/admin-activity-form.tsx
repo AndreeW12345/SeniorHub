@@ -40,13 +40,14 @@ import {
   type ActivityFormInput,
 } from '@/services/activities';
 import { notifyActivityImportantUpdates } from '@/services/announcements';
-import { geocodeAddress } from '@/services/geocoding';
+import { geocodeAddress, validatePostalCodeInput } from '@/services/geocoding';
 import { uploadActivityImage } from '@/services/storage';
-import { buildFullAddress } from '@/utils/address-format';
+import { buildActivityStoredFullAddress } from '@/utils/activity-place-address';
 import {
   parseCoordinateInput,
   validateActivityCoordinates,
 } from '@/utils/activity-coordinates';
+import { showSuccessAlert } from '@/utils/confirm-alert';
 import {
   combineStoredTimeRange,
   isEndTimeAfterStart,
@@ -338,11 +339,9 @@ export function AdminActivityForm({
       nextErrors.organizer =
         'Organisationen saknar namn. Uppdatera organisationsprofilen under Admin.';
     }
-    if (!street.trim()) {
-      nextErrors.street = 'Ange gatuadress.';
-    }
-    if (!postalCode.trim()) {
-      nextErrors.postalCode = 'Ange postnummer.';
+    const postalCodeError = validatePostalCodeInput(postalCode);
+    if (postalCodeError) {
+      nextErrors.postalCode = postalCodeError;
     }
     if (!city.trim()) {
       nextErrors.city = 'Ange ort.';
@@ -417,14 +416,24 @@ export function AdminActivityForm({
 
     setIsSaving(true);
 
+    const placeParts = {
+      placeName: location,
+      city,
+      street,
+      postalCode,
+    };
+
     let nextLatitude = latitude.trim();
     let nextLongitude = longitude.trim();
-    let nextFullAddress = fullAddress.trim() || buildFullAddress(street, postalCode, city);
+    let nextFullAddress =
+      fullAddress.trim() || buildActivityStoredFullAddress(placeParts);
 
+    const initialLocation = (initialValues.location ?? '').trim();
     const initialStreet = (initialValues.street ?? '').trim();
     const initialPostalCode = (initialValues.postalCode ?? '').trim();
     const initialCity = (initialValues.city ?? '').trim();
-    const addressChanged =
+    const placeChanged =
+      location.trim() !== initialLocation ||
       street.trim() !== initialStreet ||
       postalCode.trim() !== initialPostalCode ||
       city.trim() !== initialCity;
@@ -436,31 +445,45 @@ export function AdminActivityForm({
         parseCoordinateInput(nextLongitude),
       ) === null;
 
-    if (addressChanged || !hasExistingCoordinates) {
+    const shouldGeocode = placeChanged || !hasExistingCoordinates;
+    let pendingMapNotice: string | null = null;
+
+    if (shouldGeocode) {
       const geocodeResult = await geocodeAddress({
+        placeName: location,
+        city,
         street,
         postalCode,
-        city,
       });
 
-      if (!geocodeResult.ok) {
+      nextFullAddress = buildActivityStoredFullAddress(placeParts);
+
+      if (geocodeResult.ok) {
+        nextFullAddress = geocodeResult.fullAddress;
+        nextLatitude = String(geocodeResult.latitude);
+        nextLongitude = String(geocodeResult.longitude);
+        setFullAddress(nextFullAddress);
+        setLatitude(nextLatitude);
+        setLongitude(nextLongitude);
+      } else if (geocodeResult.errorMessage === validatePostalCodeInput(postalCode)) {
         setIsSaving(false);
         setSubmitError(geocodeResult.errorMessage);
         setErrors((current) => ({
           ...current,
-          street: geocodeResult.errorMessage,
+          postalCode: geocodeResult.errorMessage,
         }));
         return;
+      } else {
+        nextLatitude = '';
+        nextLongitude = '';
+        setFullAddress(nextFullAddress);
+        setLatitude('');
+        setLongitude('');
+        pendingMapNotice =
+          'Aktiviteten sparades utan kartmarkör. Kartpositionen kunde inte fastställas säkert utifrån angivna uppgifter.';
       }
-
-      nextFullAddress = geocodeResult.fullAddress;
-      nextLatitude = String(geocodeResult.latitude);
-      nextLongitude = String(geocodeResult.longitude);
-      setFullAddress(nextFullAddress);
-      setLatitude(nextLatitude);
-      setLongitude(nextLongitude);
     } else {
-      nextFullAddress = buildFullAddress(street, postalCode, city);
+      nextFullAddress = buildActivityStoredFullAddress(placeParts);
       setFullAddress(nextFullAddress);
     }
 
@@ -546,6 +569,10 @@ export function AdminActivityForm({
             ? { seriesId }
             : null,
       });
+    }
+
+    if (pendingMapNotice) {
+      showSuccessAlert('Aktiviteten sparades', pendingMapNotice);
     }
 
     await onSubmitSuccess();
@@ -785,11 +812,12 @@ export function AdminActivityForm({
           </View>
 
           <ThemedText type="bodyLarge" themeColor="textSecondary">
-            Fyll i adressen. Koordinater hämtas automatiskt när du sparar.
+            Platsbeskrivning och ort används för att hitta kartpositionen. Gatuadress och postnummer är valfria
+            men ger oftast en exaktare markör.
           </ThemedText>
 
           <FormField
-            label="Gatuadress *"
+            label="Gatuadress (valfri)"
             value={street}
             onChangeText={(value) => {
               setStreet(value);
@@ -803,7 +831,7 @@ export function AdminActivityForm({
           <View style={rowStyle}>
             <View style={fieldHalfStyle}>
               <FormField
-                label="Postnummer *"
+                label="Postnummer (valfritt)"
                 value={postalCode}
                 onChangeText={(value) => {
                   setPostalCode(value);

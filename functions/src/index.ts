@@ -9,6 +9,7 @@ import { inviteOrganizerAdmin } from './callable/invite-organizer-admin';
 import { listOrganizationAdmins } from './callable/list-organization-admins';
 import { revokeOrganizerAdmin } from './callable/revoke-organizer-admin';
 import { deleteUserAccount } from './callable/delete-user-account';
+import { geocodeActivityPlace } from './callable/geocode-activity-place';
 import { scheduledActivityReminders } from './scheduled/activity-reminders';
 import { onActivityUpdated } from './triggers/on-activity-updated';
 import { onOrganizerApplicationCreated } from './triggers/on-organizer-application-created';
@@ -32,4 +33,5 @@ export {
   onOrganizerApplicationCreated,
   onActivityUpdated,
   scheduledActivityReminders,
+  geocodeActivityPlace,
 };

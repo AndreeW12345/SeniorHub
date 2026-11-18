@@ -2,11 +2,13 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   increment,
   serverTimestamp,
   updateDoc,
   writeBatch,
+  type DocumentData,
 } from 'firebase/firestore';
 
 import type { ActiveRecurrenceFrequency } from '@/constants/recurrence';
@@ -15,6 +17,7 @@ import { getFirestoreDb, isFirebaseConfigured } from '@/firebase/config';
 import {
   buildActivityDocumentData,
   getFirestoreUnavailableResult,
+  type ActivityDocumentData,
   type ActivityFormInput,
   type ActivityMutationResult,
 } from '@/services/activities/activity-form-data';
@@ -50,6 +53,24 @@ export type DeleteActivityOptions = {
   seriesId?: string | null;
 };
 
+function buildFirestoreActivityCreatePayload(data: ActivityDocumentData): DocumentData {
+  const payload: DocumentData = { ...data };
+  if (data.latitude == null || data.longitude == null) {
+    delete payload.latitude;
+    delete payload.longitude;
+  }
+  return payload;
+}
+
+function buildFirestoreActivityUpdatePayload(data: ActivityDocumentData): DocumentData {
+  const payload = buildFirestoreActivityCreatePayload(data);
+  if (data.latitude == null || data.longitude == null) {
+    payload.latitude = deleteField();
+    payload.longitude = deleteField();
+  }
+  return payload;
+}
+
 /** Saves a new activity document (or a full recurring series) to Firestore. */
 export async function saveActivityToFirestore(
   input: ActivityFormInput,
@@ -75,7 +96,7 @@ export async function saveActivityToFirestore(
   if (!recurrenceInput) {
     try {
       const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.activities), {
-        ...parsed.data,
+        ...buildFirestoreActivityCreatePayload(parsed.data),
         ...(organizationId ? { organizationId } : {}),
         createdAt: serverTimestamp(),
       });
@@ -124,7 +145,7 @@ export async function saveActivityToFirestore(
       }
 
       batch.set(docRef, {
-        ...parsed.data,
+        ...buildFirestoreActivityCreatePayload(parsed.data),
         date: occurrenceDate,
         // Each occurrence has its own booking counter / registration subcollection.
         participants: parsed.data.participants,
@@ -194,7 +215,7 @@ export async function updateActivityInFirestore(
 
         const isOpenedOccurrence = activity.id === activityId;
         batch.update(doc(db, FIRESTORE_COLLECTIONS.activities, activity.id), {
-          ...parsed.data,
+          ...buildFirestoreActivityUpdatePayload(parsed.data),
           // Preserve each occurrence's own date / index / bookings.
           date: isOpenedOccurrence ? parsed.data.date : activity.date,
           participants:
@@ -221,7 +242,7 @@ export async function updateActivityInFirestore(
 
   try {
     await updateDoc(doc(db, FIRESTORE_COLLECTIONS.activities, activityId), {
-      ...parsed.data,
+      ...buildFirestoreActivityUpdatePayload(parsed.data),
       ...(seriesId
         ? {
             isRecurrenceException: true,

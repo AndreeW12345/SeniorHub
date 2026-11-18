@@ -293,6 +293,15 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Geocoding system config and cache: server (Admin SDK) only — no client access.
+    match /system/{docId} {
+      allow read, write: if false;
+    }
+
+    match /geocodeCache/{cacheId} {
+      allow read, write: if false;
+    }
+
     match /activities/{activityId} {
       allow read: if true;
 

@@ -11,7 +11,7 @@
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
     "lint": "tsc --noEmit",
-    "test": "npm run build && node --test test/delete-user-account.test.mjs test/assert-phone-available-for-profile.test.mjs"
+    "test": "npm run build && node --test test/delete-user-account.test.mjs test/assert-phone-available-for-profile.test.mjs test/geocode-pii.test.mjs test/geocode-cache.test.mjs test/nominatim-rate-limit.test.mjs test/geocode-activity-place-core.test.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.6.0",

@@ -7,6 +7,10 @@ import {
   parseCoordinateInput,
   validateActivityCoordinates,
 } from '@/utils/activity-coordinates';
+import {
+  buildActivityStoredFullAddress,
+  type ActivityPlaceParts,
+} from '@/utils/activity-place-address';
 
 export type ActivityFormInput = {
   title: string;
@@ -43,8 +47,43 @@ export type ActivityMutationResult =
   | { ok: true; id: string }
   | { ok: false; errorMessage: string };
 
+export type ActivityDocumentData = {
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  location: string;
+  organizer: string;
+  category: ActivityCategory;
+  imageUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  street: string | null;
+  postalCode: string | null;
+  city: string;
+  fullAddress: string;
+  address: string;
+  registrationRequired: boolean;
+  hasParticipantLimit: boolean;
+  maxParticipants: number | null;
+  participants: number | null;
+  membershipRequired: boolean;
+  membershipOrganization: string | null;
+  membershipUrl: string | null;
+  registrationMethod: RegistrationMethod | null;
+  registrationUrl: string | null;
+  registrationPhone: string | null;
+  registrationEmail: string | null;
+  isCancelled: boolean;
+};
+
 function readRequired(value: string): string | null {
   const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function readOptional(value: string | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
   return trimmed.length > 0 ? trimmed : null;
 }
 
@@ -75,6 +114,49 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
+function resolveCoordinatesFromInput(
+  latitudeRaw: string | undefined,
+  longitudeRaw: string | undefined,
+): { latitude: number | null; longitude: number | null; errorMessage: string | null } {
+  const latitudeText = latitudeRaw?.trim() ?? '';
+  const longitudeText = longitudeRaw?.trim() ?? '';
+
+  if (!latitudeText && !longitudeText) {
+    return { latitude: null, longitude: null, errorMessage: null };
+  }
+
+  const latitude = parseCoordinateInput(latitudeText);
+  const longitude = parseCoordinateInput(longitudeText);
+  const coordinateError = validateActivityCoordinates(latitude, longitude);
+
+  if (coordinateError) {
+    return { latitude: null, longitude: null, errorMessage: coordinateError };
+  }
+
+  if (latitude === null || longitude === null) {
+    return {
+      latitude: null,
+      longitude: null,
+      errorMessage: 'Ange både latitud och longitud, eller lämna båda tomma.',
+    };
+  }
+
+  return { latitude, longitude, errorMessage: null };
+}
+
+export function buildActivityStoredAddressFromInput(input: ActivityFormInput): string {
+  const parts: ActivityPlaceParts = {
+    placeName: input.location,
+    city: input.city ?? '',
+    street: input.street,
+    postalCode: input.postalCode,
+  };
+  return (
+    input.fullAddress?.trim() ||
+    buildActivityStoredFullAddress(parts)
+  );
+}
+
 export function buildActivityDocumentData(input: ActivityFormInput) {
   const title = readRequired(input.title);
   const description = readRequired(input.description);
@@ -91,32 +173,19 @@ export function buildActivityDocumentData(input: ActivityFormInput) {
     return { ok: false as const, errorMessage: 'Ogiltig kategori.' };
   }
 
-  const latitude = parseCoordinateInput(input.latitude);
-  const longitude = parseCoordinateInput(input.longitude);
-  const coordinateError = validateActivityCoordinates(latitude, longitude);
-
-  if (coordinateError) {
-    return { ok: false as const, errorMessage: coordinateError };
-  }
-
-  if (latitude === null || longitude === null) {
-    return {
-      ok: false as const,
-      errorMessage: 'Aktiviteten måste ha giltiga koordinater innan den kan sparas.',
-    };
-  }
-
-  const street = readRequired(input.street ?? '');
-  const postalCode = readRequired(input.postalCode ?? '');
   const city = readRequired(input.city ?? '');
-  const fullAddress = readRequired(input.fullAddress ?? '');
-
-  if (!street || !postalCode || !city || !fullAddress) {
-    return {
-      ok: false as const,
-      errorMessage: 'Ange gatuadress, postnummer och ort.',
-    };
+  if (!city) {
+    return { ok: false as const, errorMessage: 'Ange ort.' };
   }
+
+  const coordinates = resolveCoordinatesFromInput(input.latitude, input.longitude);
+  if (coordinates.errorMessage) {
+    return { ok: false as const, errorMessage: coordinates.errorMessage };
+  }
+
+  const street = readOptional(input.street ?? '');
+  const postalCode = readOptional(input.postalCode ?? '');
+  const fullAddress = buildActivityStoredAddressFromInput(input);
 
   const registrationRequired = input.registrationRequired === true;
   const hasParticipantLimit = input.hasParticipantLimit === true;
@@ -214,8 +283,8 @@ export function buildActivityDocumentData(input: ActivityFormInput) {
       organizer,
       category: input.category,
       imageUrl: input.imageUrl?.trim() || null,
-      latitude,
-      longitude,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
       street,
       postalCode,
       city,
@@ -234,7 +303,7 @@ export function buildActivityDocumentData(input: ActivityFormInput) {
       registrationPhone,
       registrationEmail,
       isCancelled: input.isCancelled === true,
-    },
+    } satisfies ActivityDocumentData,
   };
 }
 

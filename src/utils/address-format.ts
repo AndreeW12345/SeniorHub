@@ -7,15 +7,7 @@ function normalizePart(part: string): string {
   return part.trim();
 }
 
-/** Formats a Swedish postal code as `NNN NN` when possible. */
-function formatSwedishPostalCode(postalCode: string): string {
-  const digits = postalCode.replace(/\s+/g, '');
-  if (/^\d{5}$/.test(digits)) {
-    return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-  }
-
-  return postalCode.trim();
-}
+import { formatSwedishPostalCode } from '@/utils/swedish-postal-code';
 
 /**
  * Builds the canonical display address:

@@ -914,3 +914,35 @@ describe('phone index – profile phone change transaction', () => {
     );
   });
 });
+
+describe('geocoding server collections', () => {
+  it('denies clients from reading system geocoding config', async () => {
+    const organizerDb = authedDb('org-tyreso', { email: 'org@spf-tyreso.se' });
+    await assertFails(getDoc(doc(organizerDb, 'system', 'geocoding')));
+  });
+
+  it('denies clients from writing system geocoding config', async () => {
+    const adminDb = authedDb('admin1', { email: 'admin@seniorhub.se' });
+    await assertFails(
+      setDoc(doc(adminDb, 'system', 'geocoding'), {
+        cacheVersion: 2,
+        baseUrl: 'https://nominatim.openstreetmap.org/search',
+      }),
+    );
+  });
+
+  it('denies clients from reading geocode cache documents', async () => {
+    const userDb = authedDb('user1', { email: 'user1@example.com' });
+    await assertFails(getDoc(doc(userDb, 'geocodeCache', 'abc123')));
+  });
+
+  it('denies clients from writing geocode cache documents', async () => {
+    const organizerDb = authedDb('org-tyreso', { email: 'org@spf-tyreso.se' });
+    await assertFails(
+      setDoc(doc(organizerDb, 'geocodeCache', 'abc123'), {
+        hits: [],
+        cachedAtMs: Date.now(),
+      }),
+    );
+  });
+});

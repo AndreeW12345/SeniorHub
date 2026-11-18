@@ -1,1 +1,5 @@
-export { geocodeAddress } from '@/services/geocoding/geocoding-service';
+export {
+  geocodeAddress,
+  selectReliableGeocodeHit,
+  validatePostalCodeInput,
+} from '@/services/geocoding/geocoding-service';
