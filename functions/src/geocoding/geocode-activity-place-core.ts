@@ -15,14 +15,14 @@ import {
 } from './geocode-quality';
 import { validatePostalCodeInput } from './swedish-postal-code';
 import type { GeocodeAddressInput, GeocodeAddressResult, GeocodeConfig } from './geocode-types';
-import type { NominatimGeocodeHit } from './geocode-types';
+import type { GeocodeSearchHit } from './geocode-types';
 
 export type GeocodeActivityPlaceCoreDeps = {
-  searchNominatim: (
+  searchGeocode: (
     config: GeocodeConfig,
     query: string,
     limit: number,
-  ) => Promise<NominatimGeocodeHit[]>;
+  ) => Promise<GeocodeSearchHit[]>;
   loadConfig: () => Promise<GeocodeConfig>;
   logPiiBlocked?: (payload: {
     uid: string;
@@ -104,7 +104,7 @@ export async function geocodeActivityPlaceCore(
 
   let cityAnchor: GeocodeCoordinate | null = null;
   try {
-    const anchorHits = await deps.searchNominatim(config, `${city}, Sverige`, 1);
+    const anchorHits = await deps.searchGeocode(config, `${city}, Sverige`, 1);
     if (anchorHits[0]) {
       cityAnchor = {
         latitude: anchorHits[0].latitude,
@@ -115,9 +115,9 @@ export async function geocodeActivityPlaceCore(
     console.warn('[SeniorHub] Stadens ankarpunkt kunde inte hämtas:', error);
   }
 
-  let hits: NominatimGeocodeHit[];
+  let hits: GeocodeSearchHit[];
   try {
-    hits = await deps.searchNominatim(config, query, 5);
+    hits = await deps.searchGeocode(config, query, 5);
   } catch (error) {
     console.error('[SeniorHub] Geocoding misslyckades:', error);
     return {

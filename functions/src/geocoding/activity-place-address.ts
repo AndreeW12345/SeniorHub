@@ -65,7 +65,7 @@ export function buildActivityGeocodeQuery(parts: ActivityPlaceParts): string {
   if (postal) {
     segments.push(postal);
   }
-  if (city) {
+  if (city && !partsEqual(city, placeName)) {
     segments.push(city);
   }
   segments.push('Sverige');

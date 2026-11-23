@@ -1,6 +1,11 @@
 import { getFirestore } from 'firebase-admin/firestore';
 
-import { DEFAULT_GEOCODE_CONFIG, type GeocodeConfig } from './geocode-types';
+import {
+  DEFAULT_GEOCODE_CONFIG,
+  LEGACY_NOMINATIM_GEOCODE_CONFIG,
+  type GeocodeConfig,
+  type GeocodeProvider,
+} from './geocode-types';
 
 const SYSTEM_GEOCODING_DOC = 'system/geocoding';
 
@@ -26,9 +31,21 @@ export function mergeGeocodeConfig(
   const contactUrl = readString(data?.contactUrl, base.contactUrl);
   const customUserAgent = readString(data?.userAgent, '');
 
+  const providerRaw = readString(data?.provider, base.provider);
+  const provider: GeocodeProvider =
+    providerRaw === 'nominatim' ? 'nominatim' : 'google';
+  const providerDefaults =
+    provider === 'nominatim' ? LEGACY_NOMINATIM_GEOCODE_CONFIG : DEFAULT_GEOCODE_CONFIG;
+
+  const configuredBaseUrl = readString(data?.baseUrl, providerDefaults.baseUrl);
+  const baseUrl =
+    provider === 'google' && configuredBaseUrl.includes('nominatim.openstreetmap.org')
+      ? providerDefaults.baseUrl
+      : configuredBaseUrl;
+
   return {
-    provider: readString(data?.provider, base.provider),
-    baseUrl: readString(data?.baseUrl, base.baseUrl),
+    provider,
+    baseUrl,
     userAgent:
       customUserAgent.length > 0
         ? customUserAgent

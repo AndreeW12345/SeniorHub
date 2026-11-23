@@ -120,6 +120,12 @@ describe('geocoding activity place', () => {
     assert.equal(picked.latitude, TYRESON_CENTRUM_HIT.latitude);
   });
 
+  it('accepts a reliable hit when city omits Swedish diacritics', () => {
+    const picked = selectReliableGeocodeHit('Tyreso', [TYRESON_CENTRUM_HIT], TYRESON_ANCHOR);
+    assert.ok(picked);
+    assert.equal(picked.latitude, TYRESON_CENTRUM_HIT.latitude);
+  });
+
   it('returns null when no geocode hits match city', () => {
     const picked = selectReliableGeocodeHit('Tyresö', [], TYRESON_ANCHOR);
     assert.equal(picked, null);

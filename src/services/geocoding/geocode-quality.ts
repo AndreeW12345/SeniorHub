@@ -24,12 +24,21 @@ export function haversineDistanceKm(a: GeocodeCoordinate, b: GeocodeCoordinate):
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-function normalizeCityToken(value: string): string {
+function foldSwedishDiacritics(value: string): string {
   return value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+kommun$/i, '')
-    .replace(/\s+/g, ' ');
+    .replace(/å/g, 'a')
+    .replace(/ä/g, 'a')
+    .replace(/ö/g, 'o');
+}
+
+function normalizeCityToken(value: string): string {
+  return foldSwedishDiacritics(
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/\s+kommun$/i, '')
+      .replace(/\s+/g, ' '),
+  );
 }
 
 export function cityNamesMatch(expectedCity: string, candidate: string): boolean {

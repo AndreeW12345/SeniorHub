@@ -1,7 +1,7 @@
 import { readGeocodeCache, writeGeocodeCache } from './geocode-cache';
 import { reserveNominatimOutboundSlot } from './nominatim-rate-limit';
 import type { GeocodeConfig } from './geocode-types';
-import type { NominatimGeocodeHit } from './geocode-types';
+import type { GeocodeSearchHit } from './geocode-types';
 
 type NominatimJsonHit = {
   lat?: string;
@@ -12,7 +12,7 @@ type NominatimJsonHit = {
 
 const NOMINATIM_FETCH_TIMEOUT_MS = 15_000;
 
-function parseNominatimJson(results: NominatimJsonHit[]): NominatimGeocodeHit[] {
+function parseNominatimJson(results: NominatimJsonHit[]): GeocodeSearchHit[] {
   if (!Array.isArray(results)) {
     return [];
   }
@@ -25,7 +25,7 @@ function parseNominatimJson(results: NominatimJsonHit[]): NominatimGeocodeHit[] 
         return null;
       }
 
-      const parsed: NominatimGeocodeHit = {
+      const parsed: GeocodeSearchHit = {
         latitude,
         longitude,
         displayName: hit.display_name?.trim() ?? '',
@@ -33,14 +33,14 @@ function parseNominatimJson(results: NominatimJsonHit[]): NominatimGeocodeHit[] 
       };
       return parsed;
     })
-    .filter((hit): hit is NominatimGeocodeHit => hit !== null);
+    .filter((hit): hit is GeocodeSearchHit => hit !== null);
 }
 
 async function fetchNominatimUncached(
   config: GeocodeConfig,
   query: string,
   limit: number,
-): Promise<NominatimGeocodeHit[]> {
+): Promise<GeocodeSearchHit[]> {
   const trimmed = query.trim();
   if (!trimmed) {
     return [];
@@ -85,7 +85,7 @@ export async function searchNominatimSwedenServer(
   config: GeocodeConfig,
   query: string,
   limit = 5,
-): Promise<NominatimGeocodeHit[]> {
+): Promise<GeocodeSearchHit[]> {
   const cached = await readGeocodeCache(config, query);
   if (cached) {
     return cached.slice(0, limit);

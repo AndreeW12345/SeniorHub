@@ -1,9 +1,10 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 
 import { europeWest1CallableOptions } from '../config/callable-options';
+import { GOOGLE_GEOCODING_API_KEY } from '../config/secrets';
 import { loadGeocodeConfig } from '../geocoding/geocode-config';
 import { geocodeActivityPlaceCore } from '../geocoding/geocode-activity-place-core';
-import { searchNominatimSwedenServer } from '../geocoding/nominatim-outbound';
+import { createGeocodeSearch } from '../geocoding/resolve-geocode-search';
 import type { GeocodeAddressInput, GeocodeAddressResult } from '../geocoding/geocode-types';
 import { assertActivityGeocoderAccess } from '../utils/assert-activity-geocoder-access';
 
@@ -28,7 +29,7 @@ function readGeocodeInput(payload: GeocodeActivityPlaceRequest): GeocodeAddressI
 }
 
 export const geocodeActivityPlace = onCall(
-  europeWest1CallableOptions({ timeoutSeconds: 55 }),
+  europeWest1CallableOptions({ timeoutSeconds: 55, secrets: [GOOGLE_GEOCODING_API_KEY] }),
   async (request): Promise<GeocodeAddressResult> => {
     const uid = request.auth?.uid?.trim();
     if (!uid) {
@@ -40,12 +41,14 @@ export const geocodeActivityPlace = onCall(
     const payload = (request.data ?? {}) as GeocodeActivityPlaceRequest;
     const input = readGeocodeInput(payload);
 
+    const searchGeocode = createGeocodeSearch(GOOGLE_GEOCODING_API_KEY.value());
+
     return geocodeActivityPlaceCore(
       input,
       { uid },
       {
         loadConfig: loadGeocodeConfig,
-        searchNominatim: searchNominatimSwedenServer,
+        searchGeocode,
       },
     );
   },

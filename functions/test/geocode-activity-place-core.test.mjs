@@ -25,7 +25,7 @@ function createMockDeps(responses) {
     calls,
     deps: {
       loadConfig: async () => DEFAULT_GEOCODE_CONFIG,
-      searchNominatim: async (_config, query, limit) => {
+      searchGeocode: async (_config, query, limit) => {
         calls.push({ query, limit });
         const key = query.includes('Sverige') && query.split(',').length <= 2 ? 'anchor' : 'main';
         return responses[key] ?? [];
@@ -68,6 +68,26 @@ describe('geocodeActivityPlaceCore', () => {
     assert.equal(result.ok, true);
     assert.equal(result.latitude, TYRESON_CENTRUM_HIT.latitude);
     assert.equal(result.longitude, TYRESON_CENTRUM_HIT.longitude);
+  });
+
+  it('accepts a reliable hit when city is typed without Swedish diacritics', async () => {
+    const centrumHit = {
+      ...TYRESON_CENTRUM_HIT,
+      address: { municipality: 'Tyresö kommun' },
+    };
+    const { deps } = createMockDeps({
+      anchor: [TYRESON_ANCHOR],
+      main: [centrumHit],
+    });
+
+    const result = await geocodeActivityPlaceCore(
+      { placeName: 'Tyresö centrum', city: 'Tyreso' },
+      { uid: 'org-1' },
+      deps,
+    );
+
+    assert.equal(result.ok, true);
+    assert.equal(result.latitude, centrumHit.latitude);
   });
 
   it('blocks PII before any outbound search', async () => {

@@ -2,13 +2,13 @@ import { createHash } from 'crypto';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
 import type { GeocodeConfig } from './geocode-types';
-import type { NominatimGeocodeHit } from './geocode-types';
+import type { GeocodeSearchHit } from './geocode-types';
 
 export const GEOCODE_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const GEOCODE_CACHE_COLLECTION = 'geocodeCache';
 
 export type GeocodeCacheRecord = {
-  hits: NominatimGeocodeHit[];
+  hits: GeocodeSearchHit[];
   cachedAtMs: number;
   expiresAtMs: number;
 };
@@ -32,7 +32,7 @@ export function buildGeocodeCacheDocId(
 export async function readGeocodeCache(
   config: Pick<GeocodeConfig, 'provider' | 'cacheVersion'>,
   query: string,
-): Promise<NominatimGeocodeHit[] | null> {
+): Promise<GeocodeSearchHit[] | null> {
   const normalizedQuery = normalizeGeocodeQueryForCache(query);
   const docId = buildGeocodeCacheDocId(config, normalizedQuery);
   const snapshot = await getFirestore().collection(GEOCODE_CACHE_COLLECTION).doc(docId).get();
@@ -52,7 +52,7 @@ export async function readGeocodeCache(
   }
 
   return hits.filter(
-    (hit): hit is NominatimGeocodeHit =>
+    (hit): hit is GeocodeSearchHit =>
       typeof hit === 'object' &&
       hit !== null &&
       typeof hit.latitude === 'number' &&
@@ -64,7 +64,7 @@ export async function readGeocodeCache(
 export async function writeGeocodeCache(
   config: Pick<GeocodeConfig, 'provider' | 'cacheVersion'>,
   query: string,
-  hits: NominatimGeocodeHit[],
+  hits: GeocodeSearchHit[],
 ): Promise<void> {
   if (hits.length === 0) {
     return;
